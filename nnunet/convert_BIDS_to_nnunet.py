@@ -81,7 +81,7 @@ def create_sc_seg(image_file, sc_seg_output, path_to_model="/Users/plbenveniste/
     tmp_folder_seg = os.path.join(sc_seg_output, "tmp")
     pathlib.Path(tmp_folder_seg).mkdir(parents=True, exist_ok=True)
 
-    os.system(f'python nnunet/run_inference_single_image.py --path-img {image_file}  --chkp-path {path_to_model} --path-out {tmp_folder_seg} --use-tta --')
+    os.system(f'python nnunet/run_inference_single_image.py --path-img {image_file}  --chkp-path {path_to_model} --path-out {tmp_folder_seg} --use-tta --remove-small-objects 10')
 
     # Build output file name
     sc_seg_file = os.path.join(tmp_folder_seg, f'{str(image_file).split("/")[-1].split(".")[0]}_pred.nii.gz')
