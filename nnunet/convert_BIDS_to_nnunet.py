@@ -40,6 +40,7 @@ import pathlib
 from pathlib import Path
 import json
 from collections import OrderedDict
+import run_inference_single_image
 
 
 def get_parser():
@@ -64,7 +65,7 @@ def get_parser():
     return parser
 
 
-def create_sc_seg(image_file, sc_seg_output):
+def create_sc_seg(image_file, sc_seg_output, path_to_model="/Users/plbenveniste/Documents/NeuroPoly/model_2023-09-18"):
     """
     This functions uses teh contrast-agnostic model to create the SC segmentation file.
 
@@ -75,6 +76,17 @@ def create_sc_seg(image_file, sc_seg_output):
     Returns:
         sc_seg_file : path to the SC segmentation file
     """
+
+    # Create temporary output folder
+    tmp_folder_seg = os.path.join(sc_seg_output, "tmp")
+    pathlib.Path(tmp_folder_seg).mkdir(parents=True, exist_ok=True)
+
+    os.system(f'python nnunet/run_inference_single_image.py --path-img {image_file}  --chkp-path {path_to_model} --path-out {tmp_folder_seg} --use-tta --')
+
+    # Build output file name
+    sc_seg_file = os.path.join(tmp_folder_seg, f'{str(image_file).split("/")[-1].split(".")[0]}_pred.nii.gz')
+
+    return sc_seg_file
 
 
 def main():
@@ -150,7 +162,7 @@ def main():
                 sc_seg_file = create_sc_seg(image_file[0], sc_seg_output)
 
             # Chose if subject in test set or train set
-            if np.random.rand() > 0.8:
+            if np.random.rand() > 0.2:
                 # Add to the train set
                 scan_cnt_train+= 1
                 
@@ -174,9 +186,9 @@ def main():
                 shutil.copyfile(lesion_seg_file, label_file_nnunet)
             
                 # Update the conversion dict (for label we only point to the lesion mask)
-                conversion_dict[str(os.path.abspath(image_file))] = image_file_nnunet_channel_1
-                conversion_dict[str(os.path.abspath(sc_seg_file))] = image_file_nnunet_channel_2
-                conversion_dict[str(os.path.abspath(lesion_seg_file))] = label_file_nnunet
+                conversion_dict[str(image_file)] = image_file_nnunet_channel_1
+                conversion_dict[str(sc_seg_file)] = image_file_nnunet_channel_2
+                conversion_dict[str(lesion_seg_file)] = label_file_nnunet
             
             else:
                 # Add to the test set
@@ -203,12 +215,9 @@ def main():
                 shutil.copyfile(lesion_seg_file, label_file_nnunet)
             
                 # Update the conversion dict (for label we only point to the lesion mask)
-                conversion_dict[str(os.path.abspath(image_file))] = image_file_nnunet_channel_1
-                conversion_dict[str(os.path.abspath(sc_seg_file))] = image_file_nnunet_channel_2
-                conversion_dict[str(os.path.abspath(lesion_seg_file))] = label_file_nnunet
-            
-            break
-        break
+                conversion_dict[str(image_file)] = image_file_nnunet_channel_1
+                conversion_dict[str(sc_seg_file)] = image_file_nnunet_channel_2
+                conversion_dict[str(lesion_seg_file)] = label_file_nnunet
 
     # Display of number of training and number of testing images
     print("Number of images for training: " + str(scan_cnt_train))
