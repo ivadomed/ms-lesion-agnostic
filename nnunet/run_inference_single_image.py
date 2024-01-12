@@ -74,7 +74,7 @@ def get_parser():
                         help='Device to run inference on. Default: cpu')
     parser.add_argument('--use-tta', action='store_true', 
                         help='Use test-time augmentation (TTA), i.e. mirroring across all 3 axes. Default: False')
-    parser.add_argument('--remove-small-objects', type=int, default=10,
+    parser.add_argument('--remove-small-objects', type=int,
                         help='Remove all unconnected objects smaller than the minimum specified size.'
                         'Defined as a percent of the total no. of voxels in the prediction. Default: 10(%)')
 
@@ -365,10 +365,13 @@ def main():
                 batch["pred"] = torch.zeros_like(test_input)
                 for axis in range(3):
                     # flip the input, run inference and flip it back
-                    batch["pred"] += torch.flip(sliding_window_inference(
-                            torch.flip(test_input, dims=[axis]), inference_roi_size, mode="gaussian", 
-                                        sw_batch_size=4, predictor=net, overlap=0.5, progress=False)[0], dims=[axis]
-                                    )
+                    pred_temp = torch.flip(
+                        sliding_window_inference(
+                            torch.flip(test_input, dims=[axis]), 
+                            inference_roi_size, mode="gaussian", 
+                            sw_batch_size=4, predictor=net, overlap=0.5, progress=False)[0], dims=[axis]
+                        )
+                    batch["pred"] += torch.clamp(pred_temp, 0.5, 1)
                 # average the prediction
                 batch["pred"] /= 3
             else:
@@ -394,7 +397,11 @@ def main():
             pred[pred <= 0.5] = 0
 
             # remove small objects
-            pred = remove_small_objects(pred, size_min_percent=args.remove_small_objects)
+            if args.remove_small_objects == 0:
+                logger.info("No postprocessing: Keeping the prediction as is ...")
+            else:
+                logger.info(f"Postprocessing: Removing objects smaller than {args.remove_small_objects}% of the total voxels ...")
+                pred = remove_small_objects(pred, size_min_percent=args.remove_small_objects)
 
             # get subject name
             subject_name = (batch["image_meta_dict"]["filename_or_obj"][0]).split("/")[-1].replace(".nii.gz", "")
