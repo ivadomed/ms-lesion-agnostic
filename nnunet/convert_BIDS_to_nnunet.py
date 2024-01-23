@@ -17,6 +17,7 @@ Args:
     --taskname: Specify the task name - usually the anatomy to be segmented, e.g. Hippocampus
     --tasknumber : Specify the task number, has to be greater than 100 but less than 999
     --exclude-file : Path to the file containing the list of subjects to exclude from the dataset (default=None)
+    --qc-folder : Path to the QC folder (default=None)
 
 Returns:
     None
@@ -26,7 +27,8 @@ Example:
       --sc-seg-output /path/to/sc-seg-output --taskname MsLesionAgnostic --tasknumber 101 --exclude-file /path/to/exclude-file
 
 TODO:
-    *
+    * ADD QC folder for sc seg using contrast-agnostic model
+    * Create a dictionnary which works on all datasets
 
 Pierre-Louis Benveniste
 """
@@ -60,12 +62,13 @@ def get_parser():
     parser.add_argument('--sc-seg-output', type=str, required=True, help='Path to the SC segmentation output folder.')
     parser.add_argument('--taskname', type=str, required=True, help='Specify the task name - usually the anatomy to be segmented, e.g. Hippocampus.')
     parser.add_argument('--tasknumber', type=int, required=True, help='Specify the task number, has to be greater than 100 but less than 999.')
-    parser.add_argument('--exclude-file', type=str, required=False, default=None, help='Path to the file containing the list of subjects to exclude from the dataset (default=None).')   
+    parser.add_argument('--exclude-file', type=str, required=False, default=None, help='Path to the file containing the list of subjects to exclude from the dataset (default=None).') 
+    parser.add_argument('--qc-folder', type=str, required=False, default=None, help='Path to the QC folder (default=None).')  
 
     return parser
 
 
-def create_sc_seg(image_file, sc_seg_output, path_to_model="/Users/plbenveniste/Documents/NeuroPoly/model_2023-09-18"):
+def create_sc_seg(image_file, sc_seg_output, qc_folder, path_to_model="/Users/plbenveniste/Documents/model_2023-09-18"):
     """
     This functions uses teh contrast-agnostic model to create the SC segmentation file.
 
@@ -85,6 +88,9 @@ def create_sc_seg(image_file, sc_seg_output, path_to_model="/Users/plbenveniste/
 
     # Build output file name
     sc_seg_file = os.path.join(tmp_folder_seg, f'{str(image_file).split("/")[-1].split(".")[0]}_pred.nii.gz')
+
+    # Create QC folder
+    os.system(f'sct_qc -i {image_file} -p "sct_deepseg_sc" -s {sc_seg_file} -qc {qc_folder}')
 
     return sc_seg_file
 
@@ -112,6 +118,7 @@ def main():
     taskname = args.taskname
     tasknumber = args.tasknumber
     exclude_file = args.exclude_file
+    qc_folder = args.qc_folder
 
     # Create the output folders
     path_out_imagesTr = Path(os.path.join(output_folder, 'imagesTr'))
@@ -159,7 +166,7 @@ def main():
             sc_seg_file = list(Path(sc_seg_output).rglob(f'{subject_name}_seg-manual.nii.gz'))
             if len(sc_seg_file) == 0:
                 # If no SC segmentation file is found, create it using the contrast-agnostic model
-                sc_seg_file = create_sc_seg(image_file[0], sc_seg_output)
+                sc_seg_file = create_sc_seg(image_file[0], sc_seg_output, qc_folder)
 
             # Chose if subject in test set or train set
             if np.random.rand() > 0.2:
