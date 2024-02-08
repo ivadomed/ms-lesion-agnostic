@@ -35,7 +35,8 @@ conversion_dict_mask = {}
 # Let's first aggregate the CanProCo dataset
 canproco_path = pathlib.Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/canproco')
 
-count_canproco = 0
+count_canproco_annotations = 0
+count_canproco_imgs = 0
 
 files = list(canproco_path.rglob('*.nii.gz'))
 for file in tqdm.tqdm(files):
@@ -53,17 +54,19 @@ for file in tqdm.tqdm(files):
             shutil.copy2(source_json_file, destination_json_file)
             # if its a mask we add to the count
             if 'lesion-manual' in str(file):
-                count_canproco += 1
+                count_canproco_annotations += 1
                 # add it to the conversion dictionary
                 conversion_dict_mask[str(source_file)] = str(destination_file)
             else:
+                count_canproco_imgs += 1
                 # add it to the conversion dictionary
                 conversion_dict_img[str(source_file)] = str(destination_file)
                 
             
             #print(f'Copied {source_file.name}')
                     
-print(f'CanProCo: {count_canproco} annotated copied')
+print(f'CanProCo: {count_canproco_annotations} annotations copied')
+print(f'CanProCo: {count_canproco_imgs} images copied')
 
 
 #------------------------- BASEL-MP2RAGE -------------------------
@@ -76,7 +79,8 @@ print(f'CanProCo: {count_canproco} annotated copied')
 # Now the path to the basel-mp2rage dataset
 basel_path = pathlib.Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/basel-mp2rage')
 
-count_basel = 0
+count_basel_annotations = 0
+count_basel_imgs = 0
 
 # copy all MP2RAGE files in the output folder
 files = list(basel_path.rglob('*.nii.gz'))
@@ -91,10 +95,11 @@ for file in tqdm.tqdm(files):
         if 'lesion-manual' in str(file):
             destination_file = destination_file.parent / destination_file.name.replace('lesion-manualNeuroPoly', 'NeuroPolylesion-manual')
             destination_file = destination_file.parent / destination_file.name.replace('lesion-manualKatrin', 'Katrinlesion-manual')
-            count_basel += 1
+            count_basel_annotations += 1
             # add it to the conversion dictionary
             conversion_dict_mask[str(source_file)] = str(destination_file)
         else:
+            count_basel_imgs += 1
             # add it to the conversion dictionary
             conversion_dict_img[str(source_file)] = str(destination_file)
         # add it to the conversion dictionary
@@ -102,7 +107,8 @@ for file in tqdm.tqdm(files):
 
         #print(f'Copied {source_file.name}')
 
-print(f'Basel: {count_basel} annotated copied')
+print(f'Basel: {count_basel_annotations} annotations copied')
+print(f'Basel: {count_basel_imgs} images copied')
 
             
 #------------------------- SCT-TESTING-LARGE -------------------------
@@ -149,7 +155,8 @@ for lesion_file in tqdm.tqdm(lesion_files):
     count_sct_testing += 1
     #print(f'Copied {pathlib.Path(source_image_file).name}')
 
-print(f'SCT-Testing: {count_sct_testing} annotated copied')
+print(f'SCT-Testing: {count_sct_testing} annotations copied')
+print(f'SCT-Testing: {count_sct_testing} images copied')
 
 
 
@@ -164,7 +171,9 @@ print(f'SCT-Testing: {count_sct_testing} annotated copied')
 # Now the path to the bavaria-quebec-spine-ms dataset
 bavaria_path = pathlib.Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/bavaria-quebec-spine-ms')
 
-count_bavaria = 0
+count_bavaria_annotations = 0
+count_bavaria_imgs = 0
+
 
 # copy all nifti files in the output folder
 files = list(bavaria_path.rglob('*.nii.gz'))
@@ -179,10 +188,11 @@ for file in tqdm.tqdm(files):
         if 'manual' in str(file):
             destination_file = destination_file.parent / destination_file.name.replace('lesions-manual_T2w', 'T2w_lesion-manual')
             destination_file = destination_file.parent / destination_file.name.replace('seg-manual_T2w', 'T2w_seg-manual')
-            count_bavaria += 1
+            count_bavaria_annotations += 1
             # add it to the conversion dictionary
             conversion_dict_mask[str(source_file)] = str(destination_file)
         else:
+            count_bavaria_imgs += 1
             # add it to the conversion dictionary
             conversion_dict_img[str(source_file)] = str(destination_file)
         destination_file.parent.mkdir(parents=True, exist_ok=True)
@@ -194,9 +204,11 @@ for file in tqdm.tqdm(files):
         #print(f'Copied {source_file.name}')
 
 # print the number of files copied
-print(f'Bavaria: {count_bavaria} annotated copied')
+print(f'Bavaria: {count_bavaria_annotations} annotations copied')
+print(f'Bavaria: {count_bavaria_imgs} images copied')
 
-print("Total annotated images: ", count_canproco + count_basel + count_sct_testing + count_bavaria)
+print("Total annotations: ", count_canproco_annotations + count_basel_annotations + count_sct_testing + count_bavaria_annotations)
+print("Total images: ", count_canproco_imgs + count_basel_imgs + count_sct_testing + count_bavaria_imgs)
 
 # save the conversion dictionary
 with open(output_folder / 'conversion_dict_img.json', 'w') as fp:
