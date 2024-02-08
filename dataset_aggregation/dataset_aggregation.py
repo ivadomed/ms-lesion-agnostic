@@ -12,11 +12,18 @@ The datasets are:
 import os
 import pathlib
 import shutil
+import tqdm
+import json
+
 
 #output folder
 output_folder = pathlib.Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/all_ms_sc_data')
 
-"""
+#building the conversion dictionary
+conversion_dict_img = {}
+conversion_dict_mask = {}
+
+
 #------------------------- CANPROCO -------------------------
 # We want all PSIR and STIR files (not all are annotated)
 # It contains:
@@ -28,22 +35,36 @@ output_folder = pathlib.Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic
 # Let's first aggregate the CanProCo dataset
 canproco_path = pathlib.Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/canproco')
 
-# copy all PSIR and STIR files in the output folder
-for root, dirs, files in os.walk(canproco_path):
-    for file in files:
-        if file.endswith('.nii.gz') and 'SHA256' not in str(file):
-            if 'PSIR' in file or 'STIR' in file:
-                # then we copy the file with the same folder structure
-                source_file = pathlib.Path(root) / file
-                relative_path = source_file.relative_to(canproco_path)
-                destination_file = output_folder / relative_path
-                destination_file.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source_file, destination_file)
-                # and copy the corresponding json file
-                source_json_file = str(source_file).replace('.nii.gz', '.json')
-                destination_json_file = str(destination_file).replace('.nii.gz', '.json')
-                shutil.copy2(source_json_file, destination_json_file)
-                #print(f'Copied {source_file.name}')
+count_canproco = 0
+
+files = list(canproco_path.rglob('*.nii.gz'))
+for file in tqdm.tqdm(files):
+    if 'SHA256' not in str(file):
+        if 'PSIR' in str(file) or 'STIR' in str(file):
+            # then we copy the file with the same folder structure
+            source_file = file
+            relative_path = source_file.relative_to(canproco_path)
+            destination_file = output_folder / relative_path
+            destination_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source_file, destination_file)
+            # and copy the corresponding json file
+            source_json_file = str(source_file).replace('.nii.gz', '.json')
+            destination_json_file = str(destination_file).replace('.nii.gz', '.json')
+            shutil.copy2(source_json_file, destination_json_file)
+            # if its a mask we add to the count
+            if 'lesion-manual' in str(file):
+                count_canproco += 1
+                # add it to the conversion dictionary
+                conversion_dict_mask[source_file] = destination_file
+            else:
+                # add it to the conversion dictionary
+                conversion_dict_img[source_file] = destination_file
+                
+            
+            #print(f'Copied {source_file.name}')
+                    
+print(f'CanProCo: {count_canproco} annotated copied')
+
 
 #------------------------- BASEL-MP2RAGE -------------------------
 # we want all the Nifti files (normally all are annotated)
@@ -55,17 +76,33 @@ for root, dirs, files in os.walk(canproco_path):
 # Now the path to the basel-mp2rage dataset
 basel_path = pathlib.Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/basel-mp2rage')
 
+count_basel = 0
+
 # copy all MP2RAGE files in the output folder
-for root, dirs, files in os.walk(basel_path):
-    for file in files:
-        if file.endswith('.nii.gz') and 'SHA256' not in str(file):
-            # then we copy the file with the same folder structure
-            source_file = pathlib.Path(root) / file
-            relative_path = source_file.relative_to(basel_path)
-            destination_file = output_folder / relative_path
-            destination_file.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source_file, destination_file)
-            #print(f'Copied {source_file.name}')
+files = list(basel_path.rglob('*.nii.gz'))
+for file in tqdm.tqdm(files):
+    if 'SHA256' not in str(file):
+        # then we copy the file with the same folder structure
+        source_file = file
+        relative_path = source_file.relative_to(basel_path)
+        destination_file = output_folder / relative_path
+        destination_file.parent.mkdir(parents=True, exist_ok=True)
+        # if its a mask we modify the name
+        if 'lesion-manual' in str(file):
+            destination_file = destination_file.parent / destination_file.name.replace('lesion-manualNeuroPoly', 'NeuroPolylesion-manual')
+            destination_file = destination_file.parent / destination_file.name.replace('lesion-manualKatrin', 'Katrinlesion-manual')
+            count_basel += 1
+            # add it to the conversion dictionary
+            conversion_dict_mask[source_file] = destination_file
+        else:
+            # add it to the conversion dictionary
+            conversion_dict_img[source_file] = destination_file
+        # add it to the conversion dictionary
+        shutil.copy2(source_file, destination_file)
+
+        #print(f'Copied {source_file.name}')
+
+print(f'Basel: {count_basel} annotated copied')
 
             
 #------------------------- SCT-TESTING-LARGE -------------------------
@@ -78,15 +115,19 @@ for root, dirs, files in os.walk(basel_path):
 # Now the path to the sct-testing-large dataset
 sct_testing_path = pathlib.Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sct-testing-large')
 
+count_sct_testing = 0
+
 # list all files with "lesion_manual.nii.gz" and copy them and associated image to the output folder
 lesion_files = list(sct_testing_path.rglob('*lesion-manual.nii.gz'))
-for lesion_file in lesion_files:
+for lesion_file in tqdm.tqdm(lesion_files):
     # then we copy the file with the same folder structure
     source_file = lesion_file
     relative_path = source_file.relative_to(sct_testing_path)
     destination_file = output_folder / relative_path
     destination_file.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source_file, destination_file)
+    # add it to the conversion dictionary
+    conversion_dict_mask[source_file] = destination_file
     # and corresponding json file if it exists 
     source_json_file = str(source_file).replace('.nii.gz', '.json')
     if os.path.isfile(source_json_file):
@@ -97,13 +138,19 @@ for lesion_file in lesion_files:
     relative_image_path = pathlib.Path(source_image_file).relative_to(sct_testing_path)
     destination_image_file = output_folder / relative_image_path
     destination_image_file.parent.mkdir(parents=True, exist_ok=True)
+    # add it to the conversion dictionary
+    conversion_dict_img[source_image_file] = destination_image_file
     shutil.copy2(source_image_file, destination_image_file)
     # and corresponding json file if it exists
     source_json_file = str(source_image_file).replace('.nii.gz', '.json')
     if os.path.isfile(source_json_file):
         destination_json_file = str(destination_image_file).replace('.nii.gz', '.json')
         shutil.copy2(source_json_file, destination_json_file)
+    count_sct_testing += 1
     #print(f'Copied {pathlib.Path(source_image_file).name}')
+
+print(f'SCT-Testing: {count_sct_testing} annotated copied')
+
 
 
 #------------------------- BAVARIA -------------------------
@@ -117,62 +164,43 @@ for lesion_file in lesion_files:
 # Now the path to the bavaria-quebec-spine-ms dataset
 bavaria_path = pathlib.Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/bavaria-quebec-spine-ms')
 
-# copy all nifti files in the output folder
-for root, dirs, files in os.walk(bavaria_path):
-    for file in files:
-        if file.endswith('.nii.gz') and 'SHA256' not in str(file):
-            # then we copy the file with the same folder structure
-            source_file = pathlib.Path(root) / file
-            relative_path = source_file.relative_to(bavaria_path)
-            destination_file = output_folder / relative_path
-            #print(destination_file)
-            # if its a mask we modify the name
-            if 'manual' in str(file):
-                destination_file = destination_file.parent / destination_file.name.replace('lesions-manual_T2w', 'T2w_lesion-manual')
-                destination_file = destination_file.parent / destination_file.name.replace('seg-manual_T2w', 'T2w_seg-manual')
-            destination_file.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source_file, destination_file)
-            # and copy the corresponding json file
-            source_json_file = str(source_file).replace('.nii.gz', '.json')
-            destination_json_file = str(destination_file).replace('.nii.gz', '.json')
-            shutil.copy2(source_json_file, destination_json_file)
-            print(f'Copied {source_file.name}')
-"""
-
-#------------------------- MSSEG CHALLENGE 2021 -------------------------
-# We want all the .nii.gz files
-# It contains:
-#   - the image (e.g. sub-015_ses-01_FLAIR.nii.gz)
-#   - the lesion segs (there are multiple masks) (e.g. sub-015_ses-02_FLAIR_lesion-manual-rater2.nii.gz) (NOT ALWAYS)
-
-# Now the path to the msseg_challenge_2021 dataset
-msseg_path = pathlib.Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/msseg_challenge_2021')
+count_bavaria = 0
 
 # copy all nifti files in the output folder
-print("ok")
-for root, dirs, files in os.walk(msseg_path):
-    for file in files:
-        if file.endswith('.nii.gz') and 'SHA256' not in str(file):
-            print(file)
-            # then we copy the file with the same folder structure
-            source_file = pathlib.Path(root) / file
-            relative_path = source_file.relative_to(msseg_path)
-            destination_file = output_folder / relative_path
-            destination_file.parent.mkdir(parents=True, exist_ok=True)
-            # if it's a segmentation file we skip
-            if 'derivatives' in str(file):
-                continue
-            # we segment the spinal cord and output it in a temp folder in the output folder
-            ## create the temp folder in the output folder
-            output_folder_temp = output_folder / 'temp'
-            output_folder_temp.mkdir(parents=True, exist_ok=True)
-            ## build output file name
-            seg_file = output_folder_temp / source_file.name.replace('.nii.gz', '_seg.nii.gz')
-            ## segment the spinal cord 
-            # os.system(f'sct_deepseg_sc -i {source_file} -c t2 -o {seg_file}')
+files = list(bavaria_path.rglob('*.nii.gz'))
+for file in tqdm.tqdm(files):
+    if 'SHA256' not in str(file):
+        # then we copy the file with the same folder structure
+        source_file = file
+        relative_path = source_file.relative_to(bavaria_path)
+        destination_file = output_folder / relative_path
+        #print(destination_file)
+        # if its a mask we modify the name
+        if 'manual' in str(file):
+            destination_file = destination_file.parent / destination_file.name.replace('lesions-manual_T2w', 'T2w_lesion-manual')
+            destination_file = destination_file.parent / destination_file.name.replace('seg-manual_T2w', 'T2w_seg-manual')
+            count_bavaria += 1
+            # add it to the conversion dictionary
+            conversion_dict_mask[source_file] = destination_file
+        else:
+            # add it to the conversion dictionary
+            conversion_dict_img[source_file] = destination_file
+        destination_file.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_file, destination_file)
+        # and copy the corresponding json file
+        source_json_file = str(source_file).replace('.nii.gz', '.json')
+        destination_json_file = str(destination_file).replace('.nii.gz', '.json')
+        shutil.copy2(source_json_file, destination_json_file)
+        #print(f'Copied {source_file.name}')
 
-            # shutil.copy2(source_file, destination_file)
-            # print(f'Copied {source_file.name}')
+# print the number of files copied
+print(f'Bavaria: {count_bavaria} annotated copied')
 
+print("Total annotated images: ", count_canproco + count_basel + count_sct_testing + count_bavaria)
 
-
+# save the conversion dictionary
+with open(output_folder / 'conversion_dict_img.json', 'w') as fp:
+    json.dump(conversion_dict_img, fp, indent=4)
+with open(output_folder / 'conversion_dict_mask.json', 'w') as fp:
+    json.dump(conversion_dict_mask, fp, indent=4)
+print('Conversion dictionaries saved')
