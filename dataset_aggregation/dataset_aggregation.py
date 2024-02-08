@@ -6,7 +6,7 @@ The datasets are:
 - basel-mp2rage : MP2RAGE
 - sct-testing-large : T1, T2 and T2*
 - bavaria-quebec-spine-ms : T2w
-- msseg_challenge_2021 : FLAIR but need to first crop the top of the image
+- msseg_challenge_2021 : FLAIR but need to first crop the top of the image : BUT the images include very little of the spinal cord (no lesions in the SC I think)
 """
 
 import os
