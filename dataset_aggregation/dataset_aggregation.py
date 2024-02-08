@@ -55,10 +55,10 @@ for file in tqdm.tqdm(files):
             if 'lesion-manual' in str(file):
                 count_canproco += 1
                 # add it to the conversion dictionary
-                conversion_dict_mask[source_file] = destination_file
+                conversion_dict_mask[str(source_file)] = str(destination_file)
             else:
                 # add it to the conversion dictionary
-                conversion_dict_img[source_file] = destination_file
+                conversion_dict_img[str(source_file)] = str(destination_file)
                 
             
             #print(f'Copied {source_file.name}')
@@ -93,10 +93,10 @@ for file in tqdm.tqdm(files):
             destination_file = destination_file.parent / destination_file.name.replace('lesion-manualKatrin', 'Katrinlesion-manual')
             count_basel += 1
             # add it to the conversion dictionary
-            conversion_dict_mask[source_file] = destination_file
+            conversion_dict_mask[str(source_file)] = str(destination_file)
         else:
             # add it to the conversion dictionary
-            conversion_dict_img[source_file] = destination_file
+            conversion_dict_img[str(source_file)] = str(destination_file)
         # add it to the conversion dictionary
         shutil.copy2(source_file, destination_file)
 
@@ -127,7 +127,7 @@ for lesion_file in tqdm.tqdm(lesion_files):
     destination_file.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source_file, destination_file)
     # add it to the conversion dictionary
-    conversion_dict_mask[source_file] = destination_file
+    conversion_dict_mask[str(source_file)] = str(destination_file)
     # and corresponding json file if it exists 
     source_json_file = str(source_file).replace('.nii.gz', '.json')
     if os.path.isfile(source_json_file):
@@ -139,7 +139,7 @@ for lesion_file in tqdm.tqdm(lesion_files):
     destination_image_file = output_folder / relative_image_path
     destination_image_file.parent.mkdir(parents=True, exist_ok=True)
     # add it to the conversion dictionary
-    conversion_dict_img[source_image_file] = destination_image_file
+    conversion_dict_img[str(source_image_file)] = str(destination_image_file)
     shutil.copy2(source_image_file, destination_image_file)
     # and corresponding json file if it exists
     source_json_file = str(source_image_file).replace('.nii.gz', '.json')
@@ -181,10 +181,10 @@ for file in tqdm.tqdm(files):
             destination_file = destination_file.parent / destination_file.name.replace('seg-manual_T2w', 'T2w_seg-manual')
             count_bavaria += 1
             # add it to the conversion dictionary
-            conversion_dict_mask[source_file] = destination_file
+            conversion_dict_mask[str(source_file)] = str(destination_file)
         else:
             # add it to the conversion dictionary
-            conversion_dict_img[source_file] = destination_file
+            conversion_dict_img[str(source_file)] = str(destination_file)
         destination_file.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source_file, destination_file)
         # and copy the corresponding json file
