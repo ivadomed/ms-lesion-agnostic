@@ -51,10 +51,10 @@ for file in tqdm.tqdm(files):
         if lesion_mask.exists():
             # we add it to the conversion dictionary of training or testing depending on the ratio
             if rd.random() < train_ratio:
-                conversion_dict_training[str(file)] = str(lesion_mask)
+                conversion_dict_training[str(lesion_mask)] = str(file)
                 count_canproco_train +=1
             else:
-                conversion_dict_testing[str(file)] = str(lesion_mask)
+                conversion_dict_testing[str(lesion_mask)] = str(file)
                 count_canproco_test += 1
         else:
             # we add it to the inference images
@@ -93,27 +93,27 @@ for file in tqdm.tqdm(files):
         if lesion_mask1.exists():
             # we add it to the conversion dictionary of training or testing depending on the ratio
             if rd.random() < train_ratio:
-                conversion_dict_training[str(file)] = str(lesion_mask1)
+                conversion_dict_training[str(lesion_mask1)] = str(file)
                 count_basel_train += 1
             else:
-                conversion_dict_testing[str(file)] = str(lesion_mask1)
+                conversion_dict_testing[str(lesion_mask1)] = str(file)
                 count_basel_test += 1
             
         if lesion_mask2.exists():
             # we add it to the conversion dictionary of training or testing depending on the ratio
             if rd.random() < train_ratio:
-                conversion_dict_training[str(file)] = str(lesion_mask2)
+                conversion_dict_training[str(lesion_mask2)] = str(file)
                 count_basel_train += 1
             else:
-                conversion_dict_testing[str(file)] = str(lesion_mask2)
+                conversion_dict_testing[str(lesion_mask2)] = str(file)
                 count_basel_test += 1
         if lesion_mask3.exists():
             # we add it to the conversion dictionary of training or testing depending on the ratio
             if rd.random() < train_ratio:
-                conversion_dict_training[str(file)] = str(lesion_mask3)
+                conversion_dict_training[str(lesion_mask3)] = str(file)
                 count_basel_train += 1
             else:
-                conversion_dict_testing[str(file)] = str(lesion_mask3)
+                conversion_dict_testing[str(lesion_mask3)] = str(file)
                 count_basel_test += 1
         else:
             # we add it to the inference images
@@ -138,17 +138,17 @@ sct_testing_path = pathlib.Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnos
 count_sct_testing_train = 0
 count_sct_testing_test = 0
 
-files = list(canproco_path.rglob('*_lesion-manual.nii.gz'))
+files = list(sct_testing_path.rglob('*_lesion-manual.nii.gz'))
 for file in tqdm.tqdm(files):
     if 'SHA256' not in str(file):
         # we build the corresponding image
         image = str(file).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
         # we add it to the conversion dictionary of training or testing depending on the ratio
         if rd.random() < train_ratio:
-            conversion_dict_training[image] = str(file)
+            conversion_dict_training[str(file)] = str(image)
             count_sct_testing_train+=1
         else:
-            conversion_dict_testing[image] = str(file)
+            conversion_dict_testing[str(file)] = str(image)
             count_sct_testing_test+=1
 
 print(f'SCT-Testing: {count_sct_testing_train} images for training')
@@ -182,10 +182,10 @@ for file in tqdm.tqdm(files):
         if lesion_mask.exists():
             # we add it to the conversion dictionary of training or testing depending on the ratio
             if rd.random() < train_ratio:
-                conversion_dict_training[str(file)] = str(lesion_mask)
+                conversion_dict_training[str(lesion_mask)] = str(file)
                 count_bavaria_train += 1
             else:
-                conversion_dict_testing[str(file)] = str(lesion_mask)
+                conversion_dict_testing[str(lesion_mask)] = str(file)
                 count_bavaria_test += 1
         else:
             # we add it to the inference images
