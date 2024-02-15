@@ -29,6 +29,7 @@ from collections import OrderedDict
 
 import numpy as np
 import tqdm
+import nibabel as nib
 
 
 def get_parser():
@@ -111,7 +112,20 @@ def main():
 
         # copy the image to new structure
         shutil.copyfile(train_data[label_file], image_file_nnunet)
-        shutil.copyfile(label_file, label_file_nnunet)
+
+        # before copying the label, we need to check if the label has more than one class : if it does, we binarize to 1
+        label = nib.load(label_file).get_fdata()
+        if len(np.unique(label)) > 2:
+            label[label > 0] = 1
+            label = nib.Nifti1Image(label, nib.load(label_file).affine)
+            nib.save(label, label_file_nnunet)
+        # if a label has only two class and its value is not 0 and 1, we change it
+        elif len(np.unique(label)) == 2:
+            label[label != 0] = 1
+            label = nib.Nifti1Image(label, nib.load(label_file).affine)
+            nib.save(label, label_file_nnunet)
+        else:
+            shutil.copyfile(label_file, label_file_nnunet)
 
         #we update the conversion dict (for label we only point to the lesion mask)
         conversion_dict[str(os.path.abspath(train_data[label_file]))] = image_file_nnunet
@@ -127,7 +141,20 @@ def main():
 
         # copy the image to new structure
         shutil.copyfile(test_data[label_file], image_file_nnunet)
-        shutil.copyfile(label_file, label_file_nnunet)
+
+        # before copying the label, we need to check if the label has more than one class : if it does, we binarize to 1
+        label = nib.load(label_file).get_fdata()
+        if len(np.unique(label)) > 2:
+            label[label > 0] = 1
+            label = nib.Nifti1Image(label, nib.load(label_file).affine)
+            nib.save(label, label_file_nnunet)
+        # if a label has only two class and its value is not 0 and 1, we change it
+        elif len(np.unique(label)) == 2:
+            label[label != 0] = 1
+            label = nib.Nifti1Image(label, nib.load(label_file).affine)
+            nib.save(label, label_file_nnunet)
+        else:
+            shutil.copyfile(label_file, label_file_nnunet)
         
         test_images.append(str(image_file_nnunet))
         test_labels.append(str(label_file_nnunet))
