@@ -3,8 +3,7 @@
 # Run nnUNet training and testing on ms lesion aggregated dataset
 #
 # Usage:
-#     cd ~/code/model-seg-dcm
-#     ./training/01_run_training_dcm-zurich-lesions.sh
+#     ./nnunet/single_class_nnunet/run_training_inference.sh
 #
 # Author: Jan Valosek, Naga Karthik, Pierre-Louis Benveniste
 #
@@ -24,15 +23,20 @@ dataset_num="101"
 dataset_name="Dataset${dataset_num}_singleClassNnunetMsLesion"
 #nnunet_trainer="nnUNetTrainerDiceCELoss_noSmooth"
 nnunet_trainer="nnUNetTrainer"
-#nnunet_trainer="nnUNetTrainer_2000epochs"       # default: nnUNetTrainer
 configuration="3d_fullres"                      # for 2D training, use "2d"
-cuda_visible_devices=2
+cuda_visible_devices=3
 folds=(1)
-#folds=(3)
-#sites=(dcm-zurich-lesions dcm-zurich-lesions-20231115)
-#region_based="--region-based"
-#region_based=""
 
+
+echo "-------------------------------------------------------"
+echo "Building the dataset"
+echo "-------------------------------------------------------"
+python nnunet/single_class_nnunet/build_dataset.py 
+
+echo "-------------------------------------------------------"
+echo "Converting the dataset to nnUNet format"
+echo "-------------------------------------------------------"
+python convert_BIDS_to_nnunet.py --path-data-json ~/ms_lesion_agnostic/data/all_ms_sc_data/data_singleclass_nnunet.json --path-out ~/ms_lesion_agnostic/data/nnUNet_raw/ --taskname singleClassNnunetMsLesion --tasknumber 101
 
 echo "-------------------------------------------------------"
 echo "Running preprocessing and verifying dataset integrity"
@@ -52,9 +56,11 @@ for fold in ${folds[@]}; do
     echo "-------------------------------------------"
     echo "Training completed, Testing on Fold $fold"
     echo "-------------------------------------------"
-
     
-    CUDA_VISIBLE_DEVICES=${cuda_visible_devices} nnUNetv2_predict -i ${nnUNet_raw}/${dataset_name}/imagesTs -tr ${nnunet_trainer} -o ${nnUNet_results}/${dataset_name}/${nnunet_trainer}__nnUNetPlans__${configuration}/fold_${fold}/test -d ${dataset_num} -f ${fold} -c ${configuration} # -step_size 0.9 --disable_tta
+    CUDA_VISIBLE_DEVICES=${cuda_visible_devices} nnUNetv2_predict -i ${nnUNet_raw}/${dataset_name}/imagesTs/canproco -tr ${nnunet_trainer} -o ${nnUNet_results}/${dataset_name}/${nnunet_trainer}__nnUNetPlans__${configuration}/fold_${fold}/test_canproco -d ${dataset_num} -f ${fold} -c ${configuration} 
+    CUDA_VISIBLE_DEVICES=${cuda_visible_devices} nnUNetv2_predict -i ${nnUNet_raw}/${dataset_name}/imagesTs/basel -tr ${nnunet_trainer} -o ${nnUNet_results}/${dataset_name}/${nnunet_trainer}__nnUNetPlans__${configuration}/fold_${fold}/test_basel -d ${dataset_num} -f ${fold} -c ${configuration} 
+    CUDA_VISIBLE_DEVICES=${cuda_visible_devices} nnUNetv2_predict -i ${nnUNet_raw}/${dataset_name}/imagesTs/sct-testing -tr ${nnunet_trainer} -o ${nnUNet_results}/${dataset_name}/${nnunet_trainer}__nnUNetPlans__${configuration}/fold_${fold}/sct-testing -d ${dataset_num} -f ${fold} -c ${configuration} 
+    CUDA_VISIBLE_DEVICES=${cuda_visible_devices} nnUNetv2_predict -i ${nnUNet_raw}/${dataset_name}/imagesTs/bavaria -tr ${nnunet_trainer} -o ${nnUNet_results}/${dataset_name}/${nnunet_trainer}__nnUNetPlans__${configuration}/fold_${fold}/bavaria -d ${dataset_num} -f ${fold} -c ${configuration}
 
     # echo "-------------------------------------------------------"
     # echo "Running ANIMA evaluation on Test set for ${site} "
