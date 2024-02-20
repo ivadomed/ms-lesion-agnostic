@@ -86,6 +86,16 @@ def main():
     pathlib.Path(path_out_labelsTr).mkdir(parents=True, exist_ok=True)
     pathlib.Path(path_out_labelsTs).mkdir(parents=True, exist_ok=True)
 
+    #make the directories for the test set
+    pathlib.Path(os.path.join(path_out_imagesTs, 'canproco')).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(os.path.join(path_out_labelsTs, 'canproco')).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(os.path.join(path_out_imagesTs, 'basel')).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(os.path.join(path_out_labelsTs, 'basel')).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(os.path.join(path_out_imagesTs, 'sct-testing')).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(os.path.join(path_out_labelsTs, 'sct-testing')).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(os.path.join(path_out_imagesTs, 'bavaria')).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(os.path.join(path_out_labelsTs, 'bavaria')).mkdir(parents=True, exist_ok=True)
+
     #initialise the conversion dict
     conversion_dict = {}
 
@@ -136,8 +146,19 @@ def main():
         #we update the count of images of the test set
         scan_cnt_test+= 1
 
-        image_file_nnunet = os.path.join(path_out_imagesTs,f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
-        label_file_nnunet = os.path.join(path_out_labelsTs,f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
+        # we create test folders for each dataset
+        if 'canproco' in label_file:
+            image_file_nnunet = os.path.join(path_out_imagesTs,'canproco',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
+            label_file_nnunet = os.path.join(path_out_labelsTs,'canproco',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
+        elif 'basel' in label_file:
+            image_file_nnunet = os.path.join(path_out_imagesTs,'basel',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
+            label_file_nnunet = os.path.join(path_out_labelsTs,'basel',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
+        elif 'sct-testing-large' in label_file:
+            image_file_nnunet = os.path.join(path_out_imagesTs,'sct-testing',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
+            label_file_nnunet = os.path.join(path_out_labelsTs,'sct-testing',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
+        elif 'bavaria' in label_file:
+            image_file_nnunet = os.path.join(path_out_imagesTs,'bavaria',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
+            label_file_nnunet = os.path.join(path_out_labelsTs,'bavaria',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
 
         # copy the image to new structure
         shutil.copyfile(test_data[label_file], image_file_nnunet)
