@@ -9,10 +9,12 @@ import scipy.ndimage as ndi
 from torchvision.ops import masks_to_boxes
 
 
-def nifti_to_png(nifti_path:Path, output_dir:Path):
+def nifti_to_png(nifti_path:Path, output_dir:Path, spinal_cord_path:Path=None):
     """
     Converts a nifti volume into slices along the sagittal plane and
     saves them as png files in specified output_dir
+
+    If spinal_cord_path is given, only slices that contain part of the spinal cord are saved.
 
     Not suitable for segmentations (instead use nifti_seg_to_png) because 
     of intensity normalization between 0 and 255
@@ -24,13 +26,23 @@ def nifti_to_png(nifti_path:Path, output_dir:Path):
     Args:
         nifti_path (pathlib.Path) : path to nifti file
         output_dir (pathlib.Path) : path to the directory where png slices will be saved
+        spinal_cord_path (pathlib.Path) : path to the spinal cord segmentation file (optional)
 
     adapted from https://neuraldatascience.io/8-mri/nifti.html#plot-a-series-of-slices
     """
+    # Make output directory if it doesn't already exist
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     filename = nifti_path.stem[:-len(".nii")]
 
     volume = nib.load(nifti_path)
     vol_data = volume.get_fdata() # np array
+
+    if spinal_cord_path is None:
+        sc_seg_data = None
+    else:
+        sc_seg = nib.load(spinal_cord_path)
+        sc_seg_data = sc_seg.get_fdata()
 
     # Normalize pixel intensity from 0 to 255 
     vol_data = (vol_data - np.amin(vol_data)) * (255 / (np.amax(vol_data) - np.amin(vol_data)))
@@ -39,8 +51,20 @@ def nifti_to_png(nifti_path:Path, output_dir:Path):
     n_slice = vol_data.shape[2]
 
     for i in range(n_slice):
-        output_path = os.path.join(str(output_dir), f"{filename}_{i}.png")
-        cv2.imwrite(output_path, ndi.rotate(vol_data[:, :, i], 90))
+        # if spinal cord segmentation is given, check if slice contains spinal cord
+        if not sc_seg_data is None:
+            sc_seg_slice = sc_seg_data[:, :, i]
+
+            if sc_seg_slice.max() == 1:
+                # slice contains spinal cord
+                output_path = os.path.join(str(output_dir), f"{filename}_{i}.png")
+                cv2.imwrite(output_path, ndi.rotate(vol_data[:, :, i], 90))
+            else:
+                assert(sc_seg_slice.max() == 0)
+        else:
+            # if no segmentation is given, save all slices
+            output_path = os.path.join(str(output_dir), f"{filename}_{i}.png")
+            cv2.imwrite(output_path, ndi.rotate(vol_data[:, :, i], 90))
 
 
 def mask_to_bbox(mask:np.ndarray) -> np.ndarray|None:
