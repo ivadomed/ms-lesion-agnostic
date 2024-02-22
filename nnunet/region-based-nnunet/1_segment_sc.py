@@ -31,7 +31,7 @@ model_path = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/model_ms_s
 # Output folder
 canproco_output_folder = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sc_seg/canproco_sc_seg')
 # QC folder 
-canproco_qc_folder = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sc_seg/canproco_sc_seg')
+canproco_qc_folder = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sc_seg/canproco_sc_seg_qc')
 
 # import the exclude list
 with open(exclude_list, 'r') as file:
@@ -57,7 +57,7 @@ for file in files:
 
                 #  #/ file.name.replace('.nii.gz', '_seg-manual.nii.gz')
                 print(" Segmentation of the spinal cord for file: ", file.name)
-                os.system(f'python /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/canproco/packaging/run_inference_single_subject.py --path-image {str(inv_file)} --path-out {str(output_dir)} --path-model {str(model_path)} --use-gpu')
+                os.system(f'python /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/canproco/packaging/run_inference_single_subject.py --path-image {str(inv_file)} --path-out {str(output_dir)} --path-model {str(model_path)}')
                 
                 # remove inversed file
                 os.system(f'rm {str(output_dir / file.name)}')
@@ -75,12 +75,12 @@ for file in files:
 # # When needed we segment the spinal cord of the Basel dataset
                 
 # # Canproco dataset
-# basel_path = Path('/Users/plbenveniste/Documents/data/basel-mp2rage')
+# basel_path = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/basel-mp2rage')
 
 # # Output folder
-# basel_output_folder = Path('/Users/plbenveniste/Documents/basel_sc_seg')
+# basel_output_folder = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sc_seg/basel_sc_seg')
 # # QC folder 
-# basel_qc_folder = Path('/Users/plbenveniste/Documents/basel_sc_seg_qc')
+# basel_qc_folder = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sc_seg/basel_sc_seg_qc')
 
 # files = list(basel_path.rglob('*UNIT1.nii.gz'))
 # count_basel = 0
@@ -106,12 +106,12 @@ for file in files:
 # # When needed we segment the spinal cord of the Basel dataset
                 
 # # Canproco dataset
-# sct_testing_path = Path('/Users/plbenveniste/Documents/data/sct-testing-large')
+# sct_testing_path = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sct-testing-large')
 
 # # Output folder
-# sct_testing_output_folder = Path('/Users/plbenveniste/Documents/sct-testing_sc_seg')
+# sct_testing_output_folder = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sc_seg/sct-testing_sc_seg')
 # # QC folder 
-# sct_testing_qc_folder = Path('/Users/plbenveniste/Documents/sct-testing_sc_seg_qc')
+# sct_testing_qc_folder = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sc_seg/sct-testing_sc_seg_qc')
 
 # files = list(sct_testing_path.rglob('*_lesion-manual.nii.gz'))
 # count_sct = 0
