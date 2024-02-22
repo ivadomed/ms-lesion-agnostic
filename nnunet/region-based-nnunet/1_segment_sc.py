@@ -69,73 +69,73 @@ import yaml
             
 
 
-# -----------------------
-# BASEL
-# -----------------------
-# When needed we segment the spinal cord of the Basel dataset
-                
-# Canproco dataset
-basel_path = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/basel-mp2rage')
-
-# Output folder
-basel_output_folder = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sc_seg/basel_sc_seg')
-# QC folder 
-basel_qc_folder = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sc_seg/basel_sc_seg_qc')
-
-files = list(basel_path.rglob('*UNIT1.nii.gz'))
-count_basel = 0
-for file in files:
-    if 'SHA256' not in str(file):
-        # we check if the file has a mask in the derivatives folder (derivatives/folder and then same relative path)
-        relative_path = file.relative_to(basel_path).parent
-        lesion_mask1 = basel_path / 'derivatives' / 'labels' / relative_path / file.name.replace('.nii.gz', '_lesion-manualNeuroPoly.nii.gz')
-        lesion_mask2 = basel_path / 'derivatives' / 'labels' / relative_path / file.name.replace('.nii.gz', '_lesion-manualKatrin.nii.gz')
-        lesion_mask3 = basel_path / 'derivatives' / 'labels' / relative_path / file.name.replace('.nii.gz', '_lesion-manualHaris.nii.gz')
-        # if the mask exists we add it either to training or testing
-        if lesion_mask1.exists() or lesion_mask2.exists() or lesion_mask3.exists():
-            sc_seg = basel_path / 'derivatives' / 'labels' / relative_path / file.name.replace('.nii.gz', '_label-SC_seg.nii.gz')
-            if not sc_seg.exists():
-                print(f"need to segment {file.name}")
-                count_basel += 1
-print("Number of files to segment: ", count_basel)
-                
-
 # # -----------------------
-# # SCT-TESTING-LARGE
+# # BASEL
 # # -----------------------
 # # When needed we segment the spinal cord of the Basel dataset
                 
 # # Canproco dataset
-# sct_testing_path = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sct-testing-large')
+# basel_path = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/basel-mp2rage')
 
 # # Output folder
-# sct_testing_output_folder = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sc_seg/sct-testing_sc_seg')
+# basel_output_folder = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sc_seg/basel_sc_seg')
 # # QC folder 
-# sct_testing_qc_folder = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sc_seg/sct-testing_sc_seg_qc')
+# basel_qc_folder = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sc_seg/basel_sc_seg_qc')
 
-# files = list(sct_testing_path.rglob('*_lesion-manual.nii.gz'))
-# count_sct = 0
+# files = list(basel_path.rglob('*UNIT1.nii.gz'))
+# count_basel = 0
 # for file in files:
 #     if 'SHA256' not in str(file):
-#         sc_seg = file.parent / file.name.replace('_lesion-manual.nii.gz', '_seg-manual.nii.gz')
-#         if not sc_seg.exists():
-#             # find corresponding image
-#             image = Path(str(file).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', ''))
+#         # we check if the file has a mask in the derivatives folder (derivatives/folder and then same relative path)
+#         relative_path = file.relative_to(basel_path).parent
+#         lesion_mask1 = basel_path / 'derivatives' / 'labels' / relative_path / file.name.replace('.nii.gz', '_lesion-manualNeuroPoly.nii.gz')
+#         lesion_mask2 = basel_path / 'derivatives' / 'labels' / relative_path / file.name.replace('.nii.gz', '_lesion-manualKatrin.nii.gz')
+#         lesion_mask3 = basel_path / 'derivatives' / 'labels' / relative_path / file.name.replace('.nii.gz', '_lesion-manualHaris.nii.gz')
+#         # if the mask exists we add it either to training or testing
+#         if lesion_mask1.exists() or lesion_mask2.exists() or lesion_mask3.exists():
+#             sc_seg = basel_path / 'derivatives' / 'labels' / relative_path / file.name.replace('.nii.gz', '_label-SC_seg.nii.gz')
+#             if not sc_seg.exists():
+#                 print(f"need to segment {file.name}")
+#                 count_basel += 1
+# print("Number of files to segment: ", count_basel)
+                
 
-#             # output file path building
-#             relative_path = image.relative_to(sct_testing_path).parent
-#             output_dir = sct_testing_output_folder / relative_path
-#             output_dir.mkdir(parents=True, exist_ok=True)
-#             output_file = output_dir / file.name.replace('_lesion-manual.nii.gz', '_seg-manual.nii.gz')
-#             # segmentation of sc using SCT
-#             print(" Segmentation of the spinal cord for file: ", image.name)
-#             os.system(f'sct_deepseg -i {str(image)} -o {output_file} -task seg_sc_contrast_agnostic')
+# -----------------------
+# SCT-TESTING-LARGE
+# -----------------------
+# When needed we segment the spinal cord of the Basel dataset
+                
+# Canproco dataset
+sct_testing_path = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sct-testing-large')
 
-#             # produce the QC report
-#             os.system(f'sct_qc -i {str(image)} -s {output_file} -d {output_file} -p sct_deepseg_lesion -plane sagittal -qc {sct_testing_qc_folder}')
+# Output folder
+sct_testing_output_folder = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sc_seg/sct-testing_sc_seg')
+# QC folder 
+sct_testing_qc_folder = Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/sc_seg/sct-testing_sc_seg_qc')
 
-#             count_sct += 1
-# print("Number of files to segment: ", count_sct)
+files = list(sct_testing_path.rglob('*_lesion-manual.nii.gz'))
+count_sct = 0
+for file in files:
+    if 'SHA256' not in str(file):
+        sc_seg = file.parent / file.name.replace('_lesion-manual.nii.gz', '_seg-manual.nii.gz')
+        if not sc_seg.exists():
+            # find corresponding image
+            image = Path(str(file).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', ''))
+
+            # output file path building
+            relative_path = image.relative_to(sct_testing_path).parent
+            output_dir = sct_testing_output_folder / relative_path
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_file = output_dir / file.name.replace('_lesion-manual.nii.gz', '_seg-manual.nii.gz')
+            # segmentation of sc using SCT
+            print(" Segmentation of the spinal cord for file: ", image.name)
+            os.system(f'sct_deepseg -i {str(image)} -o {output_file} -task seg_sc_contrast_agnostic')
+
+            # produce the QC report
+            os.system(f'sct_qc -i {str(image)} -s {output_file} -d {output_file} -p sct_deepseg_lesion -plane sagittal -qc {sct_testing_qc_folder}')
+
+            count_sct += 1
+print("Number of files to segment: ", count_sct)
                 
 
     
