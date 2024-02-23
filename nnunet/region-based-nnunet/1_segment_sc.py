@@ -58,12 +58,15 @@ for file in files:
                 #  #/ file.name.replace('.nii.gz', '_seg-manual.nii.gz')
                 print(" Segmentation of the spinal cord for file: ", file.name)
                 os.system(f'python /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/canproco/packaging/run_inference_single_subject.py --path-image {str(inv_file)} --path-out {str(output_dir)} --path-model {str(model_path)}')
+                seg_file = output_dir / file.name.replace('.nii.gz', '_pred.nii.gz')
+                # binarize the output
+                os.system(f'sct_maths -i {str(seg_file)} -bin 0.2 -o {str(seg_file)}')
                 
                 # remove inversed file
                 os.system(f'rm {str(output_dir / file.name)}')
 
                 # produce the QC report
-                seg_file = output_dir / file.name.replace('.nii.gz', '_pred.nii.gz')
+                
                 os.system(f'sct_qc -i {str(file)} -s {seg_file} -d {seg_file} -p sct_deepseg_lesion -plane sagittal -qc {canproco_qc_folder}')
                 # os.system(f'sct_deepseg -i {str(file)} -o {output_file} -task seg_sc_contrast_agnostic -thr 0.01')
             
