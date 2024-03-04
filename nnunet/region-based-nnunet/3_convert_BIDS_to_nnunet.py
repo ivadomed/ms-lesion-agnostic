@@ -192,8 +192,8 @@ def main():
         shutil.copyfile(image_file, image_file_nnunet)
 
         # Here we build the multi-label label file
-        lesion_seg_file = train_data[image_file]['lesion']
-        sc_seg_file = train_data[image_file]['sc']
+        lesion_seg_file = test_data[image_file]['lesion']
+        sc_seg_file = test_data[image_file]['sc']
         create_multi_label_mask(lesion_seg_file, sc_seg_file, label_file_nnunet)
         
         test_images.append(str(image_file_nnunet))
