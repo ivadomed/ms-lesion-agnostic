@@ -129,20 +129,24 @@ def main():
         sc_seg_file = train_data[lesion_file]['sc']
         sc_seg = nib.load(sc_seg_file)
         sc_seg_data = np.asarray(sc_seg.dataobj)
-        sc_seg_data = np.where(sc_seg > 0.5, 1, 0)
+        sc_seg_data = np.where(sc_seg_data > 0.5, 1, 0)
         sc_seg_nifti = nib.Nifti1Image(sc_seg_data, sc_seg.affine, sc_seg.header)
         nib.save(sc_seg_nifti, str(sc_seg_file_nnunet))
+        spacing = nib.load(image_file).header.get_zooms()
+        sc_seg_reorient = nib.load(sc_seg_file_nnunet)
+        sc_seg_reorient.header.set_zooms(spacing)
+        nib.save(sc_seg_reorient, sc_seg_file_nnunet)
         
         #we do the same for the label file
         lesion_seg = nib.load(lesion_file)
         lesion_seg_data = np.asarray(lesion_seg.dataobj)
-        lesion_seg_data = np.where(lesion_seg > 0.5, 1, 0)
+        lesion_seg_data = np.where(lesion_seg_data > 0.5, 1, 0)
         lesion_seg_nifti = nib.Nifti1Image(lesion_seg_data, lesion_seg.affine, lesion_seg.header)
         nib.save(lesion_seg_nifti, str(label_file_nnunet))
 
         #we update the conversion dict (for label we only point to the lesion mask)
         conversion_dict[str(os.path.abspath(image_file))] = image_file_nnunet
-        conversion_dict[str(os.path.abspath(lesion_seg_file))] = label_file_nnunet
+        conversion_dict[str(os.path.abspath(lesion_file))] = label_file_nnunet
 
     #we iterate over all  testing images
     for lesion_file in tqdm.tqdm(test_data):
@@ -175,14 +179,18 @@ def main():
         sc_seg_file = test_data[lesion_file]['sc']
         sc_seg = nib.load(sc_seg_file)
         sc_seg_data = np.asarray(sc_seg.dataobj)
-        sc_seg_data = np.where(sc_seg > 0.5, 1, 0)
+        sc_seg_data = np.where(sc_seg_data > 0.5, 1, 0)
         sc_seg_nifti = nib.Nifti1Image(sc_seg_data, sc_seg.affine, sc_seg.header)
         nib.save(sc_seg_nifti, str(sc_seg_file_nnunet))
+        spacing = nib.load(image_file).header.get_zooms()
+        sc_seg_reorient = nib.load(sc_seg_file_nnunet)
+        sc_seg_reorient.header.set_zooms(spacing)
+        nib.save(sc_seg_reorient, sc_seg_file_nnunet)
         
         #we do the same for the label file
         lesion_seg = nib.load(lesion_file)
         lesion_seg_data = np.asarray(lesion_seg.dataobj)
-        lesion_seg_data = np.where(lesion_seg > 0.5, 1, 0)
+        lesion_seg_data = np.where(lesion_seg_data > 0.5, 1, 0)
         lesion_seg_nifti = nib.Nifti1Image(lesion_seg_data, lesion_seg.affine, lesion_seg.header)
         nib.save(lesion_seg_nifti, str(label_file_nnunet))
         
