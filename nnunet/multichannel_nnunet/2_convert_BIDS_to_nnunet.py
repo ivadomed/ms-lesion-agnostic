@@ -152,6 +152,7 @@ def main():
         scan_cnt_train+= 1
 
         image_file_nnunet = os.path.join(path_out_imagesTr,f'{args.taskname}_{scan_cnt_train:03d}_0000.nii.gz')
+        sc_seg_file_nnunet = os.path.join(path_out_imagesTr,f'{args.taskname}_{scan_cnt_train:03d}_0001.nii.gz')
         label_file_nnunet = os.path.join(path_out_labelsTr,f'{args.taskname}_{scan_cnt_train:03d}.nii.gz')
         
         train_images.append(str(image_file_nnunet))
@@ -160,10 +161,21 @@ def main():
         # copy the image to new structure
         shutil.copyfile(image_file, image_file_nnunet)
 
-        # Here we build the multi-label label file
-        lesion_seg_file = train_data[image_file]['lesion']
+        # here we save the the spinal cord seg file in the right destination and binarize it before
         sc_seg_file = train_data[image_file]['sc']
-        create_multi_label_mask(lesion_seg_file, sc_seg_file, label_file_nnunet)
+        sc_seg = nib.load(sc_seg_file)
+        sc_seg_data = np.asarray(sc_seg.dataobj)
+        sc_seg_data = np.where(sc_seg > 0.5, 1, 0)
+        sc_seg_nifti = nib.Nifti1Image(sc_seg_data, sc_seg.affine, sc_seg.header)
+        nib.save(sc_seg_nifti, str(sc_seg_file_nnunet))
+        
+        #we do the same for the label file
+        lesion_seg_file = train_data[image_file]['lesion']
+        lesion_seg = nib.load(lesion_seg_file)
+        lesion_seg_data = np.asarray(lesion_seg.dataobj)
+        lesion_seg_data = np.where(lesion_seg > 0.5, 1, 0)
+        lesion_seg_nifti = nib.Nifti1Image(lesion_seg_data, lesion_seg.affine, lesion_seg.header)
+        nib.save(lesion_seg_nifti, str(label_file_nnunet))
 
         #we update the conversion dict (for label we only point to the lesion mask)
         conversion_dict[str(os.path.abspath(image_file))] = image_file_nnunet
@@ -177,24 +189,39 @@ def main():
         # we create test folders for each dataset
         if 'canproco' in image_file:
             image_file_nnunet = os.path.join(path_out_imagesTs,'canproco',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
+            sc_seg_file_nnunet = os.path.join(path_out_imagesTs,'canproco',f'{args.taskname}_{scan_cnt_test:03d}_0001.nii.gz')
             label_file_nnunet = os.path.join(path_out_labelsTs,'canproco',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
         elif 'basel' in image_file:
             image_file_nnunet = os.path.join(path_out_imagesTs,'basel',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
+            sc_seg_file_nnunet = os.path.join(path_out_imagesTs,'basel',f'{args.taskname}_{scan_cnt_test:03d}_0001.nii.gz')
             label_file_nnunet = os.path.join(path_out_labelsTs,'basel',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
         elif 'sct-testing-large' in image_file:
             image_file_nnunet = os.path.join(path_out_imagesTs,'sct-testing',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
+            sc_seg_file_nnunet = os.path.join(path_out_imagesTs,'sct-testing',f'{args.taskname}_{scan_cnt_test:03d}_0001.nii.gz')
             label_file_nnunet = os.path.join(path_out_labelsTs,'sct-testing',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
         elif 'bavaria' in image_file:
             image_file_nnunet = os.path.join(path_out_imagesTs,'bavaria',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
+            sc_seg_file_nnunet = os.path.join(path_out_imagesTs,'bavaria',f'{args.taskname}_{scan_cnt_test:03d}_0001.nii.gz')
             label_file_nnunet = os.path.join(path_out_labelsTs,'bavaria',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
 
         # copy the image to new structure
         shutil.copyfile(image_file, image_file_nnunet)
 
-        # Here we build the multi-label label file
-        lesion_seg_file = test_data[image_file]['lesion']
+        # here we save the the spinal cord seg file in the right destination and binarize it before
         sc_seg_file = test_data[image_file]['sc']
-        create_multi_label_mask(lesion_seg_file, sc_seg_file, label_file_nnunet)
+        sc_seg = nib.load(sc_seg_file)
+        sc_seg_data = np.asarray(sc_seg.dataobj)
+        sc_seg_data = np.where(sc_seg > 0.5, 1, 0)
+        sc_seg_nifti = nib.Nifti1Image(sc_seg_data, sc_seg.affine, sc_seg.header)
+        nib.save(sc_seg_nifti, str(sc_seg_file_nnunet))
+        
+        #we do the same for the label file
+        lesion_seg_file = test_data[image_file]['lesion']
+        lesion_seg = nib.load(lesion_seg_file)
+        lesion_seg_data = np.asarray(lesion_seg.dataobj)
+        lesion_seg_data = np.where(lesion_seg > 0.5, 1, 0)
+        lesion_seg_nifti = nib.Nifti1Image(lesion_seg_data, lesion_seg.affine, lesion_seg.header)
+        nib.save(lesion_seg_nifti, str(label_file_nnunet))
         
         test_images.append(str(image_file_nnunet))
         test_labels.append(str(label_file_nnunet))
@@ -227,16 +254,15 @@ def main():
     ## was changed from 'modality' to 'channel_names'
     json_dict['channel_names'] = {
             "0": "MRI",
+            "1": "Spinal Cord segmentation",
         }
     
      # 0 is always the background. Any class labels should start from 1.
     json_dict['labels'] = {
         "background" : 0,
-        "Spinal cord" : [1, 2] ,
-        "Lesion" : 2,
+        "Lesion" : 1,
     }
    
-    json_dict['regions_class_order'] = [1,2]
 
     json_dict['numTraining'] = scan_cnt_train
     json_dict['numTest'] = scan_cnt_test
