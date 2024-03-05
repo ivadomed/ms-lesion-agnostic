@@ -63,10 +63,10 @@ for file in tqdm.tqdm(files):
         if lesion_mask.exists() and sc_mask.exists():
             # we add it to the conversion dictionary of training or testing depending on the ratio
             if rd.random() < train_ratio:
-                conversion_dict_training[str(file)] = {'lesion':str(lesion_mask),'sc':str(sc_mask)}
+                conversion_dict_training[str(lesion_mask)] = {'image':str(file), 'sc':str(sc_mask)}
                 count_canproco_train +=1
             else:
-                conversion_dict_testing[str(file)] = {'lesion':str(lesion_mask),'sc':str(sc_mask)}
+                conversion_dict_testing[str(lesion_mask)] = {'image':str(file), 'sc':str(sc_mask)}
                 count_canproco_test += 1
         else:
             # we add it to the inference images
@@ -109,27 +109,27 @@ for file in tqdm.tqdm(files):
         if lesion_mask1.exists() and sc_mask.exists():
             # we add it to the conversion dictionary of training or testing depending on the ratio
             if rd.random() < train_ratio:
-                conversion_dict_training[str(file)] = {'lesion':str(lesion_mask1),'sc':str(sc_mask)}
+                conversion_dict_training[str(lesion_mask1)] = {'image':str(file),'sc':str(sc_mask)}
                 count_basel_train += 1
             else:
-                conversion_dict_testing[str(file)] = {'lesion':str(lesion_mask1),'sc':str(sc_mask)}
+                conversion_dict_testing[str(lesion_mask1)] = {'image':str(file),'sc':str(sc_mask)}
                 count_basel_test += 1
             
         if lesion_mask2.exists() and sc_mask.exists():
             # we add it to the conversion dictionary of training or testing depending on the ratio
             if rd.random() < train_ratio:
-                conversion_dict_training[str(file)] = {'lesion':str(lesion_mask2),'sc':str(sc_mask)}
+                conversion_dict_training[str(lesion_mask2)] = {'image':str(file),'sc':str(sc_mask)}
                 count_basel_train += 1
             else:
-                conversion_dict_testing[str(file)] = {'lesion':str(lesion_mask2),'sc':str(sc_mask)}
+                conversion_dict_testing[str(lesion_mask2)] = {'image':str(file),'sc':str(sc_mask)}
                 count_basel_test += 1
         if lesion_mask3.exists() and sc_mask.exists():
             # we add it to the conversion dictionary of training or testing depending on the ratio
             if rd.random() < train_ratio:
-                conversion_dict_training[str(file)] = {'lesion':str(lesion_mask3),'sc':str(sc_mask)}
+                conversion_dict_training[str(lesion_mask3)] = {'image':str(file),'sc':str(sc_mask)}
                 count_basel_train += 1
             else:
-                conversion_dict_testing[str(file)] = {'lesion':str(lesion_mask3),'sc':str(sc_mask)}
+                conversion_dict_testing[str(lesion_mask3)] = {'image':str(file),'sc':str(sc_mask)}
                 count_basel_test += 1
         else:
             # we add it to the inference images
@@ -166,11 +166,11 @@ for lesion_mask in tqdm.tqdm(lesion_files):
         # we add it to the conversion dictionary of training or testing depending on the ratio
         if sc_mask.exists():
             if rd.random() < train_ratio:
-                conversion_dict_training[str(file)] = {'lesion':str(lesion_mask),'sc':str(sc_mask)}
+                conversion_dict_training[str(lesion_mask)] = {'image':str(file),'sc':str(sc_mask)}
                 count_sct_testing_train+=1
     
             else:
-                conversion_dict_testing[str(file)] = {'lesion':str(lesion_mask),'sc':str(sc_mask)}
+                conversion_dict_testing[str(lesion_mask)] = {'image':str(file),'sc':str(sc_mask)}
                 count_sct_testing_test+=1
         else :
             # we add it to the inference images
@@ -212,10 +212,10 @@ for file in tqdm.tqdm(files):
         if lesion_mask.exists() and sc_mask.exists():
             # we add it to the conversion dictionary of training or testing depending on the ratio
             if rd.random() < train_ratio:
-                conversion_dict_training[str(file)] = {'lesion':str(lesion_mask),'sc':str(sc_mask)}
+                conversion_dict_training[str(lesion_mask)] = {'image':str(file),'sc':str(sc_mask)}
                 count_bavaria_train += 1
             else:
-                conversion_dict_testing[str(file)] = {'lesion':str(lesion_mask),'sc':str(sc_mask)}
+                conversion_dict_testing[str(lesion_mask)] = {'image':str(file),'sc':str(sc_mask)}
                 count_bavaria_test += 1
         else:
             # we add it to the inference images
@@ -233,6 +233,6 @@ print("Total image for testing: ", count_canproco_test + count_basel_test  + cou
 print("Total image for inference: ", count_canproco_inf + count_basel_inf + count_bavaria_inf)
 
 # save the conversion dictionaries in the output folder
-with open(output_folder / 'data_multichannel_nnunet.json', 'w') as f:
+with open(output_folder / 'data_regionBased_nnunet.json', 'w') as f:
     json.dump({'training': conversion_dict_training, 'testing': conversion_dict_testing, 'inference': inference_images}, f, indent=4)
 print("Conversion dictionaries saved")
