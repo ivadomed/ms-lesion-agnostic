@@ -147,7 +147,7 @@ def main():
     test_data = data_split['testing']
     
     #we iterate over all  training images
-    for image_file in tqdm.tqdm(train_data):
+    for lesion_file in tqdm.tqdm(train_data):
         #we update the count of images of the training set
         scan_cnt_train+= 1
 
@@ -158,43 +158,43 @@ def main():
         train_labels.append(str(label_file_nnunet))
 
         # copy the image to new structure
+        image_file = train_data[lesion_file]['image']
         shutil.copyfile(image_file, image_file_nnunet)
 
         # Here we build the multi-label label file
-        lesion_seg_file = train_data[image_file]['lesion']
-        sc_seg_file = train_data[image_file]['sc']
-        create_multi_label_mask(lesion_seg_file, sc_seg_file, label_file_nnunet)
+        sc_file = train_data[lesion_file]['sc']
+        create_multi_label_mask(lesion_file, sc_file, label_file_nnunet)
 
         #we update the conversion dict (for label we only point to the lesion mask)
         conversion_dict[str(os.path.abspath(image_file))] = image_file_nnunet
         conversion_dict[str(os.path.abspath(lesion_seg_file))] = label_file_nnunet
 
     #we iterate over all  testing images
-    for image_file in tqdm.tqdm(test_data):
+    for lesion_file in tqdm.tqdm(test_data):
         #we update the count of images of the test set
         scan_cnt_test+= 1
 
         # we create test folders for each dataset
-        if 'canproco' in image_file:
+        if 'canproco' in lesion_file:
             image_file_nnunet = os.path.join(path_out_imagesTs,'canproco',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
             label_file_nnunet = os.path.join(path_out_labelsTs,'canproco',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
-        elif 'basel' in image_file:
+        elif 'basel' in lesion_file:
             image_file_nnunet = os.path.join(path_out_imagesTs,'basel',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
             label_file_nnunet = os.path.join(path_out_labelsTs,'basel',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
-        elif 'sct-testing-large' in image_file:
+        elif 'sct-testing-large' in lesion_file:
             image_file_nnunet = os.path.join(path_out_imagesTs,'sct-testing',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
             label_file_nnunet = os.path.join(path_out_labelsTs,'sct-testing',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
-        elif 'bavaria' in image_file:
+        elif 'bavaria' in lesion_file:
             image_file_nnunet = os.path.join(path_out_imagesTs,'bavaria',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
             label_file_nnunet = os.path.join(path_out_labelsTs,'bavaria',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
 
         # copy the image to new structure
+        image_file = test_data[lesion_file]['image']
         shutil.copyfile(image_file, image_file_nnunet)
 
         # Here we build the multi-label label file
-        lesion_seg_file = test_data[image_file]['lesion']
-        sc_seg_file = test_data[image_file]['sc']
-        create_multi_label_mask(lesion_seg_file, sc_seg_file, label_file_nnunet)
+        sc_file = test_data[image_file]['sc']
+        create_multi_label_mask(lesion_file, sc_file, label_file_nnunet)
         
         test_images.append(str(image_file_nnunet))
         test_labels.append(str(label_file_nnunet))
