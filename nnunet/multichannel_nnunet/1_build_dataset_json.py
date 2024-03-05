@@ -233,6 +233,6 @@ print("Total image for testing: ", count_canproco_test + count_basel_test  + cou
 print("Total image for inference: ", count_canproco_inf + count_basel_inf + count_bavaria_inf)
 
 # save the conversion dictionaries in the output folder
-with open(output_folder / 'data_regionBased_nnunet.json', 'w') as f:
+with open(output_folder / 'data_multichannel_nnunet.json', 'w') as f:
     json.dump({'training': conversion_dict_training, 'testing': conversion_dict_testing, 'inference': inference_images}, f, indent=4)
 print("Conversion dictionaries saved")
