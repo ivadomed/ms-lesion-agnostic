@@ -167,7 +167,7 @@ def main():
 
         #we update the conversion dict (for label we only point to the lesion mask)
         conversion_dict[str(os.path.abspath(image_file))] = image_file_nnunet
-        conversion_dict[str(os.path.abspath(lesion_seg_file))] = label_file_nnunet
+        conversion_dict[str(os.path.abspath(lesion_file))] = label_file_nnunet
 
     #we iterate over all  testing images
     for lesion_file in tqdm.tqdm(test_data):
