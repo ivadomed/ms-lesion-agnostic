@@ -53,43 +53,6 @@ def get_parser():
 
     return parser
 
-def  create_multi_label_mask(lesion_mask_file, sc_seg_file, label_file_nnunet, label_threshold=0.5):
-    """
-    This function creates a multi-label mask for a given lesion mask and spinal cord segmentation mask.
-    It also removes the lesions and the spinal cord segmentation which are above the first vertebral level.
-    It saves the multi-label mask in the destination folder.
-
-    Input:
-        lesion_mask_file : Path to the lesion mask file
-        sc_seg_file : Path to the spinal cord segmentation mask file
-        label_file_nnunet : Path to the multi-label mask file
-
-    Returns:
-        None
-    """
-    # first for both spinal cord and lesion, we threshold and binarize everything at 1
-    # for the lesion mask
-    lesion_mask = nib.load(lesion_mask_file)
-    lesion_affine = lesion_mask.affine
-    lesion_header = lesion_mask.header
-    lesion_mask = np.asarray(lesion_mask.dataobj)
-    lesion_mask = np.where(lesion_mask > label_threshold, 1, 0)
-
-    #we load the disc levels mask
-    sc_seg = nib.load(sc_seg_file)
-    sc_seg = np.asarray(sc_seg.dataobj)
-    sc_seg = np.where(sc_seg > label_threshold, 1, 0)
-    
-    #we create the multi-label
-    multi_label = np.zeros(lesion_mask.shape,dtype=np.int16)
-    multi_label[sc_seg==1] = 1
-    multi_label[lesion_mask==1] = 2
-
-    #we save it in the destination folder
-    multi_label_file = nib.Nifti1Image(multi_label, lesion_affine, lesion_header)
-    nib.save(multi_label_file, str(label_file_nnunet))
-    return None
-
 
 def main():
     """
@@ -147,7 +110,7 @@ def main():
     test_data = data_split['testing']
     
     #we iterate over all  training images
-    for image_file in tqdm.tqdm(train_data):
+    for lesion_file in tqdm.tqdm(train_data):
         #we update the count of images of the training set
         scan_cnt_train+= 1
 
@@ -159,10 +122,11 @@ def main():
         train_labels.append(str(label_file_nnunet))
 
         # copy the image to new structure
+        image_file = train_data[lesion_file]['image']
         shutil.copyfile(image_file, image_file_nnunet)
 
         # here we save the the spinal cord seg file in the right destination and binarize it before
-        sc_seg_file = train_data[image_file]['sc']
+        sc_seg_file = train_data[lesion_file]['sc']
         sc_seg = nib.load(sc_seg_file)
         sc_seg_data = np.asarray(sc_seg.dataobj)
         sc_seg_data = np.where(sc_seg > 0.5, 1, 0)
@@ -170,8 +134,7 @@ def main():
         nib.save(sc_seg_nifti, str(sc_seg_file_nnunet))
         
         #we do the same for the label file
-        lesion_seg_file = train_data[image_file]['lesion']
-        lesion_seg = nib.load(lesion_seg_file)
+        lesion_seg = nib.load(lesion_file)
         lesion_seg_data = np.asarray(lesion_seg.dataobj)
         lesion_seg_data = np.where(lesion_seg > 0.5, 1, 0)
         lesion_seg_nifti = nib.Nifti1Image(lesion_seg_data, lesion_seg.affine, lesion_seg.header)
@@ -182,33 +145,34 @@ def main():
         conversion_dict[str(os.path.abspath(lesion_seg_file))] = label_file_nnunet
 
     #we iterate over all  testing images
-    for image_file in tqdm.tqdm(test_data):
+    for lesion_file in tqdm.tqdm(test_data):
         #we update the count of images of the test set
         scan_cnt_test+= 1
 
         # we create test folders for each dataset
-        if 'canproco' in image_file:
+        if 'canproco' in lesion_file:
             image_file_nnunet = os.path.join(path_out_imagesTs,'canproco',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
             sc_seg_file_nnunet = os.path.join(path_out_imagesTs,'canproco',f'{args.taskname}_{scan_cnt_test:03d}_0001.nii.gz')
             label_file_nnunet = os.path.join(path_out_labelsTs,'canproco',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
-        elif 'basel' in image_file:
+        elif 'basel' in lesion_file:
             image_file_nnunet = os.path.join(path_out_imagesTs,'basel',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
             sc_seg_file_nnunet = os.path.join(path_out_imagesTs,'basel',f'{args.taskname}_{scan_cnt_test:03d}_0001.nii.gz')
             label_file_nnunet = os.path.join(path_out_labelsTs,'basel',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
-        elif 'sct-testing-large' in image_file:
+        elif 'sct-testing-large' in lesion_file:
             image_file_nnunet = os.path.join(path_out_imagesTs,'sct-testing',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
             sc_seg_file_nnunet = os.path.join(path_out_imagesTs,'sct-testing',f'{args.taskname}_{scan_cnt_test:03d}_0001.nii.gz')
             label_file_nnunet = os.path.join(path_out_labelsTs,'sct-testing',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
-        elif 'bavaria' in image_file:
+        elif 'bavaria' in lesion_file:
             image_file_nnunet = os.path.join(path_out_imagesTs,'bavaria',f'{args.taskname}_{scan_cnt_test:03d}_0000.nii.gz')
             sc_seg_file_nnunet = os.path.join(path_out_imagesTs,'bavaria',f'{args.taskname}_{scan_cnt_test:03d}_0001.nii.gz')
             label_file_nnunet = os.path.join(path_out_labelsTs,'bavaria',f'{args.taskname}_{scan_cnt_test:03d}.nii.gz')
 
         # copy the image to new structure
+        image_file = test_data[lesion_file]['image']
         shutil.copyfile(image_file, image_file_nnunet)
 
         # here we save the the spinal cord seg file in the right destination and binarize it before
-        sc_seg_file = test_data[image_file]['sc']
+        sc_seg_file = test_data[lesion_file]['sc']
         sc_seg = nib.load(sc_seg_file)
         sc_seg_data = np.asarray(sc_seg.dataobj)
         sc_seg_data = np.where(sc_seg > 0.5, 1, 0)
@@ -216,8 +180,7 @@ def main():
         nib.save(sc_seg_nifti, str(sc_seg_file_nnunet))
         
         #we do the same for the label file
-        lesion_seg_file = test_data[image_file]['lesion']
-        lesion_seg = nib.load(lesion_seg_file)
+        lesion_seg = nib.load(lesion_file)
         lesion_seg_data = np.asarray(lesion_seg.dataobj)
         lesion_seg_data = np.where(lesion_seg > 0.5, 1, 0)
         lesion_seg_nifti = nib.Nifti1Image(lesion_seg_data, lesion_seg.affine, lesion_seg.header)
