@@ -13,6 +13,7 @@ import shutil
 import tqdm
 import json
 import random as rd
+import yaml
 
 #output folder
 output_folder = pathlib.Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/all_ms_sc_data')
@@ -21,6 +22,7 @@ output_folder = pathlib.Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic
 conversion_dict_training = {}
 conversion_dict_testing = {}
 inference_images = {}
+count_inference_imgs = 0
 
 # training and testing ratio
 train_ratio = 0.8
@@ -36,13 +38,22 @@ train_ratio = 0.8
 # Let's first aggregate the CanProCo dataset
 canproco_path = pathlib.Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/canproco')
 
+canproco_exlude_path = pathlib.Path('/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/canproco/exclude.yml')
+
+# import the exclude list
+with open(canproco_exlude_path, 'r') as file:
+    exclude_list = yaml.safe_load(file)
+
+# keep only PSIR and STIR in exclude list
+exclude_list = exclude_list['PSIR'] + exclude_list['STIR']
+
 count_canproco_train = 0
 count_canproco_test = 0
 count_canproco_inf = 0
 
 files = list(canproco_path.rglob('*_PSIR.nii.gz')) + list(canproco_path.rglob('*STIR.nii.gz'))
 for file in tqdm.tqdm(files):
-    if 'SHA256' not in str(file):
+    if 'SHA256' not in str(file) and file.name.replace('_PSIR.nii.gz','').replace('_STIR.nii.gz','') not in exclude_list:
         # we check if the file has a mask in the derivatives folder (derivatives/folder and then same relative path)
         relative_path = file.relative_to(canproco_path).parent
         lesion_mask = canproco_path / 'derivatives' / 'labels' / relative_path / file.name.replace('.nii.gz', '_lesion-manual.nii.gz')
@@ -57,7 +68,8 @@ for file in tqdm.tqdm(files):
                 count_canproco_test += 1
         else:
             # we add it to the inference images
-            inference_images[count_canproco_inf] = str(file)
+            inference_images[count_inference_imgs] = str(file)
+            count_inference_imgs += 1
             count_canproco_inf += 1
                     
 print(f'CanProCo: {count_canproco_train} images for training')
@@ -116,7 +128,8 @@ for file in tqdm.tqdm(files):
                 count_basel_test += 1
         else:
             # we add it to the inference images
-            inference_images[count_basel_inf] = str(file)
+            inference_images[count_inference_imgs] = str(file)
+            count_inference_imgs +=1
             count_basel_inf += 1
 
 print(f'Basel: {count_basel_train} images for training')
@@ -188,7 +201,8 @@ for file in tqdm.tqdm(files):
                 count_bavaria_test += 1
         else:
             # we add it to the inference images
-            inference_images[count_bavaria_inf] = str(file)
+            inference_images[count_inference_imgs] = str(file)
+            count_inference_imgs += 1
             count_bavaria_inf += 1
 
 # print the number of files copied
