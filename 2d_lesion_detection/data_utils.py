@@ -1,3 +1,7 @@
+"""
+Functions for data preprocessing, to generate a YOLO format dataset from a BIDS database.
+"""
+
 import os
 from pathlib import Path
 
@@ -7,6 +11,7 @@ import numpy as np
 import nibabel as nib
 import scipy.ndimage as ndi
 from torchvision.ops import masks_to_boxes
+from skimage.exposure import equalize_adapthist
 
 
 def nifti_to_png(nifti_path:Path, output_dir:Path, spinal_cord_path:Path=None):
@@ -58,7 +63,9 @@ def nifti_to_png(nifti_path:Path, output_dir:Path, spinal_cord_path:Path=None):
             if sc_seg_slice.max() == 1:
                 # slice contains spinal cord
                 output_path = os.path.join(str(output_dir), f"{filename}_{i}.png")
-                cv2.imwrite(output_path, ndi.rotate(vol_data[:, :, i], 90))
+                img_slice = np.clip(ndi.rotate(vol_data[:, :, i], 90) / 255.0, 0, 1) # make sure it's between 0 and 1 for histogram equalization
+                
+                cv2.imwrite(output_path, equalize_adapthist(img_slice)*255) # equalize histogram
             else:
                 assert(sc_seg_slice.max() == 0)
         else:
@@ -67,7 +74,7 @@ def nifti_to_png(nifti_path:Path, output_dir:Path, spinal_cord_path:Path=None):
             cv2.imwrite(output_path, ndi.rotate(vol_data[:, :, i], 90))
 
 
-def mask_to_bbox(mask:np.ndarray) -> np.ndarray|None:
+def mask_to_bbox(mask:np.ndarray) -> "np.ndarray|None":
     """
     Extracts bounding box coordinates for each object in a binary tensor
 
@@ -191,7 +198,6 @@ def labels_from_nifti(nifti_labels_path:Path, output_dir:Path):
 
             # Save to output directory
             output_path = os.path.join(str(output_dir), filename + f"_{i}.txt")
-            print(f"Saving {output_path}")
             np.savetxt(output_path, boxes_array, fmt = ['%g', '%.6f', '%.6f', '%.6f', '%.6f'])
 
         else:
