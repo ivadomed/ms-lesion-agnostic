@@ -27,6 +27,7 @@ import argparse
 from loguru import logger
 from sklearn.model_selection import train_test_split
 from datetime import date
+from pathlib import Path
 
 # root = "/home/GRAMES.POLYMTL.CA/u114716/datasets/spine-generic_uncropped"
 
@@ -42,10 +43,10 @@ root = args.path_data
 seed = args.seed
 
 # Get all subjects
-canproco_path = os.path.join(root, "canproco")
-basel_path = os.path.join(root, "basel-mp2rage")
-bavaria_path = os.path.join(root, "bavaria-quebec-spine-ms")
-sct_testing_path = os.path.join(root, "sct-testing-large")
+canproco_path = Path(os.path.join(root, "canproco"))
+basel_path = Path(os.path.join(root, "basel-mp2rage"))
+bavaria_path = Path(os.path.join(root, "bavaria-quebec-spine-ms"))
+sct_testing_path = Path(os.path.join(root, "sct-testing-large"))
 
 subjects_canproco = list(canproco_path.rglob('*_PSIR.nii.gz')) + list(canproco_path.rglob('*STIR.nii.gz'))
 subjects_basel = list(basel_path.rglob('*UNIT1.nii.gz'))
@@ -53,7 +54,7 @@ subjects_sct = list(sct_testing_path.rglob('*_lesion-manual.nii.gz'))
 subjects_bavaria = list(bavaria_path.rglob('*T2w.nii.gz'))
 
 subjects = subjects_canproco + subjects_basel + subjects_sct + subjects_bavaria
-logger.info(f"Total number of subjects in the root directory: {subjects}")
+logger.info(f"Total number of subjects in the root directory: {len(subjects)}")
 
 # create one json file with 60-20-20 train-val-test split
 train_ratio, val_ratio, test_ratio = 0.6, 0.2, 0.2
@@ -71,7 +72,7 @@ logger.info(f"Number of validation subjects: {len(val_subjects)}")
 logger.info(f"Number of testing subjects: {len(test_subjects)}")
 
 # dump train/val/test splits into a yaml file
-with open(f"data_split_{date}_seed{seed}.yaml", 'w') as file:
+with open(f"{args.path_out}/data_split_{str(date.today())}_seed{seed}.yaml", 'w') as file:
     yaml.dump({'train': train_subjects, 'val': val_subjects, 'test': test_subjects}, file, indent=2, sort_keys=True)
 
 # keys to be defined in the dataset_0.json
@@ -112,22 +113,22 @@ for subjects_dict in tqdm(all_subjects_list, desc="Iterating through train/val/t
 
             # Canproco
             if 'canproco' in str(subject):
-                temp_data_canproco["label"] = subject
+                temp_data_canproco["label"] = str(subject)
                 temp_data_canproco["image"] = str(subject).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
                 if os.path.exists(temp_data_canproco["label"]) and os.path.exists(temp_data_canproco["image"]):
                     temp_list.append(temp_data_canproco)
             
             # Basel
             elif 'basel-mp2rage' in str(subject):
-                relative_path = subject.relative_to(bavaria_path).parent
-                temp_data_basel["image"] = subject
-                temp_data_basel["image"] = bavaria_path / 'derivatives' / 'labels' /  relative_path / str(subject).replace('UNIT1.nii.gz', 'UNIT1_desc-rater3_label-lesion_seg.nii.gz')
+                relative_path = subject.relative_to(basel_path).parent
+                temp_data_basel["image"] = str(subject)
+                temp_data_basel["label"] = str(basel_path / 'derivatives' / 'labels' /  relative_path / str(subject).replace('UNIT1.nii.gz', 'UNIT1_desc-rater3_label-lesion_seg.nii.gz'))
                 if os.path.exists(temp_data_basel["label"]) and os.path.exists(temp_data_basel["image"]):
                     temp_list.append(temp_data_basel)
 
             # sct-testing-large
             elif 'sct-testing-large' in str(subject):
-                temp_data_sct["label"] = subject
+                temp_data_sct["label"] = str(subject)
                 temp_data_sct["image"] = str(subject).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
                 if os.path.exists(temp_data_sct["label"]) and os.path.exists(temp_data_sct["image"]):
                     temp_list.append(temp_data_sct)
@@ -136,8 +137,8 @@ for subjects_dict in tqdm(all_subjects_list, desc="Iterating through train/val/t
             # Bavaria-quebec
             elif 'bavaria-quebec-spine-ms' in str(subject):
                 relative_path = subject.relative_to(bavaria_path).parent
-                temp_data_bavaria["label"] = subject
-                temp_data_bavaria["image"] = bavaria_path / 'derivatives' / 'labels' / relative_path / subject.name.replace('T2w.nii.gz', 'T2w_lesion-manual.nii.gz')
+                temp_data_bavaria["image"] = str(subject)
+                temp_data_bavaria["label"] = str(bavaria_path / 'derivatives' / 'labels' / relative_path / subject.name.replace('T2w.nii.gz', 'T2w_lesion-manual.nii.gz'))
                 if os.path.exists(temp_data_bavaria["label"]) and os.path.exists(temp_data_bavaria["image"]):
                     temp_list.append(temp_data_bavaria)
             
@@ -148,6 +149,6 @@ final_json = json.dumps(params, indent=4, sort_keys=True)
 if not os.path.exists(args.path_out):
     os.makedirs(args.path_out, exist_ok=True)
 
-jsonFile = open(args.path_out + "/" + f"dataset_{date}_seed{seed}.json", "w")
+jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}.json", "w")
 jsonFile.write(final_json)
 jsonFile.close()
