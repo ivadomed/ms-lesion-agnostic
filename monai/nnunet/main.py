@@ -475,9 +475,6 @@ def main(args):
     # define optimizer
     if config["opt"]["name"] == "adam":
         optimizer_class = torch.optim.Adam
-    elif config["opt"]["name"] == "sgd":
-        optimizer_class = torch.optim.SGD
-
 
     if config["model"]["nnunet"]["enable_deep_supervision"]:
         logger.info(f"Using nnUNet model WITH deep supervision ...")
@@ -518,9 +515,6 @@ def main(args):
                     f"nf={config['model']['nnunet']['base_num_features']}_" \
                     f"opt={config['opt']['name']}_lr={config['opt']['lr']}_AdapW_" \
                     f"bs={config['opt']['batch_size']}_{patch_size}" \
-
-    if args.debug:
-        save_exp_id = f"DEBUG_{save_exp_id}"
     
     
     timestamp = datetime.now().strftime(f"%Y%m%d-%H%M")   # prints in YYYYMMDD-HHMMSS format
@@ -548,118 +542,62 @@ def main(args):
     lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='epoch')
 
     # training from scratch
-    if not args.continue_from_checkpoint:
-        # to save the best model on validation
-        save_path = os.path.join(config["directories"]["models_dir"], f"{save_exp_id}")
-        if not os.path.exists(save_path):
-            os.makedirs(save_path, exist_ok=True)
+    # to save the best model on validation
+    save_path = os.path.join(config["directories"]["models_dir"], f"{save_exp_id}")
+    if not os.path.exists(save_path):
+        os.makedirs(save_path, exist_ok=True)
 
-        # to save the results/model predictions 
-        results_path = os.path.join(config["directories"]["results_dir"], f"{save_exp_id}")
-        if not os.path.exists(results_path):
-            os.makedirs(results_path, exist_ok=True)
+    # to save the results/model predictions 
+    results_path = os.path.join(config["directories"]["results_dir"], f"{save_exp_id}")
+    if not os.path.exists(results_path):
+        os.makedirs(results_path, exist_ok=True)
 
-        # i.e. train by loading weights from scratch
-        pl_model = Model(config, data_root=dataset_root,
-                            optimizer_class=optimizer_class, loss_function=loss_func, net=net, 
-                            exp_id=save_exp_id, results_path=results_path)
-                
-        # saving the best model based on validation loss
-        logger.info(f"Saving best model to {save_path}!")
-        checkpoint_callback_loss = pl.callbacks.ModelCheckpoint(
-            dirpath=save_path, filename='best_model', monitor='val_loss', 
-            save_top_k=1, mode="min", save_last=True, save_weights_only=False)
-        
-        # # saving the best model based on soft validation dice score
-        # checkpoint_callback_dice = pl.callbacks.ModelCheckpoint(
-        #     dirpath=save_path, filename='best_model_dice', monitor='val_soft_dice', 
-        #     save_top_k=1, mode="max", save_last=False, save_weights_only=True)
-        
-        logger.info(f"Starting training from scratch ...")
-        # wandb logger
-        exp_logger = pl.loggers.WandbLogger(
-                            name=save_exp_id,
-                            save_dir="/home/GRAMES.POLYMTL.CA/u114716/contrast-agnostic/saved_models",
-                            group=config["dataset"]["name"],
-                            log_model=True, # save best model using checkpoint callback
-                            project='contrast-agnostic',
-                            entity='naga-karthik',
-                            config=config)
+    # i.e. train by loading weights from scratch
+    pl_model = Model(config, data_root=dataset_root,
+                        optimizer_class=optimizer_class, loss_function=loss_func, net=net, 
+                        exp_id=save_exp_id, results_path=results_path)
+            
+    # saving the best model based on validation loss
+    logger.info(f"Saving best model to {save_path}!")
+    checkpoint_callback_loss = pl.callbacks.ModelCheckpoint(
+        dirpath=save_path, filename='best_model', monitor='val_loss', 
+        save_top_k=1, mode="min", save_last=True, save_weights_only=False)
+    
+    # # saving the best model based on soft validation dice score
+    # checkpoint_callback_dice = pl.callbacks.ModelCheckpoint(
+    #     dirpath=save_path, filename='best_model_dice', monitor='val_soft_dice', 
+    #     save_top_k=1, mode="max", save_last=False, save_weights_only=True)
+    
+    logger.info(f"Starting training from scratch ...")
+    # wandb logger
+    exp_logger = pl.loggers.WandbLogger(
+                        name=save_exp_id,
+                        save_dir="/home/GRAMES.POLYMTL.CA/u114716/contrast-agnostic/saved_models",
+                        group=config["dataset"]["name"],
+                        log_model=True, # save best model using checkpoint callback
+                        project='contrast-agnostic',
+                        entity='naga-karthik',
+                        config=config)
 
-        # Saving training script to wandb
-        wandb.save("main.py")
-        wandb.save("transforms.py")
+    # Saving training script to wandb
+    wandb.save("main.py")
+    wandb.save("transforms.py")
 
-        # initialise Lightning's trainer.
-        trainer = pl.Trainer(
-            devices=1, accelerator="gpu",
-            logger=exp_logger,
-            callbacks=[checkpoint_callback_loss, lr_monitor, early_stopping],
-            check_val_every_n_epoch=config["opt"]["check_val_every_n_epochs"],
-            max_epochs=config["opt"]["max_epochs"], 
-            precision=32,
-            # deterministic=True,
-            enable_progress_bar=False) 
-            # profiler="simple",)     # to profile the training time taken for each step
+    # initialise Lightning's trainer.
+    trainer = pl.Trainer(
+        devices=1, accelerator="gpu",
+        logger=exp_logger,
+        callbacks=[checkpoint_callback_loss, lr_monitor, early_stopping],
+        check_val_every_n_epoch=config["opt"]["check_val_every_n_epochs"],
+        max_epochs=config["opt"]["max_epochs"], 
+        precision=32,
+        # deterministic=True,
+        enable_progress_bar=False) 
+        # profiler="simple",)     # to profile the training time taken for each step
 
-        # Train!
-        trainer.fit(pl_model)        
-        logger.info(f" Training Done!")
-
-    else:
-        logger.info(f" Resuming training from the latest checkpoint! ")
-
-        # check if wandb run folder is provided to resume using the same run
-        if config["directories"]["wandb_run_folder"] is None:
-            raise ValueError("Please provide the wandb run folder to resume training using the same run on WandB!")
-        else:
-            wandb_run_folder = os.path.basename(config["directories"]["wandb_run_folder"])
-            wandb_run_id = wandb_run_folder.split("-")[-1]
-
-        save_exp_id = config["directories"]["models_dir"]
-        save_path = os.path.dirname(config["directories"]["models_dir"])
-        logger.info(f"save_path: {save_path}")
-        results_path = config["directories"]["results_dir"]
-
-        # i.e. train by loading existing weights
-        pl_model = Model(config, data_root=dataset_root,
-                            optimizer_class=optimizer_class, loss_function=loss_func, net=net, 
-                            exp_id=save_exp_id, results_path=results_path)
-                
-        # saving the best model based on validation CSA loss
-        checkpoint_callback_loss = pl.callbacks.ModelCheckpoint(
-            dirpath=save_exp_id, filename='best_model', monitor='val_loss', 
-            save_top_k=1, mode="min", save_last=True, save_weights_only=True)
-        
-        # # saving the best model based on soft validation dice score
-        # checkpoint_callback_dice = pl.callbacks.ModelCheckpoint(
-        #     dirpath=save_exp_id, filename='best_model_dice', monitor='val_soft_dice', 
-        #     save_top_k=1, mode="max", save_last=False, save_weights_only=True)
-
-        # wandb logger
-        exp_logger = pl.loggers.WandbLogger(
-                            save_dir=save_path,
-                            group=config["dataset"]["name"],
-                            log_model=True, # save best model using checkpoint callback
-                            project='contrast-agnostic',
-                            entity='naga-karthik',
-                            config=args, 
-                            id=wandb_run_id, resume='must')
-
-        # initialise Lightning's trainer.
-        trainer = pl.Trainer(
-            devices=1, accelerator="gpu",
-            logger=exp_logger,
-            callbacks=[checkpoint_callback_loss, lr_monitor, early_stopping],
-            check_val_every_n_epoch=config["opt"]["check_val_every_n_epochs"],
-            max_epochs=config["opt"]["max_epochs"], 
-            precision=32,
-            enable_progress_bar=True) 
-            # profiler="simple",)     # to profile the training time taken for each step
-
-        # Train!
-        trainer.fit(pl_model, ckpt_path=os.path.join(save_exp_id, "last.ckpt"),) 
-        logger.info(f" Training Done!")
+    # Train!
+    trainer.fit(pl_model)        
+    logger.info(f" Training Done!")
 
     # Test!
     trainer.test(pl_model)
