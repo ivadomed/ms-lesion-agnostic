@@ -1,0 +1,26 @@
+# Description: Configuration file for the UNETR model
+# Path to the data json file
+data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake.json
+# Path to the output directory
+output_dir : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
+# Resampling resolution
+pixdim : [1.0, 1.0, 1.0]
+# Spatial size of the input data
+spatial_size : [16, 224, 224]
+
+# UNETR model parameters
+feature_size : 16
+hidden_size : 768
+mlp_dim : 3072
+num_heads : 12
+
+# Optimizer parameters
+lr : 0.0001
+weight_decay: 0.00001
+
+# Training parameters
+max_iterations : 25000
+eval_num : 500
+
+# Model saving
+best_model_path : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/best_metric_model.pth
