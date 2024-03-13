@@ -48,7 +48,7 @@ basel_path = Path(os.path.join(root, "basel-mp2rage"))
 bavaria_path = Path(os.path.join(root, "bavaria-quebec-spine-ms"))
 sct_testing_path = Path(os.path.join(root, "sct-testing-large"))
 
-subjects_canproco = list(canproco_path.rglob('*_PSIR.nii.gz')) + list(canproco_path.rglob('*STIR.nii.gz'))
+subjects_canproco = list(canproco_path.rglob('*_lesion-manual.nii.gz'))
 subjects_basel = list(basel_path.rglob('*UNIT1.nii.gz'))
 subjects_sct = list(sct_testing_path.rglob('*_lesion-manual.nii.gz'))
 subjects_bavaria = list(bavaria_path.rglob('*T2w.nii.gz'))
