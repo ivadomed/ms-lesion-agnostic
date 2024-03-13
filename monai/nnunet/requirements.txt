@@ -1,3 +1,5 @@
-scikit-learn
 tqdm
-loguru
+monai[all]
+torch
+torchvision
+matplotlib
