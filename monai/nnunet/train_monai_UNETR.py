@@ -39,7 +39,8 @@ from monai.transforms import (
     BatchInverseTransform,
     RandAdjustContrastd,
     AsDiscreted,
-    RandHistogramShiftd
+    RandHistogramShiftd,
+    ResizeWithPadOrCropd
     )
 
 # Dataset import
@@ -49,7 +50,7 @@ from monai.data import DataLoader, CacheDataset, load_decathlon_datalist, Datase
 # model import
 import torch
 from monai.networks.nets import UNETR
-from monai.losses import DiceCELoss
+from monai.losses import DiceLoss
 
 # For training and validation
 from monai.data import decollate_batch
@@ -85,7 +86,7 @@ def validation(model, epoch_iterator_val, config, post_label, post_pred, dice_me
         dice_metric.reset()
     return mean_dice_val
 
-def train(model, config, global_step, train_loader, dice_val_best, global_step_best, loss_function, optimizer, epoch_loss_values, metric_values, val_loader):
+def train(model, config, global_step, train_loader, dice_val_best, global_step_best, loss_function, optimizer, epoch_loss_values, metric_values, val_loader, post_label, post_pred, dice_metric):
     model.train()
     epoch_loss = 0
     step = 0
@@ -94,7 +95,6 @@ def train(model, config, global_step, train_loader, dice_val_best, global_step_b
         step += 1
         x, y = (batch["image"].cuda(), batch["label"].cuda())
         logit_map = model(x)
-        print(logit_map)
         loss = loss_function(logit_map, y)
         loss.backward()
         epoch_loss += loss.item()
@@ -105,7 +105,7 @@ def train(model, config, global_step, train_loader, dice_val_best, global_step_b
         )
         if (global_step % config["eval_num"] == 0 and global_step != 0) or global_step == config["max_iterations"]:
             epoch_iterator_val = tqdm(val_loader, desc="Validate (X / X Steps) (dice=X.X)", dynamic_ncols=True)
-            dice_val = validation(epoch_iterator_val)
+            dice_val = validation(model, epoch_iterator_val, config, post_label, post_pred, dice_metric, global_step)
             epoch_loss /= step
             epoch_loss_values.append(epoch_loss)
             metric_values.append(dice_val)
@@ -152,8 +152,9 @@ def main():
             Spacingd(
                 keys=["image", "label"],
                 pixdim=config["pixdim"],
-                mode=("bilinear", "nearest"),
+                mode=(2, 1),
             ),
+            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=config["spatial_size"],),
             RandCropByPosNegLabeld(
                 keys=["image", "label"],
                 label_key="label",
@@ -203,13 +204,24 @@ def main():
     )
     val_transforms = Compose(
         [
-            LoadImaged(keys=["image", "label"]),
+            LoadImaged(keys=["image", "label"], reader="NibabelReader"),
             EnsureChannelFirstd(keys=["image", "label"]),
             Orientationd(keys=["image", "label"], axcodes="RSP"),
             Spacingd(
                 keys=["image", "label"],
-                pixdim=(1., 1., 1.0),
-                mode=("bilinear", "nearest"),
+                pixdim=config["pixdim"],
+                mode=(2, 1),
+            ),
+            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=config["spatial_size"],),
+            RandCropByPosNegLabeld(
+                keys=["image", "label"],
+                label_key="label",
+                spatial_size=config["spatial_size"],
+                pos=1,
+                neg=1,
+                num_samples=4,
+                image_key="image",
+                image_threshold=0,
             ),
             NormalizeIntensityd(
                 keys=["image", "label"], 
@@ -273,7 +285,7 @@ def main():
 
     model = UNETR(
         in_channels=1,
-        out_channels=2,
+        out_channels=1,
         img_size=config["spatial_size"],
         feature_size=config["feature_size"],
         hidden_size=config["hidden_size"],
@@ -285,13 +297,13 @@ def main():
         dropout_rate=0.0,
     ).to(device)
 
-    loss_function = DiceCELoss(to_onehot_y=True, softmax=True)
+    loss_function = DiceLoss(softmax=True)
     torch.backends.cudnn.benchmark = True
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-5)
 
     # We then train the model
-    post_label = AsDiscrete(to_onehot=2)
-    post_pred = AsDiscrete(argmax=True, to_onehot=2)
+    post_label = AsDiscrete(to_onehot=1)
+    post_pred = AsDiscrete(argmax=True, to_onehot=1)
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
     global_step = 0
     dice_val_best = 0.0
@@ -299,7 +311,8 @@ def main():
     epoch_loss_values = []
     metric_values = []
     while global_step < config["max_iterations"]:
-        global_step, dice_val_best, global_step_best = train(model, config, global_step, train_loader, dice_val_best, global_step_best, loss_function, optimizer, epoch_loss_values, metric_values, val_loader)
+        global_step, dice_val_best, global_step_best = train(model, config, global_step, train_loader, dice_val_best, global_step_best,
+                                                              loss_function, optimizer, epoch_loss_values, metric_values, val_loader, post_label, post_pred, dice_metric)
     model.load_state_dict(torch.load(config["best_model_path"]))
 
     print(f"train completed, best_metric: {dice_val_best:.4f} " f"at iteration: {global_step_best}")
