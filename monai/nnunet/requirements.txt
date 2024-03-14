@@ -3,3 +3,4 @@ monai[all]
 torch
 torchvision
 matplotlib
+pytorch_lightning
