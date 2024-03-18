@@ -11,6 +11,7 @@ import pytorch_lightning as pl
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from monai.metrics import DiceMetric
+from monai.losses import DiceLoss
 
 # Added this to solve problem with too many files open 
 ## Link here : https://github.com/pytorch/pytorch/issues/11201#issuecomment-421146936
@@ -19,7 +20,7 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 
 from losses import AdapWingLoss
 
-from utils import dice_score, check_empty_patch
+from utils import dice_score, check_empty_patch, multiply_by_negative_one
 from monai.networks.nets import UNet
 
 from monai.networks.layers import Norm
@@ -41,7 +42,8 @@ from monai.transforms import (
     AsDiscreted,
     RandHistogramShiftd,
     ResizeWithPadOrCropd,
-    EnsureTyped
+    EnsureTyped,
+    RandLambdad,
     )
 
 from monai.utils import set_determinism
@@ -167,6 +169,12 @@ class Model(pl.LightningModule):
                 gamma=(0.5, 4.5),
                 invert_image=True,
             ),
+            # we add the multiplication of the image by -1
+            RandLambdad(
+                keys='image',
+                func=multiply_by_negative_one,
+                prob=0.5
+                ),
             NormalizeIntensityd(
                 keys=["image", "label"], 
                 nonzero=False, 
@@ -225,8 +233,8 @@ class Model(pl.LightningModule):
         test_files = load_decathlon_datalist(dataset, True, "test")
         
         train_cache_rate = 0.5
-        self.train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=train_cache_rate, num_workers=4)
-        self.val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=0.25, num_workers=4)
+        self.train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=train_cache_rate, num_workers=8)
+        self.val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=0.25, num_workers=8)
 
         # define test transforms
         transforms_test = val_transforms
@@ -247,11 +255,11 @@ class Model(pl.LightningModule):
     # DATA LOADERS
     # --------------------------------
     def train_dataloader(self):
-        return DataLoader(self.train_ds, batch_size=self.cfg["batch_size"], shuffle=True, num_workers=4, 
+        return DataLoader(self.train_ds, batch_size=self.cfg["batch_size"], shuffle=True, num_workers=8, 
                             pin_memory=True, persistent_workers=True) 
 
     def val_dataloader(self):
-        return DataLoader(self.val_ds, batch_size=1, shuffle=False, num_workers=4, pin_memory=True, 
+        return DataLoader(self.val_ds, batch_size=1, shuffle=False, num_workers=8, pin_memory=True, 
                           persistent_workers=True)
     
     def test_dataloader(self):
@@ -398,6 +406,9 @@ class Model(pl.LightningModule):
             "val_hard_dice": mean_val_hard_dice,
             "val_loss": mean_val_loss,
         }
+
+        self.log_dict(wandb_logs)
+
         # save the best model based on validation dice score
         if mean_val_soft_dice > self.best_val_dice:
             self.best_val_dice = mean_val_soft_dice
@@ -412,8 +423,8 @@ class Model(pl.LightningModule):
             f"\nCurrent epoch: {self.current_epoch}"
             f"\nAverage Soft Dice (VAL): {mean_val_soft_dice:.4f}"
             f"\nAverage Hard Dice (VAL): {mean_val_hard_dice:.4f}"
-            f"\nAverage AdapWing Loss (VAL): {mean_val_loss:.4f}"
-            f"\nBest Average AdapWing Loss: {self.best_val_loss:.4f} at Epoch: {self.best_val_epoch}"
+            f"\nAverage DiceLoss (VAL): {mean_val_loss:.4f}"
+            f"\nBest Average DiceLoss: {self.best_val_loss:.4f} at Epoch: {self.best_val_epoch}"
             f"\n----------------------------------------------------")
         
 
@@ -526,11 +537,12 @@ def main():
 
 
     # define loss function
-    loss_func = AdapWingLoss(theta=0.5, omega=8, alpha=2.1, epsilon=1, reduction="sum")
+    #loss_func = AdapWingLoss(theta=0.5, omega=8, alpha=2.1, epsilon=1, reduction="sum")
+    loss_func = DiceLoss(sigmoid=True, smooth_dr=1e-4)
     # NOTE: tried increasing omega and decreasing epsilon but results marginally worse than the above
     # loss_func = AdapWingLoss(theta=0.5, omega=12, alpha=2.1, epsilon=0.5, reduction="sum")
-    logger.info(f"Using AdapWingLoss with theta={loss_func.theta}, omega={loss_func.omega}, alpha={loss_func.alpha}, epsilon={loss_func.epsilon} ...")
-
+    #logger.info(f"Using AdapWingLoss with theta={loss_func.theta}, omega={loss_func.omega}, alpha={loss_func.alpha}, epsilon={loss_func.epsilon} ...")
+    logger.info(f"Using DiceLoss ...")
     # define callbacks
     early_stopping = pl.callbacks.EarlyStopping(
         monitor="val_loss", min_delta=0.00, 
