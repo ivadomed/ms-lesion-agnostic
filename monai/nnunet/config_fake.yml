@@ -1,14 +1,14 @@
 # Description: Configuration file for the UNETR model
 # Path to the data json file
-#data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake.json
+# data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake.json
 data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-03-13_seed42_canproco.json
 # Path to the output directory
 output_dir : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
 # Resampling resolution
 pixdim : [1.0, 1.0, 1.0]
 # Spatial size of the input data
-spatial_size : [16, 176, 176]
-batch_size : 4
+spatial_size : [32, 208, 208]
+batch_size : 16
 
 # UNETR model parameters
 feature_size : 8
