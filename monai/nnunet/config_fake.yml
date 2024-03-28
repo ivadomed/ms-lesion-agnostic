@@ -5,7 +5,7 @@ data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset
 # Path to the output directory
 output_dir : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
 # Resampling resolution
-pixdim : [1.0, 1.0, 1.0]
+pixdim : [0.6, 0.6, 0.6]
 # Spatial size of the input data
 spatial_size : [32, 208, 208]
 batch_size : 16
