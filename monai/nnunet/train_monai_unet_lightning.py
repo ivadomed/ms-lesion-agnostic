@@ -18,9 +18,9 @@ from monai.losses import DiceLoss
 import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system')
 
-from losses import AdapWingLoss
+from losses import AdapWingLoss, SoftDiceLoss
 
-from utils import dice_score, check_empty_patch, multiply_by_negative_one
+from utils import dice_score, check_empty_patch, multiply_by_negative_one, plot_slices
 from monai.networks.nets import UNet
 
 from monai.networks.layers import Norm
@@ -305,9 +305,9 @@ class Model(pl.LightningModule):
             "loss": loss.cpu(),
             "train_soft_dice": train_soft_dice.detach().cpu(),
             "train_number": len(inputs),
-            # "train_image": inputs[0].detach().cpu().squeeze(),
-            # "train_gt": labels[0].detach().cpu().squeeze(),
-            # "train_pred": output[0].detach().cpu().squeeze()
+            "train_image": inputs[0].detach().cpu().squeeze(),
+            "train_gt": labels[0].detach().cpu().squeeze(),
+            "train_pred": output[0].detach().cpu().squeeze()
         }
         self.train_step_outputs.append(metrics_dict)
 
@@ -334,12 +334,12 @@ class Model(pl.LightningModule):
             }
             self.log_dict(wandb_logs)
 
-            # # plot the training images
-            # fig = plot_slices(image=self.train_step_outputs[0]["train_image"],
-            #                   gt=self.train_step_outputs[0]["train_gt"],
-            #                   pred=self.train_step_outputs[0]["train_pred"],
-            #                   debug=args.debug)
-            # wandb.log({"training images": wandb.Image(fig)})
+            # plot the training images
+            fig = plot_slices(image=self.train_step_outputs[0]["train_image"],
+                              gt=self.train_step_outputs[0]["train_gt"],
+                              pred=self.train_step_outputs[0]["train_pred"],
+                              )
+            wandb.log({"training images": wandb.Image(fig)})
 
             # free up memory
             self.train_step_outputs.clear()
@@ -380,9 +380,9 @@ class Model(pl.LightningModule):
             "val_soft_dice": val_soft_dice.detach().cpu(),
             "val_hard_dice": val_hard_dice.detach().cpu(),
             "val_number": len(post_outputs),
-            # "val_image": inputs[0].detach().cpu().squeeze(),
-            # "val_gt": labels[0].detach().cpu().squeeze(),
-            # "val_pred": post_outputs[0].detach().cpu().squeeze(),
+            "val_image": inputs[0].detach().cpu().squeeze(),
+            "val_gt": labels[0].detach().cpu().squeeze(),
+            "val_pred": post_outputs[0].detach().cpu().squeeze(),
         }
         self.val_step_outputs.append(metrics_dict)
         
@@ -518,12 +518,13 @@ def main():
     
 
     # define model
+    # TODO: make the model deeper
     net = UNet(
         spatial_dims=3,
         in_channels=1,
         out_channels=1,
         channels=(16, 32, 64, 128, 256),
-        strides=(2, 2, 2, 2),
+        strides=(2, 2, 2, 2, 2, 2),
         kernel_size=3,
         up_kernel_size=3,
         num_res_units=0,
@@ -538,7 +539,8 @@ def main():
 
     # define loss function
     #loss_func = AdapWingLoss(theta=0.5, omega=8, alpha=2.1, epsilon=1, reduction="sum")
-    loss_func = DiceLoss(sigmoid=True, smooth_dr=1e-4)
+    # loss_func = DiceLoss(sigmoid=True, smooth_dr=1e-4)
+    loss_func = SoftDiceLoss(smooth=1e-5)
     # NOTE: tried increasing omega and decreasing epsilon but results marginally worse than the above
     # loss_func = AdapWingLoss(theta=0.5, omega=12, alpha=2.1, epsilon=0.5, reduction="sum")
     #logger.info(f"Using AdapWingLoss with theta={loss_func.theta}, omega={loss_func.omega}, alpha={loss_func.alpha}, epsilon={loss_func.epsilon} ...")
