@@ -21,5 +21,4 @@ def check_empty_patch(labels):
 
 # Function to multiply by -1
 def multiply_by_negative_one(x):
-    print(f"Multiplyings by -1")
     return x * -1
