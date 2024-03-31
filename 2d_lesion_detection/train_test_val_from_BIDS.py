@@ -64,10 +64,8 @@ def _main():
 
     args = parser.parse_args()
 
-    directory_path = args.input_path
-
     # Find *_lesion-manual.nii.gz files
-    search_pattern = os.path.join(directory_path, "derivatives", "labels", "**", "**", "anat", "*_lesion-manual.nii.gz")
+    search_pattern = os.path.join(args.database, "derivatives", "labels", "**", "**", "anat", "*_lesion-manual.nii.gz")
     matching_files = glob.glob(search_pattern)
 
     # Get volume names

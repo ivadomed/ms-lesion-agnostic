@@ -35,6 +35,16 @@ def segment_spinal_cord(image_path:str, labels_path:str, seg_name:str):
     ]
     subprocess.run(command, check=True)
 
+def remove_errors_from_json(json_data, remove_list):
+    """
+    
+    """
+    for key, value in json_data.items():
+    # Check if the current value is a list
+        if isinstance(value, list):
+            # Remove names from the list if they exist
+            json_data[key] = [item for item in value if item not in remove_list]
+    return json_data
 
 def main():
     parser = ArgumentParser(
@@ -76,7 +86,19 @@ def main():
                 logging.warning(f"Error processing scan {scan}: {e}")
                 error_list.append(scan)
 
-    print(f"Done! Here are the scans that couldn't be processed: {error_list}. See sc_seg_warning.log for more info")
+    # if error_list isn't empty
+    if error_list:
+        # If there are errors, create new json without the filenames that had errors
+        data = remove_errors_from_json(data, error_list)
+        output_file_path = args.json_list.parent/(args.json_list.stem +"_with_sc_seg.json")
+        with open(output_file_path, "w") as output_file:
+            json.dump(data, output_file, indent=4)
+
+        print(f"Done! Here are the scans that couldn't be processed: {error_list}. See sc_seg_warning.log for more info"
+              f"\n\nAn updated json list that excludes the error files has been saved: {output_file_path}")
+
+    else:
+        print("Done! There were no errors")
 
 
 if __name__ == "__main__":

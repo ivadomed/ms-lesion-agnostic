@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import random
 import shutil
+import ruamel.yaml
 
 
 def _main():
@@ -33,24 +34,16 @@ def _main():
     all_train = os.listdir(args.input_path/"images"/"train")
     all_train = [file for file in all_train if not file.startswith(".")] #remove hidden files
     all_train = [filename.replace(".png", "") for filename in all_train] #remove extension
-    print(all_train)
-    print(f"all_train len: {len(all_train)}")
 
     all_labels = os.listdir(args.input_path/"labels"/"train")
     all_labels = [file for file in all_labels if not file.startswith(".")] #remove hidden files
     all_labels = [filename.replace(".txt", "") for filename in all_labels] #remove extension
-    print(all_labels)
-    print(f"all_labels len: {len(all_labels)}")
 
     all_unlabelled = [filename for filename in all_train if filename not in all_labels]
-    print(all_unlabelled)
-    print(f"all_unlabelled len: {len(all_unlabelled)}")
 
     random.seed(10)
     n_unlabelled_to_copy = (len(all_labels)*args.ratio)/(1-args.ratio)
     unlabelled_to_copy = random.sample(all_unlabelled, int(n_unlabelled_to_copy))
-    print(unlabelled_to_copy)
-    print(f"unlabelled_to_copy len: {len(unlabelled_to_copy)}")
 
     # Transfer files to new dataset folder
     shutil.copytree(args.input_path/"labels", args.output_path/"labels") # all labels
@@ -72,6 +65,23 @@ def _main():
         destination_file_path = args.output_path/"images"/"train"/(file + ".png")
         shutil.copy(source_file_path, destination_file_path)
 
+
+    # create new yaml file
+    yml_str = f"""\
+    path: "{args.output_path.name}"
+    train: "images/train"
+    val: "images/val"
+    test: "images/test"
+
+    nc: 1
+    names: ["lesion"]
+    """
+
+    yaml = ruamel.yaml.YAML(pure=True)
+    yaml.preserve_quotes = True
+    data = yaml.load(yml_str)
+
+    yaml.dump(data, args.output_path/(args.output_path.name+".yml"))
 
 if __name__ == "__main__":
     _main()
