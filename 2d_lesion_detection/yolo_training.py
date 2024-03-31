@@ -52,10 +52,18 @@ def _main():
                 epochs=args.epochs,
                 name=args.name,
                 device = device,
+                box=15.6,
+                cls=4.1,
                 mosaic=0,
-                degrees=20,
                 hsv_s=0,
-                hsv_h=0)
+                hsv_h=0,
+                lr0=0.09,
+                lrf=0.08,
+                degrees=10,
+                scale=0.5,
+                fliplr=0.25,
+                translate=0.25,
+                hsv_v=0.45)
 
 
     ## Add canproco version to model metadata
