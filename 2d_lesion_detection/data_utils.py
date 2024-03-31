@@ -14,12 +14,13 @@ from torchvision.ops import masks_to_boxes
 from skimage.exposure import equalize_adapthist
 
 
-def nifti_to_png(nifti_path:Path, output_dir:Path, spinal_cord_path:Path=None):
+def nifti_to_png(nifti_path:Path, output_dir:Path, spinal_cord_path:Path=None, slice_list:list=None):
     """
     Converts a nifti volume into slices along the sagittal plane and
     saves them as png files in specified output_dir
 
-    If spinal_cord_path is given, only slices that contain part of the spinal cord are saved.
+    If spinal_cord_path is given, only slices that contain part of the spinal cord are saved and slice_list is ignored.
+    If slice_list is given and spinal_cord_path is None, only slice in the given list are saved. slice_list should contain ints.
 
     Not suitable for segmentations (instead use nifti_seg_to_png) because 
     of intensity normalization between 0 and 255
@@ -69,9 +70,11 @@ def nifti_to_png(nifti_path:Path, output_dir:Path, spinal_cord_path:Path=None):
             else:
                 assert(sc_seg_slice.max() == 0)
         else:
-            # if no segmentation is given, save all slices
-            output_path = os.path.join(str(output_dir), f"{filename}_{i}.png")
-            cv2.imwrite(output_path, ndi.rotate(vol_data[:, :, i], 90))
+            # if no segmentation is given
+            # save slice if slice is in slice_list OR if slice_list is None
+            if slice_list is None or i in slice_list:
+                output_path = os.path.join(str(output_dir), f"{filename}_{i}.png")
+                cv2.imwrite(output_path, ndi.rotate(vol_data[:, :, i], 90))
 
 
 def mask_to_bbox(mask:np.ndarray) -> "np.ndarray|None":

@@ -11,7 +11,9 @@ from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 import json
 from pathlib import Path
 import subprocess
+import logging
 
+logging.basicConfig(filename='sc_seg_warning.log', level=logging.WARNING, filemode='w')
 
 def segment_spinal_cord(image_path:str, labels_path:str, seg_name:str):
     """
@@ -71,11 +73,10 @@ def main():
             try:
                 segment_spinal_cord(image_path, labels_path, seg_name)
             except Exception as e:
-                print(f"Error processing scan {scan}: {e}")
+                logging.warning(f"Error processing scan {scan}: {e}")
                 error_list.append(scan)
 
-    print(f"All done! Here are the scans that couldn't be processed: {error_list}")
-
+    print(f"Done! Here are the scans that couldn't be processed: {error_list}. See sc_seg_warning.log for more info")
 
 
 if __name__ == "__main__":
