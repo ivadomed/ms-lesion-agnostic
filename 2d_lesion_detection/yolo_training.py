@@ -73,15 +73,18 @@ def _main():
     # Define the metadata
     metadata = {'dataset_version': CANPROCO_VERSION,
                 'description': 'Model for multiple sclerosis lesion detection on MRI images of spinal cord.'}
+    save_dir = model.trainer.save_dir
 
     # best.py
-    model_path = Path(settings["runs_dir"])/"detect"/model.model_name/"weights"/"best.py"
+    print("Adding metadata to best.py")
+    model_path = save_dir/"weights"/"best.pt"
     best_model = torch.load(model_path)
     best_model["metadata"] = metadata
     torch.save(best_model, model_path)
 
     # last.py
-    model_path = Path(settings["runs_dir"])/"detect"/model.model_name/"weights"/"last.py"
+    print("Adding metadata to last.py")
+    model_path = save_dir/"weights"/"last.pt"
     last_model = torch.load(model_path)
     last_model["metadata"] = metadata
     torch.save(last_model, model_path)
