@@ -13,7 +13,7 @@ import pytorch_lightning as pl
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from monai.metrics import DiceMetric
-from monai.losses import DiceLoss
+from monai.losses import DiceLoss, DiceCELoss
 
 # Added this to solve problem with too many files open 
 ## Link here : https://github.com/pytorch/pytorch/issues/11201#issuecomment-421146936
@@ -23,7 +23,7 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 from losses import AdapWingLoss, SoftDiceLoss
 
 from utils import dice_score, check_empty_patch, multiply_by_negative_one, plot_slices
-from monai.networks.nets import UNet, BasicUNet
+from monai.networks.nets import UNet, BasicUNet, AttentionUnet
 
 from monai.networks.layers import Norm
 
@@ -185,7 +185,7 @@ class Model(pl.LightningModule):
                 #     prob=0.5
                 #     ),
                 NormalizeIntensityd(
-                    keys=["image", "label"], 
+                    keys=["image"], 
                     nonzero=False, 
                     channel_wise=False
                 ),
@@ -220,7 +220,7 @@ class Model(pl.LightningModule):
                 #     image_threshold=0,
                 # ),
                 NormalizeIntensityd(
-                    keys=["image", "label"], 
+                    keys=["image"], 
                     nonzero=False, 
                     channel_wise=False
                 ),
@@ -315,12 +315,12 @@ class Model(pl.LightningModule):
 
         output = self.forward(inputs)   # logits
         # print(f"labels.shape: {labels.shape} \t output.shape: {output.shape}")
-        
-        # calculate training loss   
-        loss = self.loss_function(output, labels)
 
         # get probabilities from logits
         output = F.relu(output) / F.relu(output).max() if bool(F.relu(output).max()) else F.relu(output)
+        
+        # calculate training loss   
+        loss = self.loss_function(output, labels)
 
         # calculate train dice
         # NOTE: this is done on patches (and not entire 3D volume) because SlidingWindowInference is not used here
@@ -385,11 +385,12 @@ class Model(pl.LightningModule):
         outputs = sliding_window_inference(inputs, self.inference_roi_size, mode="gaussian",
                                            sw_batch_size=4, predictor=self.forward, overlap=0.5,) 
         
-        # calculate validation loss
-        loss = self.loss_function(outputs, labels)
-
         # get probabilities from logits
         outputs = F.relu(outputs) / F.relu(outputs).max() if bool(F.relu(outputs).max()) else F.relu(outputs)
+        
+        # calculate validation loss
+        loss = self.loss_function(outputs, labels)
+        
         
         # post-process for calculating the evaluation metric
         post_outputs = [self.val_post_pred(i) for i in decollate_batch(outputs)]
@@ -574,11 +575,18 @@ def main():
     #     bias=True,
     #     adn_ordering='NDA',
     # )
-    net=UNet(
+    # net=UNet(
+    #         spatial_dims=3,
+    #         in_channels=1,
+    #         out_channels=1,
+    #         channels=(16, 32, 64, 128, 256),
+    #         strides=(2, 2, 2, 2),
+    #     )
+    net = AttentionUnet(
             spatial_dims=3,
             in_channels=1,
             out_channels=1,
-            channels=(32, 64, 128, 256, 512),
+            channels=(16, 32, 64, 128, 256),
             strides=(2, 2, 2, 2),
         )
     # net = BasicUNet(spatial_dims=3, features=(32, 64, 128, 256, 32), out_channels=1)
@@ -587,8 +595,9 @@ def main():
 
     # define loss function
     #loss_func = AdapWingLoss(theta=0.5, omega=8, alpha=2.1, epsilon=1, reduction="sum")
-    # loss_func = DiceLoss(sigmoid=True, smooth_dr=1e-4)
-    loss_func = SoftDiceLoss(smooth=1e-5)
+    #loss_func = DiceLoss(sigmoid=True, smooth_dr=1e-4)
+    loss_func = DiceCELoss(sigmoid=True, smooth_dr=1e-4)
+    # loss_func = SoftDiceLoss(smooth=1e-5)
     # NOTE: tried increasing omega and decreasing epsilon but results marginally worse than the above
     # loss_func = AdapWingLoss(theta=0.5, omega=12, alpha=2.1, epsilon=0.5, reduction="sum")
     #logger.info(f"Using AdapWingLoss with theta={loss_func.theta}, omega={loss_func.omega}, alpha={loss_func.alpha}, epsilon={loss_func.epsilon} ...")
