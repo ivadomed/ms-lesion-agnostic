@@ -5,10 +5,11 @@ data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset
 # Path to the output directory
 output_dir : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
 # Resampling resolution
+# pixdim : [1.0, 1.0, 1.0]
 pixdim : [0.6, 0.6, 0.6]
 # Spatial size of the input data
-spatial_size : [32, 208, 208]
-batch_size : 16
+spatial_size : [32, 32, 128] # RL, AP, IS
+batch_size : 8
 
 # UNETR model parameters
 feature_size : 8
@@ -19,11 +20,11 @@ num_heads : 12
 # Optimizer parameters
 lr : 0.0001
 weight_decay: 0.00001
-early_stopping_patience : 10
+early_stopping_patience : 100
 
 # Training parameters
-max_iterations : 25000
-eval_num : 10
+max_iterations : 3000
+eval_num : 5
 
 # Model saving
 best_model_path : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/best_metric_model.pth
@@ -35,3 +36,7 @@ log_path : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
 experiment_name : monai_unet_canproco
 
 seed : 42
+
+# UNET model parameters
+unet_channels : [16, 32, 64, 128, 256, 512]
+unet_strides : [2, 2, 2, 2, 2, 2, 2]
