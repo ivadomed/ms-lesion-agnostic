@@ -633,7 +633,7 @@ def main():
                         config=config)
 
     # Saving training script to wandb
-    wandb.save("main.py")
+    wandb.save("train_monai_unet_lightning.py")
 
     # initialise Lightning's trainer.
     trainer = pl.Trainer(
