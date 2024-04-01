@@ -3,6 +3,8 @@ import argparse
 from datetime import datetime
 from loguru import logger
 import yaml
+import nibabel as nib
+from datetime import datetime
 
 import numpy as np
 import wandb
@@ -48,6 +50,7 @@ from monai.transforms import (
 
 from monai.utils import set_determinism
 from monai.inferers import sliding_window_inference
+import time
 from monai.data import (DataLoader, CacheDataset, load_decathlon_datalist, decollate_batch)
 from monai.transforms import (Compose, EnsureType, EnsureTyped, Invertd, SaveImage)
 
@@ -287,6 +290,23 @@ class Model(pl.LightningModule):
     def training_step(self, batch, batch_idx):
 
         inputs, labels = batch["image"], batch["label"]
+
+        # print(inputs.shape, labels.shape)
+        # input_0 = inputs[0].detach().cpu().squeeze()
+        # print(input_0.shape)
+        # label_0 = labels[0].detach().cpu().squeeze()
+
+        # time_0 = datetime.now()
+        # print(f"Time: {time_0}")
+
+        # # save input 0 in a nifti file
+        # input_0_nifti = nib.Nifti1Image(input_0.numpy(), affine=np.eye(4))
+        # nib.save(input_0_nifti, f"~/ms_lesion_agnostic/temp/input_0_{time_0}.nii.gz")
+
+        # # save label in a nifti file
+        # label_nifti = nib.Nifti1Image(label_0.numpy(), affine=np.eye(4))
+        # nib.save(label_nifti, f"~/ms_lesion_agnostic/temp/label_0_{time_0}.nii.gz")
+        
 
         # # check if any label image patch is empty in the batch
         if check_empty_patch(labels) is None:
