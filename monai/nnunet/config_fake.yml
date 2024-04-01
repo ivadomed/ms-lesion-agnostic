@@ -1,7 +1,8 @@
 # Description: Configuration file for the UNETR model
 # Path to the data json file
 # data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake.json
-data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-03-13_seed42_canproco.json
+data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake_sc.json
+# data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-03-13_seed42_canproco.json
 # Path to the output directory
 output_dir : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
 # Resampling resolution
@@ -24,7 +25,7 @@ early_stopping_patience : 100
 
 # Training parameters
 max_iterations : 3000
-eval_num : 5
+eval_num : 2
 
 # Model saving
 best_model_path : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/best_metric_model.pth
@@ -38,5 +39,5 @@ experiment_name : monai_unet_canproco
 seed : 42
 
 # UNET model parameters
-unet_channels : [16, 32, 64, 128, 256, 512]
+unet_channels : [32, 64, 128, 256, 512, 1024]
 unet_strides : [2, 2, 2, 2, 2, 2, 2]

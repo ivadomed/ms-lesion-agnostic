@@ -21,7 +21,7 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 from losses import AdapWingLoss, SoftDiceLoss
 
 from utils import dice_score, check_empty_patch, multiply_by_negative_one, plot_slices
-from monai.networks.nets import UNet
+from monai.networks.nets import UNet, BasicUNet
 
 from monai.networks.layers import Norm
 
@@ -50,6 +50,12 @@ from monai.utils import set_determinism
 from monai.inferers import sliding_window_inference
 from monai.data import (DataLoader, CacheDataset, load_decathlon_datalist, decollate_batch)
 from monai.transforms import (Compose, EnsureType, EnsureTyped, Invertd, SaveImage)
+
+# Added this because of following warning received:
+## You are using a CUDA device ('NVIDIA RTX A6000') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')`
+## which will trade-off precision for performance. For more details, 
+## read https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision
+# torch.set_float32_matmul_precision('medium' | 'high')
 
 
 def get_parser():
@@ -163,30 +169,30 @@ class Model(pl.LightningModule):
                     spatial_axis=[2],
                     prob=0.2,
                 ),
-                RandAdjustContrastd(
-                    keys=["image"],
-                    prob=0.2,
-                    gamma=(0.5, 4.5),
-                    invert_image=True,
-                ),
+                # RandAdjustContrastd(
+                #     keys=["image"],
+                #     prob=0.2,
+                #     gamma=(0.5, 4.5),
+                #     invert_image=True,
+                # ),
                 # we add the multiplication of the image by -1
-                RandLambdad(
-                    keys='image',
-                    func=multiply_by_negative_one,
-                    prob=0.5
-                    ),
+                # RandLambdad(
+                #     keys='image',
+                #     func=multiply_by_negative_one,
+                #     prob=0.5
+                #     ),
                 NormalizeIntensityd(
                     keys=["image", "label"], 
                     nonzero=False, 
                     channel_wise=False
                 ),
                 EnsureTyped(keys=["image", "label"]),
-                AsDiscreted(
-                    keys=["label"],
-                    num_classes=2,
-                    threshold_values=True,
-                    logit_thresh=0.2,
-                )
+                # AsDiscreted(
+                #     keys=["label"],
+                #     num_classes=2,
+                #     threshold_values=True,
+                #     logit_thresh=0.2,
+                # )
             ]
         )
         val_transforms = Compose(
@@ -200,28 +206,28 @@ class Model(pl.LightningModule):
                     mode=(2, 1),
                 ),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=self.cfg["spatial_size"],),
-                RandCropByPosNegLabeld(
-                    keys=["image", "label"],
-                    label_key="label",
-                    spatial_size=self.cfg["spatial_size"],
-                    pos=1,
-                    neg=1,
-                    num_samples=4,
-                    image_key="image",
-                    image_threshold=0,
-                ),
+                # RandCropByPosNegLabeld(
+                #     keys=["image", "label"],
+                #     label_key="label",
+                #     spatial_size=self.cfg["spatial_size"],
+                #     pos=1,
+                #     neg=1,
+                #     num_samples=4,
+                #     image_key="image",
+                #     image_threshold=0,
+                # ),
                 NormalizeIntensityd(
                     keys=["image", "label"], 
                     nonzero=False, 
                     channel_wise=False
                 ),
                 EnsureTyped(keys=["image", "label"]),
-                AsDiscreted(
-                    keys=["label"],
-                    num_classes=2,
-                    threshold_values=True,
-                    logit_thresh=0.2,
-                )
+                # AsDiscreted(
+                #     keys=["label"],
+                #     num_classes=2,
+                #     threshold_values=True,
+                #     logit_thresh=0.2,
+                # )
             ]
         )
         
@@ -270,7 +276,7 @@ class Model(pl.LightningModule):
     # OPTIMIZATION
     # --------------------------------
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.cfg["lr"], weight_decay=self.cfg["weight_decay"])
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.cfg["weight_decay"])
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.cfg["max_iterations"])
         return [optimizer], [scheduler]
 
@@ -283,9 +289,9 @@ class Model(pl.LightningModule):
         inputs, labels = batch["image"], batch["label"]
 
         # # check if any label image patch is empty in the batch
-        # if check_empty_patch(labels) is None:
-        #     # print(f"Empty label patch found. Skipping training step ...")
-        #     return None
+        if check_empty_patch(labels) is None:
+            # print(f"Empty label patch found. Skipping training step ...")
+            return None
 
         output = self.forward(inputs)   # logits
         # print(f"labels.shape: {labels.shape} \t output.shape: {output.shape}")
@@ -340,11 +346,12 @@ class Model(pl.LightningModule):
                               pred=self.train_step_outputs[0]["train_pred"],
                               )
             wandb.log({"training images": wandb.Image(fig)})
+            plt.close(fig)
 
             # free up memory
             self.train_step_outputs.clear()
             wandb_logs.clear()
-            plt.close(fig)
+            
 
 
     # --------------------------------
@@ -406,7 +413,7 @@ class Model(pl.LightningModule):
                 
         wandb_logs = {
             "val_soft_dice": mean_val_soft_dice,
-            "val_hard_dice": mean_val_hard_dice,
+            #"val_hard_dice": mean_val_hard_dice,
             "val_loss": mean_val_loss,
         }
 
@@ -425,7 +432,7 @@ class Model(pl.LightningModule):
         logger.info(
             f"\nCurrent epoch: {self.current_epoch}"
             f"\nAverage Soft Dice (VAL): {mean_val_soft_dice:.4f}"
-            f"\nAverage Hard Dice (VAL): {mean_val_hard_dice:.4f}"
+            # f"\nAverage Hard Dice (VAL): {mean_val_hard_dice:.4f}"
             f"\nAverage DiceLoss (VAL): {mean_val_loss:.4f}"
             f"\nBest Average DiceLoss: {self.best_val_loss:.4f} at Epoch: {self.best_val_epoch}"
             f"\n----------------------------------------------------")
@@ -439,11 +446,7 @@ class Model(pl.LightningModule):
                           pred=self.val_step_outputs[0]["val_pred_0"],)
         wandb.log({"validation images": wandb.Image(fig0)})
         plt.close(fig0)
-        # fig1 = plot_slices(image=self.val_step_outputs[0]["val_image_1"],
-        #                   gt=self.val_step_outputs[0]["val_gt_1"],
-        #                   pred=self.val_step_outputs[0]["val_pred_1"],)
-        # wandb.log({"validation images 1": wandb.Image(fig1)})
-        # plt.close(fig1)
+        
 
         # free up memory
         self.val_step_outputs.clear()
@@ -531,28 +534,34 @@ def main():
 
     wandb.init(project=f'monai-unet-ms-lesion-seg-canproco', config=config)
 
-    wandb.name = "test123"
-
     logger.info("Defining plans for nnUNet model ...")
     
 
     # define model
     # TODO: make the model deeper
-    net = UNet(
-        spatial_dims=3,
-        in_channels=1,
-        out_channels=1,
-        channels=config['unet_channels'],
-        strides=config['unet_strides'],
-        kernel_size=3,
-        up_kernel_size=3,
-        num_res_units=0,
-        act='PRELU',
-        norm=Norm.BATCH,
-        dropout=0.0,
-        bias=True,
-        adn_ordering='NDA',
-    )
+    # net = UNet(
+    #     spatial_dims=3,
+    #     in_channels=1,
+    #     out_channels=1,
+    #     channels=config['unet_channels'],
+    #     strides=config['unet_strides'],
+    #     kernel_size=3,
+    #     up_kernel_size=3,
+    #     num_res_units=0,
+    #     act='PRELU',
+    #     norm=Norm.INSTANCE,
+    #     dropout=0.0,
+    #     bias=True,
+    #     adn_ordering='NDA',
+    # )
+    net=UNet(
+            spatial_dims=3,
+            in_channels=1,
+            out_channels=1,
+            channels=(32, 64, 128, 256, 512),
+            strides=(2, 2, 2, 2),
+        )
+    # net = BasicUNet(spatial_dims=3, features=(32, 64, 128, 256, 32), out_channels=1)
     logger.add(os.path.join(config["log_path"], str(datetime.now()) + 'log.txt'), rotation="10 MB", level="INFO")
 
 
@@ -580,7 +589,7 @@ def main():
     # saving the best model based on validation loss
     checkpoint_callback_loss = pl.callbacks.ModelCheckpoint(
         dirpath=config["best_model_path"], filename='best_model', monitor='val_loss', 
-        save_top_k=1, mode="min", save_last=True, save_weights_only=False)
+        save_top_k=1, mode="min", save_last=True, save_weights_only=True)
     
     
     logger.info(f"Starting training from scratch ...")
@@ -604,7 +613,7 @@ def main():
         callbacks=[checkpoint_callback_loss, lr_monitor, early_stopping],
         check_val_every_n_epoch=config["eval_num"],
         max_epochs=config["max_iterations"], 
-        precision="bf16-mixed",
+        precision=32,
         # deterministic=True,
         enable_progress_bar=True) 
         # profiler="simple",)     # to profile the training time taken for each step
@@ -614,7 +623,7 @@ def main():
     logger.info(f" Training Done!") 
     
     # Closing wandb log
-    #wandb.finish()       
+    wandb.finish()       
 
 
 if __name__ == "__main__":

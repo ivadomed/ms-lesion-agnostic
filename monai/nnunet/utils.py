@@ -3,8 +3,7 @@ import matplotlib.pyplot as plt
 from torch.optim.lr_scheduler import _LRScheduler
 import torch
 
-def dice_score(prediction, groundtruth):
-    smooth = 1.
+def dice_score(prediction, groundtruth, smooth=1.):
     numer = (prediction * groundtruth).sum()
     denor = (prediction + groundtruth).sum()
     # loss = (2 * numer + self.smooth) / (denor + self.smooth)
