@@ -125,105 +125,105 @@ class Model(pl.LightningModule):
         
         # define training and validation transforms
         train_transforms = Compose(
-        [
-            LoadImaged(keys=["image", "label"], reader="NibabelReader"),
-            EnsureChannelFirstd(keys=["image", "label"]),
-            Orientationd(keys=["image", "label"], axcodes="RSP"),
-            Spacingd(
-                keys=["image", "label"],
-                pixdim=self.cfg["pixdim"],
-                mode=(2, 1),
-            ),
-            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=self.cfg["spatial_size"],),
-            RandCropByPosNegLabeld(
-                keys=["image", "label"],
-                label_key="label",
-                spatial_size=self.cfg["spatial_size"],
-                pos=1,
-                neg=1,
-                num_samples=4,
-                image_key="image",
-                image_threshold=0,
-            ),
-            # Flips the image : left becomes right
-            RandFlipd(
-                keys=["image", "label"],
-                spatial_axis=[0],
-                prob=0.2,
-            ),
-            # Flips the image : supperior becomes inferior
-            RandFlipd(
-                keys=["image", "label"],
-                spatial_axis=[1],
-                prob=0.2,
-            ),
-            # Flips the image : anterior becomes posterior
-            RandFlipd(
-                keys=["image", "label"],
-                spatial_axis=[2],
-                prob=0.2,
-            ),
-            RandAdjustContrastd(
-                keys=["image"],
-                prob=0.2,
-                gamma=(0.5, 4.5),
-                invert_image=True,
-            ),
-            # we add the multiplication of the image by -1
-            RandLambdad(
-                keys='image',
-                func=multiply_by_negative_one,
-                prob=0.5
+            [
+                LoadImaged(keys=["image", "label"], reader="NibabelReader"),
+                EnsureChannelFirstd(keys=["image", "label"]),
+                Orientationd(keys=["image", "label"], axcodes="RPI"),
+                Spacingd(
+                    keys=["image", "label"],
+                    pixdim=self.cfg["pixdim"],
+                    mode=(2, 1),
                 ),
-            NormalizeIntensityd(
-                keys=["image", "label"], 
-                nonzero=False, 
-                channel_wise=False
-            ),
-            EnsureTyped(keys=["image", "label"]),
-            AsDiscreted(
-                keys=["label"],
-                num_classes=2,
-                threshold_values=True,
-                logit_thresh=0.2,
-            )
-        ]
+                ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=self.cfg["spatial_size"],),
+                RandCropByPosNegLabeld(
+                    keys=["image", "label"],
+                    label_key="label",
+                    spatial_size=self.cfg["spatial_size"],
+                    pos=1,
+                    neg=1,
+                    num_samples=4,
+                    image_key="image",
+                    image_threshold=0,
+                ),
+                # Flips the image : left becomes right
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[0],
+                    prob=0.2,
+                ),
+                # Flips the image : supperior becomes inferior
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[1],
+                    prob=0.2,
+                ),
+                # Flips the image : anterior becomes posterior
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[2],
+                    prob=0.2,
+                ),
+                RandAdjustContrastd(
+                    keys=["image"],
+                    prob=0.2,
+                    gamma=(0.5, 4.5),
+                    invert_image=True,
+                ),
+                # we add the multiplication of the image by -1
+                RandLambdad(
+                    keys='image',
+                    func=multiply_by_negative_one,
+                    prob=0.5
+                    ),
+                NormalizeIntensityd(
+                    keys=["image", "label"], 
+                    nonzero=False, 
+                    channel_wise=False
+                ),
+                EnsureTyped(keys=["image", "label"]),
+                AsDiscreted(
+                    keys=["label"],
+                    num_classes=2,
+                    threshold_values=True,
+                    logit_thresh=0.2,
+                )
+            ]
         )
         val_transforms = Compose(
-                            [
-                                LoadImaged(keys=["image", "label"], reader="NibabelReader"),
-                                EnsureChannelFirstd(keys=["image", "label"]),
-                                Orientationd(keys=["image", "label"], axcodes="RSP"),
-                                Spacingd(
-                                    keys=["image", "label"],
-                                    pixdim=self.cfg["pixdim"],
-                                    mode=(2, 1),
-                                ),
-                                ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=self.cfg["spatial_size"],),
-                                RandCropByPosNegLabeld(
-                                    keys=["image", "label"],
-                                    label_key="label",
-                                    spatial_size=self.cfg["spatial_size"],
-                                    pos=1,
-                                    neg=1,
-                                    num_samples=4,
-                                    image_key="image",
-                                    image_threshold=0,
-                                ),
-                                NormalizeIntensityd(
-                                    keys=["image", "label"], 
-                                    nonzero=False, 
-                                    channel_wise=False
-                                ),
-                                EnsureTyped(keys=["image", "label"]),
-                                AsDiscreted(
-                                    keys=["label"],
-                                    num_classes=2,
-                                    threshold_values=True,
-                                    logit_thresh=0.2,
-                                )
-                            ]
-    )
+            [
+                LoadImaged(keys=["image", "label"], reader="NibabelReader"),
+                EnsureChannelFirstd(keys=["image", "label"]),
+                Orientationd(keys=["image", "label"], axcodes="RPI"),
+                Spacingd(
+                    keys=["image", "label"],
+                    pixdim=self.cfg["pixdim"],
+                    mode=(2, 1),
+                ),
+                ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=self.cfg["spatial_size"],),
+                RandCropByPosNegLabeld(
+                    keys=["image", "label"],
+                    label_key="label",
+                    spatial_size=self.cfg["spatial_size"],
+                    pos=1,
+                    neg=1,
+                    num_samples=4,
+                    image_key="image",
+                    image_threshold=0,
+                ),
+                NormalizeIntensityd(
+                    keys=["image", "label"], 
+                    nonzero=False, 
+                    channel_wise=False
+                ),
+                EnsureTyped(keys=["image", "label"]),
+                AsDiscreted(
+                    keys=["label"],
+                    num_classes=2,
+                    threshold_values=True,
+                    logit_thresh=0.2,
+                )
+            ]
+        )
         
         # load the dataset
         dataset = self.cfg["data"]
@@ -282,10 +282,10 @@ class Model(pl.LightningModule):
 
         inputs, labels = batch["image"], batch["label"]
 
-        # check if any label image patch is empty in the batch
-        if check_empty_patch(labels) is None:
-            # print(f"Empty label patch found. Skipping training step ...")
-            return None
+        # # check if any label image patch is empty in the batch
+        # if check_empty_patch(labels) is None:
+        #     # print(f"Empty label patch found. Skipping training step ...")
+        #     return None
 
         output = self.forward(inputs)   # logits
         # print(f"labels.shape: {labels.shape} \t output.shape: {output.shape}")
@@ -344,7 +344,7 @@ class Model(pl.LightningModule):
             # free up memory
             self.train_step_outputs.clear()
             wandb_logs.clear()
-            # plt.close(fig)
+            plt.close(fig)
 
 
     # --------------------------------
@@ -380,9 +380,12 @@ class Model(pl.LightningModule):
             "val_soft_dice": val_soft_dice.detach().cpu(),
             "val_hard_dice": val_hard_dice.detach().cpu(),
             "val_number": len(post_outputs),
-            "val_image": inputs[0].detach().cpu().squeeze(),
-            "val_gt": labels[0].detach().cpu().squeeze(),
-            "val_pred": post_outputs[0].detach().cpu().squeeze(),
+            "val_image_0": inputs[0].detach().cpu().squeeze(),
+            "val_gt_0": labels[0].detach().cpu().squeeze(),
+            "val_pred_0": post_outputs[0].detach().cpu().squeeze(),
+            # "val_image_1": inputs[1].detach().cpu().squeeze(),
+            # "val_gt_1": labels[1].detach().cpu().squeeze(),
+            # "val_pred_1": post_outputs[1].detach().cpu().squeeze(),
         }
         self.val_step_outputs.append(metrics_dict)
         
@@ -426,7 +429,21 @@ class Model(pl.LightningModule):
             f"\nAverage DiceLoss (VAL): {mean_val_loss:.4f}"
             f"\nBest Average DiceLoss: {self.best_val_loss:.4f} at Epoch: {self.best_val_epoch}"
             f"\n----------------------------------------------------")
-        
+
+        # log on to wandb
+        self.log_dict(wandb_logs)
+
+        # plot the validation images
+        fig0 = plot_slices(image=self.val_step_outputs[0]["val_image_0"],
+                          gt=self.val_step_outputs[0]["val_gt_0"],
+                          pred=self.val_step_outputs[0]["val_pred_0"],)
+        wandb.log({"validation images": wandb.Image(fig0)})
+        plt.close(fig0)
+        # fig1 = plot_slices(image=self.val_step_outputs[0]["val_image_1"],
+        #                   gt=self.val_step_outputs[0]["val_gt_1"],
+        #                   pred=self.val_step_outputs[0]["val_pred_1"],)
+        # wandb.log({"validation images 1": wandb.Image(fig1)})
+        # plt.close(fig1)
 
         # free up memory
         self.val_step_outputs.clear()
@@ -512,7 +529,9 @@ def main():
     # define optimizer
     optimizer_class = torch.optim.Adam
 
-    wandb.init()
+    wandb.init(project=f'monai-unet-ms-lesion-seg-canproco', config=config)
+
+    wandb.name = "test123"
 
     logger.info("Defining plans for nnUNet model ...")
     
@@ -523,8 +542,8 @@ def main():
         spatial_dims=3,
         in_channels=1,
         out_channels=1,
-        channels=(16, 32, 64, 128, 256),
-        strides=(2, 2, 2, 2, 2, 2),
+        channels=config['unet_channels'],
+        strides=config['unet_strides'],
         kernel_size=3,
         up_kernel_size=3,
         num_res_units=0,
@@ -544,7 +563,7 @@ def main():
     # NOTE: tried increasing omega and decreasing epsilon but results marginally worse than the above
     # loss_func = AdapWingLoss(theta=0.5, omega=12, alpha=2.1, epsilon=0.5, reduction="sum")
     #logger.info(f"Using AdapWingLoss with theta={loss_func.theta}, omega={loss_func.omega}, alpha={loss_func.alpha}, epsilon={loss_func.epsilon} ...")
-    logger.info(f"Using DiceLoss ...")
+    logger.info(f"Using SoftDiceLoss ...")
     # define callbacks
     early_stopping = pl.callbacks.EarlyStopping(
         monitor="val_loss", min_delta=0.00, 
@@ -595,7 +614,7 @@ def main():
     logger.info(f" Training Done!") 
     
     # Closing wandb log
-    wandb.finish()       
+    #wandb.finish()       
 
 
 if __name__ == "__main__":
