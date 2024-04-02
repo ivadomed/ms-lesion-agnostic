@@ -22,7 +22,7 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 
 from losses import AdapWingLoss, SoftDiceLoss
 
-from utils import dice_score, check_empty_patch, multiply_by_negative_one, plot_slices
+from utils import dice_score, check_empty_patch, multiply_by_negative_one, plot_slices, create_nnunet_from_plans
 from monai.networks.nets import UNet, BasicUNet, AttentionUnet
 
 from monai.networks.layers import Norm
@@ -46,6 +46,8 @@ from monai.transforms import (
     ResizeWithPadOrCropd,
     EnsureTyped,
     RandLambdad,
+    CropForegroundd,
+    RandGaussianNoised, 
     )
 
 from monai.utils import set_determinism
@@ -143,6 +145,7 @@ class Model(pl.LightningModule):
                     pixdim=self.cfg["pixdim"],
                     mode=(2, 1),
                 ),
+                # CropForegroundd(keys=["image", "label"], source_key="label", margin=100),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=self.cfg["spatial_size"],),
                 RandCropByPosNegLabeld(
                     keys=["image", "label"],
@@ -182,13 +185,22 @@ class Model(pl.LightningModule):
                 # RandLambdad(
                 #     keys='image',
                 #     func=multiply_by_negative_one,
-                #     prob=0.5
+                #     prob=0.2
                 #     ),
                 NormalizeIntensityd(
                     keys=["image"], 
                     nonzero=False, 
                     channel_wise=False
                 ),
+                # RandGaussianNoised(
+                #     keys=["image"],
+                #     prob=0.2,
+                # ), 
+                # RandShiftIntensityd(
+                #     keys=["image"],
+                #     offsets=0.1,
+                #     prob=0.2,
+                # ),
                 EnsureTyped(keys=["image", "label"]),
                 # AsDiscreted(
                 #     keys=["label"],
@@ -208,6 +220,7 @@ class Model(pl.LightningModule):
                     pixdim=self.cfg["pixdim"],
                     mode=(2, 1),
                 ),
+                # CropForegroundd(keys=["image", "label"], source_key="label", margin=100),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=self.cfg["spatial_size"],),
                 # RandCropByPosNegLabeld(
                 #     keys=["image", "label"],
@@ -242,8 +255,8 @@ class Model(pl.LightningModule):
         test_files = load_decathlon_datalist(dataset, True, "test")
         
         train_cache_rate = 0.5
-        self.train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=train_cache_rate, num_workers=8)
-        self.val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=0.25, num_workers=8)
+        self.train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=train_cache_rate, num_workers=16)
+        self.val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=0.25, num_workers=16)
 
         # define test transforms
         transforms_test = val_transforms
@@ -264,11 +277,11 @@ class Model(pl.LightningModule):
     # DATA LOADERS
     # --------------------------------
     def train_dataloader(self):
-        return DataLoader(self.train_ds, batch_size=self.cfg["batch_size"], shuffle=True, num_workers=8, 
+        return DataLoader(self.train_ds, batch_size=self.cfg["batch_size"], shuffle=True, num_workers=16, 
                             pin_memory=True, persistent_workers=True) 
 
     def val_dataloader(self):
-        return DataLoader(self.val_ds, batch_size=1, shuffle=False, num_workers=8, pin_memory=True, 
+        return DataLoader(self.val_ds, batch_size=1, shuffle=False, num_workers=16, pin_memory=True, 
                           persistent_workers=True)
     
     def test_dataloader(self):
@@ -291,13 +304,12 @@ class Model(pl.LightningModule):
 
         inputs, labels = batch["image"], batch["label"]
 
-        # print(inputs.shape, labels.shape)
+        # # print(inputs.shape, labels.shape)
         # input_0 = inputs[0].detach().cpu().squeeze()
-        # print(input_0.shape)
+        # # print(input_0.shape)
         # label_0 = labels[0].detach().cpu().squeeze()
 
         # time_0 = datetime.now()
-        # print(f"Time: {time_0}")
 
         # # save input 0 in a nifti file
         # input_0_nifti = nib.Nifti1Image(input_0.numpy(), affine=np.eye(4))
@@ -576,26 +588,32 @@ def main():
     #     adn_ordering='NDA',
     # )
     # net=UNet(
-    #         spatial_dims=3,
-    #         in_channels=1,
-    #         out_channels=1,
-    #         channels=(16, 32, 64, 128, 256),
-    #         strides=(2, 2, 2, 2),
-    #     )
+    #     spatial_dims=3,
+    #     in_channels=1,
+    #     out_channels=1,
+    #     channels=(32, 64, 128, 256),
+    #     strides=(2, 2, 2 ),
+        
+    #     # dropout=0.1
+    # )
     net = AttentionUnet(
             spatial_dims=3,
             in_channels=1,
             out_channels=1,
-            channels=(16, 32, 64, 128, 256),
-            strides=(2, 2, 2, 2),
+            channels=(64, 128, 256, 512, 1024, 2048),
+            strides=(2, 2, 2, 2, 2),
+            dropout=0.0
         )
     # net = BasicUNet(spatial_dims=3, features=(32, 64, 128, 256, 32), out_channels=1)
+
+    # net = create_nnunet_from_plans()
+
     logger.add(os.path.join(config["log_path"], str(datetime.now()) + 'log.txt'), rotation="10 MB", level="INFO")
 
 
     # define loss function
     #loss_func = AdapWingLoss(theta=0.5, omega=8, alpha=2.1, epsilon=1, reduction="sum")
-    #loss_func = DiceLoss(sigmoid=True, smooth_dr=1e-4)
+    # loss_func = DiceLoss(sigmoid=True, smooth_dr=1e-4)
     loss_func = DiceCELoss(sigmoid=True, smooth_dr=1e-4)
     # loss_func = SoftDiceLoss(smooth=1e-5)
     # NOTE: tried increasing omega and decreasing epsilon but results marginally worse than the above
@@ -633,7 +651,9 @@ def main():
                         config=config)
 
     # Saving training script to wandb
-    wandb.save("train_monai_unet_lightning.py")
+    wandb.save("ms-lesion-agnostic/monai/nnunet/config_fake.yml")
+    wandb.save("ms-lesion-agnostic/monai/nnunet/train_monai_unet_lightning.py")
+
 
     # initialise Lightning's trainer.
     trainer = pl.Trainer(

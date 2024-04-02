@@ -7,7 +7,7 @@ data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake_sc
 output_dir : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
 # Resampling resolution
 # pixdim : [1.0, 1.0, 1.0]
-pixdim : [0.6, 0.6, 0.6]
+pixdim : [0.7, 0.7, 0.7]
 # Spatial size of the input data
 spatial_size : [32, 32, 128] # RL, AP, IS
 batch_size : 8
