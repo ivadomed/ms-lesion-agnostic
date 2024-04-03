@@ -1,7 +1,8 @@
 # Description: Configuration file for the UNETR model
 # Path to the data json file
 # data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake.json
-data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake_sc.json
+data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake_lesion_sc.json
+# data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake_sc.json
 # data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-03-13_seed42_canproco.json
 # Path to the output directory
 output_dir : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
@@ -9,8 +10,8 @@ output_dir : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
 # pixdim : [1.0, 1.0, 1.0]
 pixdim : [0.7, 0.7, 0.7]
 # Spatial size of the input data
-spatial_size : [32, 32, 128] # RL, AP, IS
-batch_size : 8
+spatial_size : [64, 128, 128] # RL, AP, IS
+batch_size : 2
 
 # UNETR model parameters
 feature_size : 8
@@ -19,7 +20,7 @@ mlp_dim : 3072
 num_heads : 12
 
 # Optimizer parameters
-lr : 0.0001
+lr : 0.001
 weight_decay: 0.00001
 early_stopping_patience : 100
 
@@ -41,3 +42,7 @@ seed : 42
 # UNET model parameters
 unet_channels : [32, 64, 128, 256, 512, 1024]
 unet_strides : [2, 2, 2, 2, 2, 2, 2]
+
+#Attention Unet
+channels : [32, 64, 128, 256, 512]
+strides : [2, 2, 2, 2, 2]

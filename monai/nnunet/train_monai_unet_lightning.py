@@ -5,15 +5,13 @@ from loguru import logger
 import yaml
 import nibabel as nib
 from datetime import datetime
-
 import numpy as np
 import wandb
 import torch
 import pytorch_lightning as pl
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-from monai.metrics import DiceMetric
-from monai.losses import DiceLoss, DiceCELoss
+import time
 
 # Added this to solve problem with too many files open 
 ## Link here : https://github.com/pytorch/pytorch/issues/11201#issuecomment-421146936
@@ -24,10 +22,9 @@ from losses import AdapWingLoss, SoftDiceLoss
 
 from utils import dice_score, check_empty_patch, multiply_by_negative_one, plot_slices, create_nnunet_from_plans
 from monai.networks.nets import UNet, BasicUNet, AttentionUnet
-
+from monai.metrics import DiceMetric
+from monai.losses import DiceLoss, DiceCELoss
 from monai.networks.layers import Norm
-
-
 from monai.transforms import (
     EnsureChannelFirstd,
     Compose,
@@ -47,14 +44,15 @@ from monai.transforms import (
     EnsureTyped,
     RandLambdad,
     CropForegroundd,
-    RandGaussianNoised, 
-    )
-
+    RandGaussianNoised,
+    LabelToContourd,
+    Invertd,
+    SaveImage,
+    EnsureType 
+)
 from monai.utils import set_determinism
 from monai.inferers import sliding_window_inference
-import time
 from monai.data import (DataLoader, CacheDataset, load_decathlon_datalist, decollate_batch)
-from monai.transforms import (Compose, EnsureType, EnsureTyped, Invertd, SaveImage)
 
 # Added this because of following warning received:
 ## You are using a CUDA device ('NVIDIA RTX A6000') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')`
@@ -78,7 +76,6 @@ class Model(pl.LightningModule):
         super().__init__()
         self.cfg = config
         self.save_hyperparameters(ignore=['net', 'loss_function'])
-
         self.root = data_root
         self.net = net
         self.lr = config["lr"]
@@ -145,18 +142,28 @@ class Model(pl.LightningModule):
                     pixdim=self.cfg["pixdim"],
                     mode=(2, 1),
                 ),
-                # CropForegroundd(keys=["image", "label"], source_key="label", margin=100),
-                ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=self.cfg["spatial_size"],),
-                RandCropByPosNegLabeld(
+                # # This crops the image around areas where the mask is non-zero 
+                # # (the margin is added because otherwise the image would be just the size of the lesion)
+                # CropForegroundd(
+                #     keys=["image", "label"],
+                #     source_key="label",
+                #     margin=100
+                # ),
+                # This resizes the image and the label to the spatial size defined in the config
+                ResizeWithPadOrCropd(
                     keys=["image", "label"],
-                    label_key="label",
                     spatial_size=self.cfg["spatial_size"],
-                    pos=1,
-                    neg=1,
-                    num_samples=4,
-                    image_key="image",
-                    image_threshold=0,
                 ),
+                # RandCropByPosNegLabeld(
+                #     keys=["image", "label"],
+                #     label_key="label",
+                #     spatial_size=self.cfg["spatial_size"],
+                #     pos=1,
+                #     neg=1,
+                #     num_samples=4,
+                #     image_key="image",
+                #     image_threshold=0,
+                # ),
                 # Flips the image : left becomes right
                 RandFlipd(
                     keys=["image", "label"],
@@ -175,33 +182,38 @@ class Model(pl.LightningModule):
                     spatial_axis=[2],
                     prob=0.2,
                 ),
-                # RandAdjustContrastd(
-                #     keys=["image"],
-                #     prob=0.2,
-                #     gamma=(0.5, 4.5),
-                #     invert_image=True,
-                # ),
-                # we add the multiplication of the image by -1
-                # RandLambdad(
-                #     keys='image',
-                #     func=multiply_by_negative_one,
-                #     prob=0.2
-                #     ),
+                # # RandAdjustContrastd(
+                # #     keys=["image"],
+                # #     prob=0.2,
+                # #     gamma=(0.5, 4.5),
+                # #     invert_image=True,
+                # # ),
+                # # we add the multiplication of the image by -1
+                # # RandLambdad(
+                # #     keys='image',
+                # #     func=multiply_by_negative_one,
+                # #     prob=0.2
+                # #     ),
+                # Normalize the intensity of the image
                 NormalizeIntensityd(
                     keys=["image"], 
                     nonzero=False, 
                     channel_wise=False
                 ),
-                # RandGaussianNoised(
+                # LabelToContourd(
                 #     keys=["image"],
-                #     prob=0.2,
-                # ), 
-                # RandShiftIntensityd(
-                #     keys=["image"],
-                #     offsets=0.1,
-                #     prob=0.2,
+                #     kernel_type='Laplace',
                 # ),
-                EnsureTyped(keys=["image", "label"]),
+                # # RandGaussianNoised(
+                # #     keys=["image"],
+                # #     prob=0.2,
+                # # ), 
+                # # RandShiftIntensityd(
+                # #     keys=["image"],
+                # #     offsets=0.1,
+                # #     prob=0.2,
+                # # ),
+                # EnsureTyped(keys=["image", "label"]),
                 # AsDiscreted(
                 #     keys=["label"],
                 #     num_classes=2,
@@ -221,7 +233,10 @@ class Model(pl.LightningModule):
                     mode=(2, 1),
                 ),
                 # CropForegroundd(keys=["image", "label"], source_key="label", margin=100),
-                ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=self.cfg["spatial_size"],),
+                ResizeWithPadOrCropd(
+                    keys=["image", "label"],
+                    spatial_size=self.cfg["spatial_size"],
+                ),
                 # RandCropByPosNegLabeld(
                 #     keys=["image", "label"],
                 #     label_key="label",
@@ -232,12 +247,17 @@ class Model(pl.LightningModule):
                 #     image_key="image",
                 #     image_threshold=0,
                 # ),
+                # This normalizes the intensity of the image
                 NormalizeIntensityd(
                     keys=["image"], 
                     nonzero=False, 
                     channel_wise=False
                 ),
-                EnsureTyped(keys=["image", "label"]),
+                # LabelToContourd(
+                #     keys=["image"],
+                #     kernel_type='Laplace',
+                # ),
+                # EnsureTyped(keys=["image", "label"]),
                 # AsDiscreted(
                 #     keys=["label"],
                 #     num_classes=2,
@@ -304,6 +324,9 @@ class Model(pl.LightningModule):
 
         inputs, labels = batch["image"], batch["label"]
 
+        # The following was done to debug : 
+        # I was checking the image and the label to see if they were empty or not
+
         # # print(inputs.shape, labels.shape)
         # input_0 = inputs[0].detach().cpu().squeeze()
         # # print(input_0.shape)
@@ -322,7 +345,7 @@ class Model(pl.LightningModule):
 
         # # check if any label image patch is empty in the batch
         if check_empty_patch(labels) is None:
-            # print(f"Empty label patch found. Skipping training step ...")
+            print(f"Empty label patch found. Skipping training step ...")
             return None
 
         output = self.forward(inputs)   # logits
@@ -420,12 +443,9 @@ class Model(pl.LightningModule):
             "val_soft_dice": val_soft_dice.detach().cpu(),
             "val_hard_dice": val_hard_dice.detach().cpu(),
             "val_number": len(post_outputs),
-            "val_image_0": inputs[0].detach().cpu().squeeze(),
-            "val_gt_0": labels[0].detach().cpu().squeeze(),
-            "val_pred_0": post_outputs[0].detach().cpu().squeeze(),
-            # "val_image_1": inputs[1].detach().cpu().squeeze(),
-            # "val_gt_1": labels[1].detach().cpu().squeeze(),
-            # "val_pred_1": post_outputs[1].detach().cpu().squeeze(),
+            "val_image": inputs[0].detach().cpu().squeeze(),
+            "val_gt": labels[0].detach().cpu().squeeze(),
+            "val_pred": post_outputs[0].detach().cpu().squeeze(),
         }
         self.val_step_outputs.append(metrics_dict)
         
@@ -446,7 +466,7 @@ class Model(pl.LightningModule):
                 
         wandb_logs = {
             "val_soft_dice": mean_val_soft_dice,
-            #"val_hard_dice": mean_val_hard_dice,
+            # "val_hard_dice": mean_val_hard_dice,
             "val_loss": mean_val_loss,
         }
 
@@ -473,13 +493,19 @@ class Model(pl.LightningModule):
         # log on to wandb
         self.log_dict(wandb_logs)
 
-        # plot the validation images
-        fig0 = plot_slices(image=self.val_step_outputs[0]["val_image_0"],
-                          gt=self.val_step_outputs[0]["val_gt_0"],
-                          pred=self.val_step_outputs[0]["val_pred_0"],)
-        wandb.log({"validation images": wandb.Image(fig0)})
-        plt.close(fig0)
+        # plot 1 validation image
+        fig = plot_slices(image=self.val_step_outputs[0]["val_image"],
+                          gt=self.val_step_outputs[0]["val_gt"],
+                          pred=self.val_step_outputs[0]["val_pred"],)
+        wandb.log({"validation image 1": wandb.Image(fig)})
+        plt.close(fig)
         
+        # plot another validation image
+        fig0 = plot_slices(image=self.val_step_outputs[1]["val_image"],
+                          gt=self.val_step_outputs[1]["val_gt"],
+                          pred=self.val_step_outputs[1]["val_pred"],)
+        wandb.log({"validation image 2": wandb.Image(fig0)})
+        plt.close(fig0)
 
         # free up memory
         self.val_step_outputs.clear()
@@ -565,13 +591,13 @@ def main():
     # define optimizer
     optimizer_class = torch.optim.Adam
 
-    wandb.init(project=f'monai-unet-ms-lesion-seg-canproco', config=config)
+    wandb.init(project=f'monai-ms-lesion-seg', config=config)
 
-    logger.info("Defining plans for nnUNet model ...")
+    logger.info("Building the model ...")
     
 
     # define model
-    # TODO: make the model deeper
+
     # net = UNet(
     #     spatial_dims=3,
     #     in_channels=1,
@@ -587,6 +613,7 @@ def main():
     #     bias=True,
     #     adn_ordering='NDA',
     # )
+
     # net=UNet(
     #     spatial_dims=3,
     #     in_channels=1,
@@ -596,14 +623,16 @@ def main():
         
     #     # dropout=0.1
     # )
+    
     net = AttentionUnet(
             spatial_dims=3,
             in_channels=1,
             out_channels=1,
-            channels=(64, 128, 256, 512, 1024, 2048),
-            strides=(2, 2, 2, 2, 2),
-            dropout=0.0
+            channels=(32, 64, 128),
+            strides=(2, 2, 2,),
+            dropout=0.1,
         )
+    
     # net = BasicUNet(spatial_dims=3, features=(32, 64, 128, 256, 32), out_channels=1)
 
     # net = create_nnunet_from_plans()
@@ -613,13 +642,13 @@ def main():
 
     # define loss function
     #loss_func = AdapWingLoss(theta=0.5, omega=8, alpha=2.1, epsilon=1, reduction="sum")
-    # loss_func = DiceLoss(sigmoid=True, smooth_dr=1e-4)
-    loss_func = DiceCELoss(sigmoid=True, smooth_dr=1e-4)
+    # loss_func = DiceLoss(sigmoid=False, smooth_dr=1e-4)
+    loss_func = DiceCELoss(sigmoid=False, smooth_dr=1e-4)
     # loss_func = SoftDiceLoss(smooth=1e-5)
     # NOTE: tried increasing omega and decreasing epsilon but results marginally worse than the above
     # loss_func = AdapWingLoss(theta=0.5, omega=12, alpha=2.1, epsilon=0.5, reduction="sum")
     #logger.info(f"Using AdapWingLoss with theta={loss_func.theta}, omega={loss_func.omega}, alpha={loss_func.alpha}, epsilon={loss_func.epsilon} ...")
-    logger.info(f"Using SoftDiceLoss ...")
+    logger.info(f"Using DiceCELoss ...")
     # define callbacks
     early_stopping = pl.callbacks.EarlyStopping(
         monitor="val_loss", min_delta=0.00, 
