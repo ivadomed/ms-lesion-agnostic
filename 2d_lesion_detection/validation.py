@@ -4,14 +4,6 @@ Script for yolo model validation
 Takes ground truth bounding box labels and predicted labels, and computes recall and precision.
 Numbers of TPs, FPs and FNs for every image, as well as recall and precision for the whole batch are saved to a csv file.
 Also saves both ground truth and predicted bounding boxes as nifti images (where the contour of the bboxes is 1)
-
-TODO Currently, this script takes ground truth coordinates from yolo dataset (per slice):
-    0 x_center, y_center, width, height (normalized)
-And predicted coordinates are formatted as follows (per volume):
-    x1, y1, x2, y2 (in pixels)
-
-They should have the same format as input 
-(merging and modification of coordinate format should be moved from yolo_inference to here)
 """
 
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
@@ -24,11 +16,113 @@ import torch
 import numpy as np
 import nibabel as nib
 
-from yolo_inference import merge_overlapping_boxes
-
 IOSA = 0.2 # threshold for box merging, was determined by trying different values. With 0.2 boxes in a similar area
            # are merged together. Because of the slice thickness, this threshold can't be too high because lesions can 
            # shift quite a bit from one slice to the next.
+
+
+def expand_bbox(box1:torch.Tensor, box2:torch.Tensor)-> torch.Tensor:
+    """
+    Returns a single bounding box that contains both input boxes
+
+    Args:
+        box1 (torch.Tensor): First bounding box
+        box2 (torch.Tensor): Second bounding box
+            format --> torch.tensor([x1, y1, x2, y2])
+
+    Returns:
+        expanded box (torch.Tensor): Bounding box containing both initial boxes
+            format --> torch.tensor([x1, y1, x2, y2])
+    """
+    # Expand box1 to include box2
+    b1_s0, b1_sf, b1_x1, b1_y1, b1_x2, b1_y2 = box1
+    b2_s0, b2_sf, b2_x1, b2_y1, b2_x2, b2_y2 = box2
+    x1 = min(b1_x1, b2_x1)
+    x2 = max(b1_x2, b2_x2)
+    y1 = min(b1_y1, b2_y1)
+    y2 = max(b1_y2, b2_y2)
+
+    s0 = min(b1_s0, b2_s0)
+    sf = max(b1_sf, b2_sf)
+
+    return torch.Tensor([s0, sf, x1, y1, x2, y2]).int()
+
+
+def intersection_over_smallest_area(boxA:torch.Tensor, boxB:torch.Tensor)-> float:
+    """"
+    Given two bounding boxes, calculates the intersection area over the smallest box's area
+    
+    Adapted from: https://gist.github.com/meyerjo/dd3533edc97c81258898f60d8978eddc
+
+    Args:
+        boxA (torch.Tensor): First bounding box
+        boxB (torch.Tensor): Second bounding box
+            format --> torch.tensor([s0, sf, x1, y1, x2, y2])
+
+    Returns:
+        Intersection over small area (float)
+    """
+     
+    # determine the (x, y)-coordinates of the intersection rectangle
+    x1 = max(boxA[2], boxB[2])
+    y1 = max(boxA[3], boxB[3])
+    x2 = min(boxA[4], boxB[4])
+    y2 = min(boxA[5], boxB[5])
+
+    # compute the area of intersection rectangle
+    interArea = abs(max((x2 - x1, 0)) * max((y2 - y1), 0))
+
+    if interArea == 0:
+        return 0
+    
+    # compute the area of both the prediction and ground-truth rectangles
+    boxAArea = abs((boxA[4] - boxA[2]) * (boxA[5] - boxA[3]))
+    boxBArea = abs((boxB[4] - boxB[2]) * (boxB[5] - boxB[3]))
+
+    smallest_area = min(boxAArea, boxBArea)
+
+    return interArea/smallest_area
+
+
+def merge_overlapping_boxes(boxes:torch.Tensor, iosa_threshold:float)-> List[torch.Tensor]:
+    """
+    Takes a tensor of bounding boxes and groups together the ones that overlap (more than given threshold)
+    
+    I chose to use intersection over smallest box area (which is the proportion of the smallest box contained
+    in the bigger box) as a threshold instead of IoU because this way, if a tiny box is fully within a big box, the tiny
+    one will for sure be merged (iosa will be 1).
+
+    Args:
+        boxes (torch.Tensor): tensor containing the bounding boxes
+            format --> torch.tensor([[x1, y1, x2, y2],[x1, y1, x2, y2], ...])
+        iosa_threshold (float): Intersection over smallest area threshold
+            Boxes with a higher iosa than this value will be merged together
+
+    Returns:
+        merged_boxes (List[torch.Tensor]): List of merged bounding boxes 
+    """
+
+    # List that will contain the final merged boxes
+    merged_boxes = []
+
+    for box in boxes:
+        i = 0
+        while i < len(merged_boxes):
+            merged_box = merged_boxes[i]
+
+            iosa = intersection_over_smallest_area(box, merged_box)
+            if iosa > iosa_threshold:
+                # Expand the merged box with box
+                box = expand_bbox(merged_box, box)
+
+                del merged_boxes[i] # this box will be replaced by the newly merged box
+                # Don't increment i since merged_boxes is staying the same length (one box is replaced)
+            else:
+                i += 1 
+
+        merged_boxes.append(box.round().int())
+
+    return merged_boxes
 
 def xywhn_to_xyxy(bboxes: torch.Tensor, img_width: int, img_height: int) -> torch.Tensor:
     """
@@ -93,7 +187,7 @@ def image_from_bboxes(bboxes: List[torch.Tensor], nii_data: np.ndarray)-> np.nda
 
     Args:
         bboxes (List[torch.Tensor]): List of bounding boxes
-            format --> [torch.tensor([[x1, y1, x2, y2]]), ...]
+            format --> [torch.tensor([[s0, sf, x1, y1, x2, y2]]), ...]
         nii_data (np.ndarray): Original nifti image
 
     Returns:
@@ -105,7 +199,7 @@ def image_from_bboxes(bboxes: List[torch.Tensor], nii_data: np.ndarray)-> np.nda
 
     # Set bounding box edges to 1
     for bbox in bboxes:
-        (x1, y1, x2, y2) = bbox.tolist()
+        (s0, sf, x1, y1, x2, y2) = bbox.tolist()
 
         y1 = nii_data.shape[1] - y1 -1
         y2 = nii_data.shape[1] - y2 -1
@@ -113,10 +207,10 @@ def image_from_bboxes(bboxes: List[torch.Tensor], nii_data: np.ndarray)-> np.nda
         if y1 >= nii_data.shape[1]:
             y1 = nii_data.shape[1] - 1
 
-        nii_data[x1-1:x2+2, y1+1, :] = 1
-        nii_data[x1-1:x2+2, y2-1, :] = 1
-        nii_data[x1-1, y2-1:y1+1, :] = 1
-        nii_data[x2+1, y2-1:y1+1, :] = 1
+        nii_data[x1-1:x2+2, y1+1, s0:sf+1] = 1
+        nii_data[x1-1:x2+2, y2-1, s0:sf+1] = 1
+        nii_data[x1-1, y2-1:y1+1, s0:sf+1] = 1
+        nii_data[x2+1, y2-1:y1+1, s0:sf+1] = 1
 
     return nii_data
 
@@ -130,6 +224,8 @@ def confusion_matrix(ground_truth:Optional[List[torch.Tensor]],
     
     A box from the ground truth list is considered a match with a prediction box if their iou is 
     above iou_threshold.
+
+    Boxes should be formatted like this: s0, sf, x1, y1, x2, y2 (where s0 and sf are the first and last slices)
     
     Args:
         ground_truth (List[torch.Tensor]): list of ground truth bounding boxes
@@ -161,16 +257,20 @@ def confusion_matrix(ground_truth:Optional[List[torch.Tensor]],
         iou = []
         for pred_box in predictions:
             # Calculate intersection
-            xmin = max(gt_box[0], pred_box[0])
-            ymin = max(gt_box[1], pred_box[1])
-            xmax = min(gt_box[2], pred_box[2])
-            ymax = min(gt_box[3], pred_box[3])
-            intersection = max(0, xmax - xmin) * max(0, ymax - ymin)
+            xmin = max(gt_box[2], pred_box[2])
+            ymin = max(gt_box[3], pred_box[3])
+            zmin = max(gt_box[0], pred_box[0])
+
+            xmax = min(gt_box[4], pred_box[4])
+            ymax = min(gt_box[5], pred_box[5])
+            zmax = max(gt_box[1], pred_box[1])
+            # adding 1 to xmax, ymaz, zmax because if the box has a width of 1 px for example, xmax-xmin will be 0 (same for union)
+            intersection = max(0, xmax+1 - xmin) * max(0, ymax+1 - ymin) * max(0, zmax+1 - zmin) 
             
             # Calculate union
-            gt_area = (gt_box[2] - gt_box[0]) * (gt_box[3] - gt_box[1])
-            pred_area = (pred_box[2] - pred_box[0]) * (pred_box[3] - pred_box[1])
-            union = gt_area + pred_area - intersection
+            gt_volume = (gt_box[4]+1 - gt_box[2]) * (gt_box[5]+1 - gt_box[3]) * (gt_box[1]+1 - gt_box[0])
+            pred_volume = (pred_box[4]+1 - pred_box[2]) * (pred_box[5]+1 - pred_box[3]) * (pred_box[1]+1 - pred_box[0])
+            union = gt_volume + pred_volume - intersection
             
             # Calculate IoU
             iou.append(intersection / union if union > 0 else 0)
@@ -238,6 +338,10 @@ def get_volume_boxes(txt_paths:List[str], yolo_img_folder:Path, iosa:float)-> Di
             image_path = yolo_img_folder/f"{volume}_{slice_no}.png" # corresponding image in yolo dataset
             img = Image.open(image_path) # Img dimensions needed for bbox format conversion
             boxes_tensor = xywhn_to_xyxy(boxes_tensor, img.width, img.height).round().int()
+
+            # Add slice number at the beginning of each row
+            slice_indices = torch.tensor([int(slice_no), int(slice_no)]).repeat(boxes_tensor.shape[0], 1)
+            boxes_tensor = torch.cat((slice_indices, boxes_tensor), dim=1)
 
         # Add to dict
         if volume in labels_dict_unmerged:
