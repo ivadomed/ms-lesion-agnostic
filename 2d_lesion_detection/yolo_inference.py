@@ -1,8 +1,8 @@
 """
 Functions to predict slice-wise MS lesion positions using a trained YOLOv8 model.
 
-Also performs post-processing by taking all slice predictions for a volume and 
-merging boxes that overlap # TODO this feature should be moved to validation.py
+Optionally performs post-processing by taking all slice predictions for a volume and 
+merging boxes that overlap
 
 Dataset should be formatted in YOLO format as defined in pre-processing.py
 """
@@ -20,7 +20,7 @@ from ultralytics.engine.results import Results
 
 def merge_overlapping_boxes(boxes:torch.Tensor, iosa_threshold:float)-> List[torch.Tensor]:
     """
-    Takes a list of bounding boxes and groups together the ones that overlap (more than given threshold)
+    Takes a tensor of bounding boxes and groups together the ones that overlap (more than given threshold)
     
     I chose to use intersection over smallest box area (which is the proportion of the smallest box contained
     in the bigger box) as a threshold instead of IoU because this way, if a tiny box is fully within a big box, the tiny
@@ -128,12 +128,14 @@ def _get_slice_results_dict(results:List[Results])-> Dict[str, torch.Tensor]:
 
     Returns:
         result_dict (Dict[str, torch.Tensor]): dictionary containing predictions for every slice
+            !! boxes are in x_center, y_center, width, height normalized format !!
     """
     # Sort results into a dictionnary with slice names as keys
     result_dict = {}
     for result in results:
-        slice = Path(result.path).name.replace(".png", "")
-        result_dict[slice] = result.boxes.xyxy
+        slice_name = Path(result.path).name.replace(".png", "")
+        boxes = result.boxes.xywhn
+        result_dict[slice_name] = boxes
 
     return result_dict
 
@@ -147,6 +149,7 @@ def _get_volume_results_dict(results:List[Results])-> Dict[str, torch.Tensor]:
 
     Returns:
         result_dict (Dict[str, torch.Tensor]): dictionary containing predictions for every volume
+            !! boxes are in x1,y1,x2,y2 format !!
 
     """
     # Sort results into a dictionnary with volume names as keys
@@ -189,11 +192,11 @@ def _main():
                         default= 0.2,
                         type = float,
                         help = 'Confidence threshold to keep model predictions.')
-    parser.add_argument('-s', '--slice',
+    parser.add_argument('-v', '--volume',
                         default= False,
                         action='store_true',
-                        help = 'If used, one set of bounding boxes will be saved for every slice. '
-                               'By default, one set of bounding boxes is saved for every volume.')
+                        help = 'If used, one set of bounding boxes will be saved for every volume. '
+                               'By default, one set of bounding boxes is saved for every slice.')
 
     args = parser.parse_args()
 
@@ -218,7 +221,7 @@ def _main():
 
     # Put results in a dictionary
     # If volume is true, results will be sorted by volume
-    if not args.slice:
+    if args.volume:
         result_dict = _get_volume_results_dict(results)
     else:
         result_dict = _get_slice_results_dict(results)
@@ -234,7 +237,7 @@ def _main():
             # If no boxes are predicted, skip volume/ slice (no txt file is saved)
             continue
 
-        elif not args.slice:
+        elif args.volume:
             # Merge boxes
             boxes = merge_overlapping_boxes(boxes, 0.2)
 
@@ -242,7 +245,8 @@ def _main():
         with open(args.output_folder/(name+".txt"), "w") as file:
             # Iterate over the tensors in the list
             for tensor in boxes:
-                np.savetxt(file, [tensor.numpy()], fmt='%d')
+                line = ' '.join(['0'] + [str(val) for val in tensor.numpy()]) # add a zero to indicate the class (assuming there is only one class)
+                file.write(line + '\n')
 
 
 

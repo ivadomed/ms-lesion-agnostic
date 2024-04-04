@@ -26,15 +26,18 @@ import nibabel as nib
 
 from yolo_inference import merge_overlapping_boxes
 
+IOSA = 0.2 # threshold for box merging, was determined by trying different values. With 0.2 boxes in a similar area
+           # are merged together. Because of the slice thickness, this threshold can't be too high because lesions can 
+           # shift quite a bit from one slice to the next.
 
-def convert_bbox_format_to_corners(bboxes: torch.Tensor, img_width: int, img_height: int) -> torch.Tensor:
+def xywhn_to_xyxy(bboxes: torch.Tensor, img_width: int, img_height: int) -> torch.Tensor:
     """
-    Converts bounding box format from (class, x_center, y_center, width, height) normalized between 0 and 1 
+    Converts bounding box format from (x_center, y_center, width, height) normalized by image size 
     to (x1, y1, x2, y2) in pixels.
 
     Args:
         bboxes (torch.Tensor): Tensor of bounding boxes in (x_center, y_center, width, height) format
-            format --> torch.tensor([[class, x_center, y_center, width, height],[class, x_center, y_center, width, height], ...])
+            format --> torch.tensor([[x_center, y_center, width, height],[x_center, y_center, width, height], ...])
         img_width (int): Width of the corresponding image
         img_height (int): Height of the corresponding image
 
@@ -43,7 +46,7 @@ def convert_bbox_format_to_corners(bboxes: torch.Tensor, img_width: int, img_hei
             format --> torch.tensor([[x1, y1, x2, y2],[x1, y1, x2, y2], ...])
     """
     # Extract coordinates and sizes from the input tensor
-    x_center, y_center, width, height = bboxes[:, 1], bboxes[:, 2], bboxes[:, 3], bboxes[:, 4]
+    x_center, y_center, width, height = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
 
     # Denormalize coordinates and sizes
     x_center = x_center * img_width
@@ -194,7 +197,7 @@ def confusion_matrix(ground_truth:Optional[List[torch.Tensor]],
     return tp, fn, fp
 
 
-def get_ground_truth_boxes(txt_paths:List[str], iosa)-> Dict[str, List[torch.Tensor]]:
+def get_volume_boxes(txt_paths:List[str], yolo_img_folder:Path, iosa:float)-> Dict[str, List[torch.Tensor]]:
     """
     From a list of txt file paths containing slice-wise bounding box coordinates, sorts 
     bbox coordinates by volume into a dictionary and merges overlapping boxes
@@ -207,6 +210,7 @@ def get_ground_truth_boxes(txt_paths:List[str], iosa)-> Dict[str, List[torch.Ten
 
     Args:
         txt_paths (List(str)): List of txt file paths that contain the bounding box coordinates
+        yolo_img_folder (Path): Path to the yolo dataset folder containing the images that correspond to txt_paths
         iosa (float): Intersection over smallest area threshold for two bboxes to be merged
     
     Returns:
@@ -219,6 +223,7 @@ def get_ground_truth_boxes(txt_paths:List[str], iosa)-> Dict[str, List[torch.Ten
     labels_dict_unmerged = {}
     for txt_path in txt_paths:
         parts = Path(txt_path).name.split('_')
+        slice_no = parts[-1].replace(".txt","")
         volume = '_'.join(parts[:-1])
 
         # Get bbox coordinates as tensor
@@ -226,12 +231,13 @@ def get_ground_truth_boxes(txt_paths:List[str], iosa)-> Dict[str, List[torch.Ten
         with open(txt_path, 'r') as file:
             for line in file:
                 line = line.strip().split()
-                line = [float(x) for x in line]
+                line = [float(x) for x in line[1:]] # take line[1:] to ignore the class number
                 data.append(line)
             boxes_tensor = torch.tensor(data)
 
-            img = Image.open(get_png_from_txt(txt_path)) # Img dimensions needed for bbox format conversion
-            boxes_tensor = convert_bbox_format_to_corners(boxes_tensor, img.width, img.height).round().int()
+            image_path = yolo_img_folder/f"{volume}_{slice_no}.png" # corresponding image in yolo dataset
+            img = Image.open(image_path) # Img dimensions needed for bbox format conversion
+            boxes_tensor = xywhn_to_xyxy(boxes_tensor, img.width, img.height).round().int()
 
         # Add to dict
         if volume in labels_dict_unmerged:
@@ -360,7 +366,7 @@ def _main():
     parser.add_argument('-g', '--gt-path',
                         required= True,
                         type = str,
-                        help = 'Path to dataset folder of ground truth txt files')
+                        help = 'Path to YOLO dataset folder of ground truth txt files')
     parser.add_argument('-p', '--preds-path',
                         required= True,
                         type = str,
@@ -391,7 +397,7 @@ def _main():
 
     # Get dictionary with volume names as keys 
     # And ground truth bounding box tensors as values
-    labels_dict = get_ground_truth_boxes(txt_paths, 0.2)
+    labels_dict = get_volume_boxes(txt_paths, Path(get_png_from_txt(args.gt_path)), IOSA)
 
 
     ## 2-Get predictions
@@ -401,8 +407,8 @@ def _main():
     txt_paths = [os.path.join(args.preds_path, file) for file in txt_names if file.endswith(".txt")] #only keep txts
 
     # Get dictionary with volume names as keys 
-    # And ground truth bounding box tensors as values
-    preds_dict = get_pred_boxes(txt_paths)
+    # And prediction bounding box tensors as values
+    preds_dict = get_volume_boxes(txt_paths, Path(get_png_from_txt(args.gt_path)), IOSA)
 
         
     ## Save images with labels and predictions
