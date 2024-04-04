@@ -39,33 +39,6 @@ def _get_slice_results_dict(results:List[Results])-> Dict[str, torch.Tensor]:
     return result_dict
 
 
-def _get_volume_results_dict(results:List[Results])-> Dict[str, torch.Tensor]:
-    """
-    Get a dictionnary of YOLO results with volume name as key
-
-    Args:
-        results (List[Results]): list of results from YOLO predict mode
-
-    Returns:
-        result_dict (Dict[str, torch.Tensor]): dictionary containing predictions for every volume
-            !! boxes are in x1,y1,x2,y2 format !!
-
-    """
-    # Sort results into a dictionnary with volume names as keys
-    result_dict = {}
-    for result in results:
-        parts = Path(result.path).name.split('_')
-        volume = '_'.join(parts[:-1]) # volume name
-
-        if volume in result_dict:
-            result_dict[volume] = torch.cat((result_dict[volume], result.boxes.xyxy), dim=0)
-
-        else:
-            result_dict[volume] = result.boxes.xyxy
-
-    return result_dict
-
-
 def _main():
     parser = ArgumentParser(
     prog = 'yolo_inference',
@@ -114,11 +87,7 @@ def _main():
             results.append(pred)
 
     # Put results in a dictionary
-    # If volume is true, results will be sorted by volume
-    if args.volume:
-        result_dict = _get_volume_results_dict(results)
-    else:
-        result_dict = _get_slice_results_dict(results)
+    result_dict = _get_slice_results_dict(results)
 
     
     # Save results (and merge overlaping boxes if volume is true)
