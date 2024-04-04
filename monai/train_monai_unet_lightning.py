@@ -154,16 +154,16 @@ class Model(pl.LightningModule):
                     keys=["image", "label"],
                     spatial_size=self.cfg["spatial_size"],
                 ),
-                # RandCropByPosNegLabeld(
-                #     keys=["image", "label"],
-                #     label_key="label",
-                #     spatial_size=self.cfg["spatial_size"],
-                #     pos=1,
-                #     neg=1,
-                #     num_samples=4,
-                #     image_key="image",
-                #     image_threshold=0,
-                # ),
+                RandCropByPosNegLabeld(
+                    keys=["image", "label"],
+                    label_key="label",
+                    spatial_size=self.cfg["spatial_size"],
+                    pos=1,
+                    neg=1,
+                    num_samples=4,
+                    image_key="image",
+                    image_threshold=0,
+                ),
                 # Flips the image : left becomes right
                 RandFlipd(
                     keys=["image", "label"],
@@ -182,18 +182,18 @@ class Model(pl.LightningModule):
                     spatial_axis=[2],
                     prob=0.2,
                 ),
-                # # RandAdjustContrastd(
-                # #     keys=["image"],
-                # #     prob=0.2,
-                # #     gamma=(0.5, 4.5),
-                # #     invert_image=True,
-                # # ),
+                # RandAdjustContrastd(
+                #     keys=["image"],
+                #     prob=0.2,
+                #     gamma=(0.5, 4.5),
+                #     invert_image=True,
+                # ),
                 # # we add the multiplication of the image by -1
-                # # RandLambdad(
-                # #     keys='image',
-                # #     func=multiply_by_negative_one,
-                # #     prob=0.2
-                # #     ),
+                # RandLambdad(
+                #     keys='image',
+                #     func=multiply_by_negative_one,
+                #     prob=0.2
+                #     ),
                 # Normalize the intensity of the image
                 NormalizeIntensityd(
                     keys=["image"], 
@@ -204,15 +204,15 @@ class Model(pl.LightningModule):
                 #     keys=["image"],
                 #     kernel_type='Laplace',
                 # ),
-                # # RandGaussianNoised(
-                # #     keys=["image"],
-                # #     prob=0.2,
-                # # ), 
-                # # RandShiftIntensityd(
-                # #     keys=["image"],
-                # #     offsets=0.1,
-                # #     prob=0.2,
-                # # ),
+                # RandGaussianNoised(
+                #     keys=["image"],
+                #     prob=0.2,
+                # ), 
+                # RandShiftIntensityd(
+                #     keys=["image"],
+                #     offsets=0.1,
+                #     prob=0.2,
+                # ),
                 # EnsureTyped(keys=["image", "label"]),
                 # AsDiscreted(
                 #     keys=["label"],
@@ -237,16 +237,16 @@ class Model(pl.LightningModule):
                     keys=["image", "label"],
                     spatial_size=self.cfg["spatial_size"],
                 ),
-                # RandCropByPosNegLabeld(
-                #     keys=["image", "label"],
-                #     label_key="label",
-                #     spatial_size=self.cfg["spatial_size"],
-                #     pos=1,
-                #     neg=1,
-                #     num_samples=4,
-                #     image_key="image",
-                #     image_threshold=0,
-                # ),
+                RandCropByPosNegLabeld(
+                    keys=["image", "label"],
+                    label_key="label",
+                    spatial_size=self.cfg["spatial_size"],
+                    pos=1,
+                    neg=1,
+                    num_samples=4,
+                    image_key="image",
+                    image_threshold=0,
+                ),
                 # This normalizes the intensity of the image
                 NormalizeIntensityd(
                     keys=["image"], 
@@ -275,8 +275,8 @@ class Model(pl.LightningModule):
         test_files = load_decathlon_datalist(dataset, True, "test")
         
         train_cache_rate = 0.5
-        self.train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=train_cache_rate, num_workers=16)
-        self.val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=0.25, num_workers=16)
+        self.train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=train_cache_rate, num_workers=8)
+        self.val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=0.25, num_workers=8)
 
         # define test transforms
         transforms_test = val_transforms
@@ -297,11 +297,11 @@ class Model(pl.LightningModule):
     # DATA LOADERS
     # --------------------------------
     def train_dataloader(self):
-        return DataLoader(self.train_ds, batch_size=self.cfg["batch_size"], shuffle=True, num_workers=16, 
+        return DataLoader(self.train_ds, batch_size=self.cfg["batch_size"], shuffle=True, num_workers=8, 
                             pin_memory=True, persistent_workers=True) 
 
     def val_dataloader(self):
-        return DataLoader(self.val_ds, batch_size=1, shuffle=False, num_workers=16, pin_memory=True, 
+        return DataLoader(self.val_ds, batch_size=1, shuffle=False, num_workers=8, pin_memory=True, 
                           persistent_workers=True)
     
     def test_dataloader(self):
@@ -623,7 +623,7 @@ def main():
         
     #     # dropout=0.1
     # )
-    
+
     net = AttentionUnet(
             spatial_dims=3,
             in_channels=1,
