@@ -84,6 +84,32 @@ def intersection_over_smallest_area(boxA:torch.Tensor, boxB:torch.Tensor)-> floa
     return interArea/smallest_area
 
 
+def boxes_overlap_or_consecutive(box1:torch.Tensor, box2:torch.Tensor)->bool:
+    """
+    Determines whether two boxes either overlap or are on consecutive slices.
+
+    Args:
+        box1 (torch.Tensor): First box
+        box2 (torch.Tensor): Second box
+            they should both be formatted as: torch.tensor([s0, sf, x1, y1, x2, y2])
+    
+    Returns:
+        True or False
+    """
+    # Check if they overlap
+    if box2[0] <= box1[1] and box2[0] >= box1[0]:
+        return True
+    
+    elif box2[1] <= box1[1] and box2[1] >= box1[0]:
+        return True
+    
+    # Check if they are consecutive
+    elif box1[1] + 1 == box2[0] or box2[1] + 1 == box1[0]:
+        return True
+    
+    else:
+        return False
+
 def merge_overlapping_boxes(boxes:torch.Tensor, iosa_threshold:float)-> List[torch.Tensor]:
     """
     Takes a tensor of bounding boxes and groups together the ones that overlap (more than given threshold)
@@ -94,7 +120,7 @@ def merge_overlapping_boxes(boxes:torch.Tensor, iosa_threshold:float)-> List[tor
 
     Args:
         boxes (torch.Tensor): tensor containing the bounding boxes
-            format --> torch.tensor([[x1, y1, x2, y2],[x1, y1, x2, y2], ...])
+            format --> torch.tensor([[s0, sf, x1, y1, x2, y2],[s0, sf, x1, y1, x2, y2], ...])
         iosa_threshold (float): Intersection over smallest area threshold
             Boxes with a higher iosa than this value will be merged together
 
@@ -110,16 +136,19 @@ def merge_overlapping_boxes(boxes:torch.Tensor, iosa_threshold:float)-> List[tor
         while i < len(merged_boxes):
             merged_box = merged_boxes[i]
 
-            iosa = intersection_over_smallest_area(box, merged_box)
-            if iosa > iosa_threshold:
-                # Expand the merged box with box
-                box = expand_bbox(merged_box, box)
+            # Check if the slices are consecutive
+            if boxes_overlap_or_consecutive(box, merged_box):
+                iosa = intersection_over_smallest_area(box, merged_box)
+                if iosa > iosa_threshold:
+                    # Expand the merged box with box
+                    box = expand_bbox(merged_box, box)
 
-                del merged_boxes[i] # this box will be replaced by the newly merged box
-                # Don't increment i since merged_boxes is staying the same length (one box is replaced)
+                    del merged_boxes[i] # this box will be replaced by the newly merged box
+                    # Don't increment i since merged_boxes is staying the same length (one box is replaced)
+                else:
+                    i += 1
             else:
-                i += 1 
-
+                i += 1
         merged_boxes.append(box.round().int())
 
     return merged_boxes
