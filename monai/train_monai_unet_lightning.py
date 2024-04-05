@@ -630,23 +630,23 @@ def main():
     #     adn_ordering='NDA',
     # )
 
-    net=UNet(
-        spatial_dims=3,
-        in_channels=1,
-        out_channels=1,
-        channels=(32, 64, 128, 256, 512),
-        strides=(2, 2, 2, 2, ),
-        # dropout=0.1
-    )
+    # net=UNet(
+    #     spatial_dims=3,
+    #     in_channels=1,
+    #     out_channels=1,
+    #     channels=(32, 64, 128, 256, 512),
+    #     strides=(2, 2, 2, 2, ),
+    #     # dropout=0.1
+    # )
 
-    # net = AttentionUnet(
-    #         spatial_dims=3,
-    #         in_channels=1,
-    #         out_channels=1,
-    #         channels=(32, 64, 128),
-    #         strides=(2, 2, 2,),
-    #         dropout=0.1,
-    #     )
+    net = AttentionUnet(
+            spatial_dims=3,
+            in_channels=1,
+            out_channels=1,
+            channels=(32, 64, 128, 256, 512),
+            strides=(2, 2, 2, 2,),
+            dropout=0.1,
+        )
     
     # net = BasicUNet(spatial_dims=3, features=(32, 64, 128, 256, 32), out_channels=1)
 
