@@ -154,16 +154,16 @@ class Model(pl.LightningModule):
                     keys=["image", "label"],
                     spatial_size=self.cfg["spatial_size"],
                 ),
-                RandCropByPosNegLabeld(
-                    keys=["image", "label"],
-                    label_key="label",
-                    spatial_size=self.cfg["spatial_size"],
-                    pos=1,
-                    neg=1,
-                    num_samples=4,
-                    image_key="image",
-                    image_threshold=0,
-                ),
+                # RandCropByPosNegLabeld(
+                #     keys=["image", "label"],
+                #     label_key="label",
+                #     spatial_size=self.cfg["spatial_size"],
+                #     pos=1,
+                #     neg=1,
+                #     num_samples=4,
+                #     image_key="image",
+                #     image_threshold=0,
+                # ),
                 # Flips the image : left becomes right
                 RandFlipd(
                     keys=["image", "label"],
@@ -237,16 +237,16 @@ class Model(pl.LightningModule):
                     keys=["image", "label"],
                     spatial_size=self.cfg["spatial_size"],
                 ),
-                RandCropByPosNegLabeld(
-                    keys=["image", "label"],
-                    label_key="label",
-                    spatial_size=self.cfg["spatial_size"],
-                    pos=1,
-                    neg=1,
-                    num_samples=4,
-                    image_key="image",
-                    image_threshold=0,
-                ),
+                # RandCropByPosNegLabeld(
+                #     keys=["image", "label"],
+                #     label_key="label",
+                #     spatial_size=self.cfg["spatial_size"],
+                #     pos=1,
+                #     neg=1,
+                #     num_samples=4,
+                #     image_key="image",
+                #     image_threshold=0,
+                # ),
                 # This normalizes the intensity of the image
                 NormalizeIntensityd(
                     keys=["image"], 
@@ -591,7 +591,7 @@ def main():
     # define optimizer
     optimizer_class = torch.optim.Adam
 
-    wandb.init(project=f'monai-ms-lesion-seg', config=config)
+    wandb.init(project=f'monai-ms-lesion-seg-unet', config=config)
 
     logger.info("Building the model ...")
     
@@ -614,24 +614,24 @@ def main():
     #     adn_ordering='NDA',
     # )
 
-    # net=UNet(
-    #     spatial_dims=3,
-    #     in_channels=1,
-    #     out_channels=1,
-    #     channels=(32, 64, 128, 256),
-    #     strides=(2, 2, 2 ),
+    net=UNet(
+        spatial_dims=3,
+        in_channels=1,
+        out_channels=1,
+        channels=(32, 64, 128, 256),
+        strides=(2, 2, 2 ),
         
-    #     # dropout=0.1
-    # )
+        # dropout=0.1
+    )
 
-    net = AttentionUnet(
-            spatial_dims=3,
-            in_channels=1,
-            out_channels=1,
-            channels=(32, 64, 128),
-            strides=(2, 2, 2,),
-            dropout=0.1,
-        )
+    # net = AttentionUnet(
+    #         spatial_dims=3,
+    #         in_channels=1,
+    #         out_channels=1,
+    #         channels=(32, 64, 128),
+    #         strides=(2, 2, 2,),
+    #         dropout=0.1,
+    #     )
     
     # net = BasicUNet(spatial_dims=3, features=(32, 64, 128, 256, 32), out_channels=1)
 
@@ -680,8 +680,8 @@ def main():
                         config=config)
 
     # Saving training script to wandb
-    wandb.save("ms-lesion-agnostic/monai/nnunet/config_fake.yml")
-    wandb.save("ms-lesion-agnostic/monai/nnunet/train_monai_unet_lightning.py")
+    wandb.save("ms-lesion-agnostic/monai/config.yml")
+    wandb.save("ms-lesion-agnostic/monai/train_monai_unet_lightning.py")
 
 
     # initialise Lightning's trainer.
