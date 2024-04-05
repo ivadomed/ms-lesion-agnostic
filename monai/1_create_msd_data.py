@@ -28,6 +28,9 @@ from loguru import logger
 from sklearn.model_selection import train_test_split
 from datetime import date
 from pathlib import Path
+import nibabel as nib
+import numpy as np
+import skimage
 
 
 def get_parser():
@@ -45,9 +48,37 @@ def get_parser():
 
     parser.add_argument('-pd', '--path-data', required=True, type=str, help='Path to the folder containing the datasets')
     parser.add_argument('-po', '--path-out', type=str, help='Path to the output directory where dataset json is saved')
+    parser.add_argument('--lesion-only', action='store_true', help='Use only masks which contain some lesions')
     parser.add_argument('--seed', default=42, type=int, help="Seed for reproducibility")
 
     return parser
+
+
+def count_lesion(label_file):
+    """
+    This function takes a label file and counts the number of lesions in it.
+
+    Input:
+        label_file : str : Path to the label file
+    
+    Returns:
+        count : int : Number of lesions in the label file
+        total_volume : float : Total volume of lesions in the label file
+    """
+
+    label = nib.load(label_file)
+    label_data = label.get_fdata()
+
+    # get the total volume of the lesions
+    total_volume = np.sum(label_data)
+    resolution = label.header.get_zooms()
+    total_volume = total_volume * np.prod(resolution)
+
+    # get the number of lesions
+    _, nb_lesions = skimage.measure.label(label_data, connectivity=2, return_num=True)
+    
+    return  total_volume, nb_lesions
+
 
 def main():
     """
@@ -138,6 +169,11 @@ def main():
                     temp_data_canproco["label"] = str(subject)
                     temp_data_canproco["image"] = str(subject).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
                     if os.path.exists(temp_data_canproco["label"]) and os.path.exists(temp_data_canproco["image"]):
+                        total_lesion_volume, nb_lesions = count_lesion(temp_data_canproco["label"])
+                        temp_data_canproco["total_lesion_volume"] = total_lesion_volume
+                        temp_data_canproco["nb_lesions"] = nb_lesions
+                        if args.lesion_only and nb_lesions == 0:
+                            continue
                         temp_list.append(temp_data_canproco)
                 
                 # Basel
@@ -146,6 +182,11 @@ def main():
                     temp_data_basel["image"] = str(subject)
                     temp_data_basel["label"] = str(basel_path / 'derivatives' / 'labels' /  relative_path / str(subject).replace('UNIT1.nii.gz', 'UNIT1_desc-rater3_label-lesion_seg.nii.gz'))
                     if os.path.exists(temp_data_basel["label"]) and os.path.exists(temp_data_basel["image"]):
+                        total_lesion_volume, nb_lesions = count_lesion(temp_data_basel["label"])
+                        temp_data_basel["total_lesion_volume"] = total_lesion_volume
+                        temp_data_basel["nb_lesions"] = nb_lesions
+                        if args.lesion_only and nb_lesions == 0:
+                            continue
                         temp_list.append(temp_data_basel)
 
                 # sct-testing-large
@@ -153,6 +194,11 @@ def main():
                     temp_data_sct["label"] = str(subject)
                     temp_data_sct["image"] = str(subject).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
                     if os.path.exists(temp_data_sct["label"]) and os.path.exists(temp_data_sct["image"]):
+                        total_lesion_volume, nb_lesions = count_lesion(temp_data_sct["label"])
+                        temp_data_sct["total_lesion_volume"] = total_lesion_volume
+                        temp_data_sct["nb_lesions"] = nb_lesions
+                        if args.lesion_only and nb_lesions == 0:
+                            continue
                         temp_list.append(temp_data_sct)
                         
 
@@ -162,6 +208,11 @@ def main():
                     temp_data_bavaria["image"] = str(subject)
                     temp_data_bavaria["label"] = str(bavaria_path / 'derivatives' / 'labels' / relative_path / subject.name.replace('T2w.nii.gz', 'T2w_lesion-manual.nii.gz'))
                     if os.path.exists(temp_data_bavaria["label"]) and os.path.exists(temp_data_bavaria["image"]):
+                        total_lesion_volume, nb_lesions = count_lesion(temp_data_bavaria["label"])
+                        temp_data_bavaria["total_lesion_volume"] = total_lesion_volume
+                        temp_data_bavaria["nb_lesions"] = nb_lesions
+                        if args.lesion_only and nb_lesions == 0:
+                            continue
                         temp_list.append(temp_data_bavaria)
                 
             params[name] = temp_list
@@ -175,8 +226,10 @@ def main():
     final_json = json.dumps(params, indent=4, sort_keys=True)
     if not os.path.exists(args.path_out):
         os.makedirs(args.path_out, exist_ok=True)
-
-    jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}.json", "w")
+    if args.lesion_only:
+        jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}_lesionOnly.json", "w")
+    else:
+        jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}.json", "w")
     jsonFile.write(final_json)
     jsonFile.close()
 
