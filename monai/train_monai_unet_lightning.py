@@ -48,7 +48,8 @@ from monai.transforms import (
     LabelToContourd,
     Invertd,
     SaveImage,
-    EnsureType 
+    EnsureType,
+    Rand3DElasticd 
 )
 from monai.utils import set_determinism
 from monai.inferers import sliding_window_inference
@@ -147,13 +148,9 @@ class Model(pl.LightningModule):
                 # CropForegroundd(
                 #     keys=["image", "label"],
                 #     source_key="label",
-                #     margin=100
+                #     margin=150
                 # ),
-                # This resizes the image and the label to the spatial size defined in the config
-                ResizeWithPadOrCropd(
-                    keys=["image", "label"],
-                    spatial_size=self.cfg["spatial_size"],
-                ),
+                # This crops the image around a foreground object of label with ratio pos/(pos+neg) (however, it cannot pad so keeping padding after)
                 # RandCropByPosNegLabeld(
                 #     keys=["image", "label"],
                 #     label_key="label",
@@ -163,7 +160,13 @@ class Model(pl.LightningModule):
                 #     num_samples=4,
                 #     image_key="image",
                 #     image_threshold=0,
+                #     allow_smaller=True,
                 # ),
+                # This resizes the image and the label to the spatial size defined in the config
+                ResizeWithPadOrCropd(
+                    keys=["image", "label"],
+                    spatial_size=self.cfg["spatial_size"],
+                ),
                 # Flips the image : left becomes right
                 RandFlipd(
                     keys=["image", "label"],
@@ -182,6 +185,14 @@ class Model(pl.LightningModule):
                     spatial_axis=[2],
                     prob=0.2,
                 ),
+                # # Random elastic deformation
+                # Rand3DElasticd(
+                #     keys=["image", "label"],
+                #     sigma_range=(5, 7),
+                #     magnitude_range=(50, 150),
+                #     prob=0.2,
+                #     mode=['bilinear', 'nearest'],
+                # ),
                 # RandAdjustContrastd(
                 #     keys=["image"],
                 #     prob=0.2,
@@ -232,11 +243,10 @@ class Model(pl.LightningModule):
                     pixdim=self.cfg["pixdim"],
                     mode=(2, 1),
                 ),
-                # CropForegroundd(keys=["image", "label"], source_key="label", margin=100),
-                ResizeWithPadOrCropd(
-                    keys=["image", "label"],
-                    spatial_size=self.cfg["spatial_size"],
-                ),
+                # CropForegroundd(
+                #     keys=["image", "label"],
+                #     source_key="label",
+                #     margin=150),
                 # RandCropByPosNegLabeld(
                 #     keys=["image", "label"],
                 #     label_key="label",
@@ -246,7 +256,13 @@ class Model(pl.LightningModule):
                 #     num_samples=4,
                 #     image_key="image",
                 #     image_threshold=0,
+                #     allow_smaller=True,
                 # ),
+                ResizeWithPadOrCropd(
+                    keys=["image", "label"],
+                    spatial_size=self.cfg["spatial_size"],
+                ),
+                
                 # This normalizes the intensity of the image
                 NormalizeIntensityd(
                     keys=["image"], 
@@ -619,8 +635,7 @@ def main():
         in_channels=1,
         out_channels=1,
         channels=(32, 64, 128, 256),
-        strides=(2, 2, 2 ),
-        
+        strides=(2, 2, 2, ),
         # dropout=0.1
     )
 

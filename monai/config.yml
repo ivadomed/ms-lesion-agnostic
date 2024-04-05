@@ -10,8 +10,9 @@ output_dir : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
 # Resampling resolution
 # pixdim : [1.0, 1.0, 1.0]
 pixdim : [0.7, 0.7, 0.7]
+# pixdim : [0.5, 0.5, 0.5]
 # Spatial size of the input data
-spatial_size : [64, 128, 128] # RL, AP, IS
+spatial_size : [32, 128, 128] # RL, AP, IS
 batch_size : 4
 
 # UNETR model parameters
