@@ -185,14 +185,14 @@ class Model(pl.LightningModule):
                     spatial_axis=[2],
                     prob=0.2,
                 ),
-                # # Random elastic deformation
-                # Rand3DElasticd(
-                #     keys=["image", "label"],
-                #     sigma_range=(5, 7),
-                #     magnitude_range=(50, 150),
-                #     prob=0.2,
-                #     mode=['bilinear', 'nearest'],
-                # ),
+                # Random elastic deformation
+                Rand3DElasticd(
+                    keys=["image", "label"],
+                    sigma_range=(5, 7),
+                    magnitude_range=(50, 150),
+                    prob=0.2,
+                    mode=['bilinear', 'nearest'],
+                ),
                 # RandAdjustContrastd(
                 #     keys=["image"],
                 #     prob=0.2,
@@ -215,10 +215,10 @@ class Model(pl.LightningModule):
                 #     keys=["image"],
                 #     kernel_type='Laplace',
                 # ),
-                # RandGaussianNoised(
-                #     keys=["image"],
-                #     prob=0.2,
-                # ), 
+                RandGaussianNoised(
+                    keys=["image"],
+                    prob=0.2,
+                ), 
                 # RandShiftIntensityd(
                 #     keys=["image"],
                 #     offsets=0.1,
@@ -634,8 +634,8 @@ def main():
         spatial_dims=3,
         in_channels=1,
         out_channels=1,
-        channels=(32, 64, 128, 256),
-        strides=(2, 2, 2, ),
+        channels=(32, 64, 128, 256, 512),
+        strides=(2, 2, 2, 2, ),
         # dropout=0.1
     )
 
