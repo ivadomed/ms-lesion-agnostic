@@ -2,9 +2,10 @@
 # Path to the data json file
 # data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake.json
 # data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake_lesion_sc.json
-data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake_10_each.json
+# data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake_10_each.json
 # data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake_sc.json
 # data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-03-13_seed42_canproco.json
+data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-04-05_seed42_lesionOnly.json
 # Path to the output directory
 output_dir : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
 # Resampling resolution
