@@ -169,6 +169,7 @@ def xywhn_to_xyxy(bboxes: torch.Tensor, img_width: int, img_height: int) -> torc
             format --> torch.tensor([[x1, y1, x2, y2],[x1, y1, x2, y2], ...])
     """
     # Extract coordinates and sizes from the input tensor
+    print(bboxes)
     x_center, y_center, width, height = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
 
     # Denormalize coordinates and sizes
@@ -286,13 +287,19 @@ def confusion_matrix(ground_truth:Optional[List[torch.Tensor]],
         iou = []
         for pred_box in predictions:
             # Calculate intersection
+            print(gt_box, pred_box)
             xmin = max(gt_box[2], pred_box[2])
             ymin = max(gt_box[3], pred_box[3])
             zmin = max(gt_box[0], pred_box[0])
 
             xmax = min(gt_box[4], pred_box[4])
             ymax = min(gt_box[5], pred_box[5])
-            zmax = max(gt_box[1], pred_box[1])
+            zmax = min(gt_box[1], pred_box[1])
+
+            print(xmin, xmax)
+            print(ymin, ymax)
+            print(zmin, zmax)
+
             # adding 1 to xmax, ymaz, zmax because if the box has a width of 1 px for example, xmax-xmin will be 0 (same for union)
             intersection = max(0, xmax+1 - xmin) * max(0, ymax+1 - ymin) * max(0, zmax+1 - zmin) 
             
@@ -303,6 +310,8 @@ def confusion_matrix(ground_truth:Optional[List[torch.Tensor]],
             
             # Calculate IoU
             iou.append(intersection / union if union > 0 else 0)
+
+            print(gt_box, pred_box, intersection, union, intersection / union if union > 0 else 0)
         ious.append(iou)
     
 
@@ -311,16 +320,16 @@ def confusion_matrix(ground_truth:Optional[List[torch.Tensor]],
     fn = 0
     fp = 0
     for _, gt_iou in enumerate(ious):
-        if max(gt_iou) >= iou_threshold:
-            # If the max iou for a given ground truth is over threshold -> TP
-            tp+=1
-        else:
+        if max(gt_iou) < iou_threshold:
             # For a given ground truth, if the max iou is below threshold -> FN
             fn+=1
 
     for _, pred_iou in enumerate(zip(*ious)):
-        # For a given prediction, if the max is below threshold -> FP
-        if max(pred_iou) < iou_threshold:
+        # If the max iou for a given prediction is over threshold -> TP
+        if max(pred_iou) >= iou_threshold:
+            tp+=1
+        # If the max is below threshold -> FP
+        else:
             fp+=1
 
     return tp, fn, fp
@@ -346,7 +355,7 @@ def get_volume_boxes(txt_paths:List[str], yolo_img_folder:Path, iosa:float)-> Di
         labels_dict (Dict[str, List[torch.Tensor]]): dictionary containing bounding boxes for every volume
             key is volume name (sub-cal080_ses-M0_STIR for example)
             value is a Tensor containg bounding box coordinates 
-                format -> torch.tensor([x1, y1, x2, y2], [x1, y1, x2, y2], ...)
+                format -> torch.tensor([s0, sf, x1, y1, x2, y2], [s0, sf, x1, y1, x2, y2], ...)
     """
     # Start by making a dictionary that groups slices of each volume together
     labels_dict_unmerged = {}
