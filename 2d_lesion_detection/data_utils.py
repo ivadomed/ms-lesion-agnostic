@@ -2,6 +2,7 @@
 Functions for data preprocessing, to generate a YOLO format dataset from a BIDS database.
 """
 
+import logging
 import os
 from pathlib import Path
 
@@ -20,7 +21,7 @@ def nifti_to_png(nifti_path:Path, output_dir:Path, spinal_cord_path:Path=None, s
     saves them as png files in specified output_dir
 
     If spinal_cord_path is given, only slices that contain part of the spinal cord are saved and slice_list is ignored.
-    If slice_list is given and spinal_cord_path is None, only slice in the given list are saved. slice_list should contain ints.
+    If slice_list is given and spinal_cord_path is None, only slices in the given list are saved. slice_list should contain ints.
 
     Not suitable for segmentations (instead use nifti_seg_to_png) because 
     of intensity normalization between 0 and 255
@@ -92,7 +93,11 @@ def mask_to_bbox(mask:np.ndarray) -> "np.ndarray|None":
             if no object is detected, None is returned
 
     """
-    # TODO add assert to make sure we have a binary mask
+    # Check if we have a binary mask
+    try:
+        assert np.all(np.logical_or(mask == 0, mask == 1))
+    except AssertionError as e:
+        logging.warning(f"{e}: A binary mask is expected, but given mask is not.")
 
     width = mask.shape[1]
     height = mask.shape[0]
@@ -133,15 +138,13 @@ def convert_bboxes_format(bboxes:np.ndarray, img_width:int, img_height:int) -> n
     (x_center, y_center, width, height) normalized between 0 and 1
 
     Args:
-        bboxes (np.ndarray): 
-        img_width (int):
-        img_height (int):
+        bboxes (np.ndarray): Bounding box to convert
+        img_width (int): Corresponding image width (px)
+        img_height (int): Corresponding image height (px)
 
     Returns:
         (np.ndarray): converted coordinates  
-    """
-    # TODO add assert for shape of bboxes
-    
+    """    
     # Extract coordinates from the input array
     x_start, y_start, x_end, y_end = bboxes[:,0], bboxes[:,1], bboxes[:,2], bboxes[:,3]
 
@@ -163,7 +166,7 @@ def convert_bboxes_format(bboxes:np.ndarray, img_width:int, img_height:int) -> n
     return np.stack((x_center, y_center, width, height), axis=-1)
 
 
-def labels_from_nifti(nifti_labels_path:Path, output_dir:Path):
+def labels_from_nifti(nifti_labels_path:Path, output_dir:Path)->Path:
     """
     Creates txt files containing bounding box coordinates for each slice in a nifti segmentation
     If no bounding box is found for a given slice, no txt file is created
