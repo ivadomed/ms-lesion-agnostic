@@ -169,7 +169,6 @@ def xywhn_to_xyxy(bboxes: torch.Tensor, img_width: int, img_height: int) -> torc
             format --> torch.tensor([[x1, y1, x2, y2],[x1, y1, x2, y2], ...])
     """
     # Extract coordinates and sizes from the input tensor
-    print(bboxes)
     x_center, y_center, width, height = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
 
     # Denormalize coordinates and sizes
@@ -287,7 +286,6 @@ def confusion_matrix(ground_truth:Optional[List[torch.Tensor]],
         iou = []
         for pred_box in predictions:
             # Calculate intersection
-            print(gt_box, pred_box)
             xmin = max(gt_box[2], pred_box[2])
             ymin = max(gt_box[3], pred_box[3])
             zmin = max(gt_box[0], pred_box[0])
@@ -295,10 +293,6 @@ def confusion_matrix(ground_truth:Optional[List[torch.Tensor]],
             xmax = min(gt_box[4], pred_box[4])
             ymax = min(gt_box[5], pred_box[5])
             zmax = min(gt_box[1], pred_box[1])
-
-            print(xmin, xmax)
-            print(ymin, ymax)
-            print(zmin, zmax)
 
             # adding 1 to xmax, ymaz, zmax because if the box has a width of 1 px for example, xmax-xmin will be 0 (same for union)
             intersection = max(0, xmax+1 - xmin) * max(0, ymax+1 - ymin) * max(0, zmax+1 - zmin) 
@@ -310,8 +304,6 @@ def confusion_matrix(ground_truth:Optional[List[torch.Tensor]],
             
             # Calculate IoU
             iou.append(intersection / union if union > 0 else 0)
-
-            print(gt_box, pred_box, intersection, union, intersection / union if union > 0 else 0)
         ious.append(iou)
     
 

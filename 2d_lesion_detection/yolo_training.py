@@ -10,7 +10,7 @@ from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 from pathlib import Path
 
 import torch
-from ultralytics import YOLO, settings
+from ultralytics import YOLO
 
 CANPROCO_VERSION = "bcd627ed4" # last commit from canproco repo
 
@@ -68,7 +68,7 @@ def _main():
 
     ## Add canproco version to model metadata
         # Assuming no project is given to model.train
-        # If that becomes the case, settings["runs_dir"]/"detect" needs to be replaced by project
+        # If that becomes the case, ultralytics.settings["runs_dir"]/"detect" needs to be replaced by project
 
     # Define the metadata
     metadata = {'dataset_version': CANPROCO_VERSION,

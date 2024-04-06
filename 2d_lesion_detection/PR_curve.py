@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-LOWER_CONF = 0.1
+LOWER_CONF = 0.01
 UPPER_CONF = 0.5
 
 def _main():
