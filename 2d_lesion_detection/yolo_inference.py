@@ -18,12 +18,13 @@ from ultralytics import YOLO
 from ultralytics.engine.results import Results
 
 
-def _get_slice_results_dict(results:List[Results])-> Dict[str, torch.Tensor]:
+def _get_slice_results_dict(results:List[Results], keep_conf_values:bool)-> Dict[str, torch.Tensor]:
     """
     Get a dictionnary of YOLO results with slice name as key
 
     Args:
         results (List[Results]): list of results from YOLO predict mode
+        keep_conf_values (bool): If true, add confidence values to boxes tensor
 
     Returns:
         result_dict (Dict[str, torch.Tensor]): dictionary containing predictions for every slice
@@ -34,6 +35,14 @@ def _get_slice_results_dict(results:List[Results])-> Dict[str, torch.Tensor]:
     for result in results:
         slice_name = Path(result.path).name.replace(".png", "")
         boxes = result.boxes.xywhn
+
+        if keep_conf_values:
+            conf = result.boxes.conf
+
+            print("conf: ", conf)
+            print("boxes: ", boxes)
+            boxes = torch.cat((boxes, conf.unsqueeze(1)), dim=1)
+
         result_dict[slice_name] = boxes
 
     return result_dict
@@ -64,6 +73,10 @@ def _main():
                         default= 0.2,
                         type = float,
                         help = 'Confidence threshold to keep model predictions.')
+    parser.add_argument('-k', '--keep-conf-values',
+                        action= "store_true",
+                        default = False,
+                        help = 'Save conf values in txt file')
 
     args = parser.parse_args()
 
@@ -87,7 +100,7 @@ def _main():
             results.append(pred)
 
     # Put results in a dictionary
-    result_dict = _get_slice_results_dict(results)
+    result_dict = _get_slice_results_dict(results, args.keep_conf_values)
 
     
     # Save results (and merge overlaping boxes if volume is true)
