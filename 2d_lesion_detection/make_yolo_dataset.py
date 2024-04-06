@@ -115,7 +115,7 @@ def process_scan(nii_volume:str, output_dir:Path, database:Path, set_name:str):
 
 def _main():
     parser = ArgumentParser(
-    prog = 'pre-process',
+    prog = 'make_yolo_dataset',
     description = 'Generates YOLO format dataset from a list of scans and a BIDS database.',
     formatter_class = ArgumentDefaultsHelpFormatter)
     parser.add_argument('-j', '--json-list',
@@ -130,6 +130,7 @@ def _main():
                         required = True,
                         type = Path,
                         help = 'Output directory for YOLO dataset')
+                        
 
     args = parser.parse_args()
     dir_name = args.output_dir.name
