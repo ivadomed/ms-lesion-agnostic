@@ -7,6 +7,7 @@ https://docs.ultralytics.com/integrations/clearml/#configuring-clearml
 """
 
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
+import json
 from pathlib import Path
 
 import torch
@@ -23,10 +24,10 @@ def _main():
                         required = True,
                         type = Path,
                         help = 'Path to data yaml file')
-    parser.add_argument('-e', '--epochs',
-                        default= 10,
-                        type = int,
-                        help = 'Number of epochs')
+    parser.add_argument('-p', '--params',
+                        default = "default_train_params.json",
+                        type = Path,
+                        help = 'Path to params json file')
     parser.add_argument('-n', '--name',
                         default= None,
                         type = str,
@@ -44,26 +45,18 @@ def _main():
     except ValueError:
         device = args.device  # keep as string
 
+    # Get parameters
+    with open(args.params, 'r') as file:
+        config = json.load(file)
+
     # Load a pretrained model
     model = YOLO('yolov8m.pt')
 
     # Train the model
     model.train(data=args.data,
-                epochs=args.epochs,
                 name=args.name,
                 device = device,
-                box=15.6,
-                cls=4.1,
-                mosaic=0,
-                hsv_s=0,
-                hsv_h=0,
-                lr0=0.09,
-                lrf=0.08,
-                degrees=10,
-                scale=0.5,
-                fliplr=0.25,
-                translate=0.25,
-                hsv_v=0.45)
+                **config)
 
 
     ## Add canproco version to model metadata

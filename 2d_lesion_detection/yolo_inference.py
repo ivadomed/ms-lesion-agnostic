@@ -39,8 +39,6 @@ def _get_slice_results_dict(results:List[Results], keep_conf_values:bool)-> Dict
         if keep_conf_values:
             conf = result.boxes.conf
 
-            print("conf: ", conf)
-            print("boxes: ", boxes)
             boxes = torch.cat((boxes, conf.unsqueeze(1)), dim=1)
 
         result_dict[slice_name] = boxes
