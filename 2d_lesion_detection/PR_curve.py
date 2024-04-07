@@ -45,10 +45,13 @@ def _main():
    
     args = parser.parse_args()
 
+    # Create output folder if it doesn't exist
+    os.makedirs(args.output, exist_ok=True)
+
     recalls = []
     precisions = []
     for conf in np.arange(LOWER_CONF, UPPER_CONF, 0.01):
-        print(f"Computing metrics for {conf} conf")
+        print(f"\n\nComputing metrics for {conf} conf")
         with tempfile.TemporaryDirectory() as tmpdir:
             (Path(tmpdir)/"preds").mkdir(parents=True, exist_ok=True)
             (Path(tmpdir)/"val").mkdir(parents=True, exist_ok=True)

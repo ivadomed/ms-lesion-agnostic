@@ -233,8 +233,10 @@ def image_from_bboxes(bboxes: List[torch.Tensor], nii_data: np.ndarray)-> np.nda
         y1 = nii_data.shape[1] - y1 -1
         y2 = nii_data.shape[1] - y2 -1
 
-        if y1 >= nii_data.shape[1]:
-            y1 = nii_data.shape[1] - 1
+        if y1 >= nii_data.shape[1]-1:
+            y1 = nii_data.shape[1] - 2
+        if x2 >= nii_data.shape[0]-1:
+            x2 = nii_data.shape[0] - 2
 
         nii_data[x1-1:x2+2, y1+1, s0:sf+1] = 1
         nii_data[x1-1:x2+2, y2-1, s0:sf+1] = 1

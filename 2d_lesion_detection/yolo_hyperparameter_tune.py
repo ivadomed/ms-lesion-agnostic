@@ -1,6 +1,6 @@
 """
 Make sure to have installed ray tune:
-    pip install ray[tune]<=2.9.3"
+    pip install "ray[tune]<=2.9.3"
 
 Performs a hyperparameter search on a yolov8n model, using ray tune.
 
@@ -10,6 +10,7 @@ https://docs.ultralytics.com/integrations/weights-biases/#configuring-weights-bi
 """
 
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
+import json
 from pathlib import Path
 from ultralytics import YOLO
 from ray import tune
@@ -28,47 +29,48 @@ def _main():
                         default=None,
                         type = str,
                         help = 'Run name')
+    parser.add_argument('-p', '--params',
+                        default="default_tune_params.json",
+                        type = Path,
+                        help = 'Path to parameter file. See default_tune_params.json for format.')
+    parser.add_argument('-g', '--device',
+                        default= 0,
+                        type = str,
+                        help = 'Device to use. 0 refers to gpu 0')
 
     args = parser.parse_args()
+
+    # Get device as int if input is int
+    try:
+        device = int(args.device)  # Try converting to an integer
+    except ValueError:
+        device = args.device  # keep as string
 
     # It seems like tune currently only works with the smallest model (n):
     # https://github.com/ultralytics/ultralytics/issues/2265
     model = YOLO('yolov8n.pt')
+    
+    # Get parameters from params file
+    with open(args.params, 'r') as file:
+        config = json.load(file)
 
-    # TODO take a config file as input
-    # these are the suggested intervals on the ultralytics website:
-    # param_space={"lr0": tune.uniform(1e-5, 1e-1),
-    #              "lrf": tune.uniform(0.01, 1.0),
-    #              "degrees": tune.uniform(0, 20.0),
-    #              "scale": tune.uniform(0.5, 0.9),
-    #              "fliplr": tune.uniform(0.0, 1.0),
-    #              "translate": tune.uniform(0.0, 0.9),
-    #              "hsv_v": tune.uniform(0.0, 0.9),
-    #              "box": tune.uniform(0.02, 0.2),
-    #              "cls": tune.uniform(0.2, 4.0)}
-        
-    param_space={"box": tune.uniform(0.1, 20.0),
-                  "cls": tune.uniform(0.01, 5.0)}
+    param_space = {}
+    fixed_params = {}
+    for key, value in config.items():
+        if isinstance(value, list):  # If the value is a list, it is a tuning parameter
+            param_space[key] = tune.uniform(value[0], value[1])
+        else:  # Otherwise, it's a fixed value
+            fixed_params[key] = value
 
     # setting epochs to 40 leads to an error
     # the error is avoided with 100 epochs, as suggested here: https://github.com/ultralytics/ultralytics/issues/5874
     result_grid = model.tune(data=args.data, 
                              use_ray=True, 
                              space=param_space,
-                             iterations=16, # Number of runs 
                              epochs=100,
-                             device=0, 
-                             name=args.name, 
-                             mosaic=0, 
-                             hsv_s=0, 
-                             hsv_h=0,
-                             lr0=0.09,
-                             lrf=0.08,
-                             degrees=10,
-                             scale=0.5,
-                             fliplr=0.25,
-                             translate=0.25,
-                             hsv_v=0.45)
+                             device=device, 
+                             name=args.name,
+                             **fixed_params)
 
     if result_grid.errors:
         print("One or more trials failed!")
