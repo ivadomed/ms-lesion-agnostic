@@ -35,7 +35,7 @@ python manual_correction.py -path-img ~/data/canproco -config ~/config_seg.yml  
 
 - Then a QC should be produced (prefarably using SCT) and added to a Github issue for further validation by other investigators. 
 
-- If you are not sure of a subject, it should be flagged on Github for a more open discussion. 
+- If you are not sure of a subject, it should be flagged on Github for a more open discussion: here are some examples [(1)](https://github.com/ivadomed/ms-lesion-agnostic/issues/4#issuecomment-1947326493) and [(2)](https://github.com/ivadomed/ms-lesion-agnostic/issues/4#issuecomment-1947338624)  
 
 ## More details:
 The following section details the different types of errors which occur during lesion segmentation. It is based on the condensed Nascimento Taxonomy:
