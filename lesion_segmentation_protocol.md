@@ -33,7 +33,7 @@ For detecting MS lesions in the spinal cord, two main contrasts emerge: PSIR and
 python manual_correction.py -path-img ~/data/canproco -config ~/config_seg.yml  -path-label ~/data/canproco/derivatives/labels  -suffix-files-lesion _lesion-manual -fsleyes-dr="-40,70"
 ``` 
 
-- Then a QC should be produced (prefarably using SCT) and added to a Github issue for further validation by other investigators. 
+- A Quality Control (QC) report should be produced using SCT, and added to a Github issue for further validation by other investigators. 
 
 - If you are not sure of a subject, it should be flagged on Github for a more open discussion: here are some examples [(1)](https://github.com/ivadomed/ms-lesion-agnostic/issues/4#issuecomment-1947326493) and [(2)](https://github.com/ivadomed/ms-lesion-agnostic/issues/4#issuecomment-1947338624)  
 
