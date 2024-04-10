@@ -49,7 +49,10 @@ from monai.transforms import (
     Invertd,
     SaveImage,
     EnsureType,
-    Rand3DElasticd 
+    Rand3DElasticd,
+    RandSimulateLowResolutiond,
+    RandBiasFieldd,
+    RandAffined 
 )
 from monai.utils import set_determinism
 from monai.inferers import sliding_window_inference
@@ -143,25 +146,31 @@ class Model(pl.LightningModule):
                     pixdim=self.cfg["pixdim"],
                     mode=(2, 1),
                 ),
+                # Normalize the intensity of the image
+                NormalizeIntensityd(
+                    keys=["image"], 
+                    nonzero=False, 
+                    channel_wise=False
+                ),
                 # # This crops the image around areas where the mask is non-zero 
                 # # (the margin is added because otherwise the image would be just the size of the lesion)
-                CropForegroundd(
-                    keys=["image", "label"],
-                    source_key="label",
-                    margin=200
-                ),
-                # This crops the image around a foreground object of label with ratio pos/(pos+neg) (however, it cannot pad so keeping padding after)
-                # RandCropByPosNegLabeld(
+                # CropForegroundd(
                 #     keys=["image", "label"],
-                #     label_key="label",
-                #     spatial_size=self.cfg["spatial_size"],
-                #     pos=1,
-                #     neg=1,
-                #     num_samples=4,
-                #     image_key="image",
-                #     image_threshold=0,
-                #     allow_smaller=True,
+                #     source_key="label",
+                #     margin=200
                 # ),
+                # This crops the image around a foreground object of label with ratio pos/(pos+neg) (however, it cannot pad so keeping padding after)
+                RandCropByPosNegLabeld(
+                    keys=["image", "label"],
+                    label_key="label",
+                    spatial_size=self.cfg["spatial_size"],
+                    pos=1,
+                    neg=0,
+                    num_samples=4,
+                    image_key="image",
+                    image_threshold=0,
+                    allow_smaller=True,
+                ),
                 # This resizes the image and the label to the spatial size defined in the config
                 ResizeWithPadOrCropd(
                     keys=["image", "label"],
@@ -193,6 +202,13 @@ class Model(pl.LightningModule):
                     prob=0.2,
                     mode=['bilinear', 'nearest'],
                 ),
+                # Random affine transform of the image
+                RandAffined(
+                    keys=["image", "label"],
+                    prob=0.2,
+                    mode=('bilinear', 'nearest'),
+                    padding_mode='zeros',
+                ),
                 # RandAdjustContrastd(
                 #     keys=["image"],
                 #     prob=0.2,
@@ -205,12 +221,6 @@ class Model(pl.LightningModule):
                 #     func=multiply_by_negative_one,
                 #     prob=0.2
                 #     ),
-                # Normalize the intensity of the image
-                NormalizeIntensityd(
-                    keys=["image"], 
-                    nonzero=False, 
-                    channel_wise=False
-                ),
                 # LabelToContourd(
                 #     keys=["image"],
                 #     kernel_type='Laplace',
@@ -218,7 +228,17 @@ class Model(pl.LightningModule):
                 RandGaussianNoised(
                     keys=["image"],
                     prob=0.2,
-                ), 
+                ),
+                # Random simulation of low resolution 
+                RandSimulateLowResolutiond(
+                    keys=["image"],
+                    zoom_range=(0.8, 1.5),
+                    prob=0.2),
+                # Adding a random bias field which is usefull considering that this sometimes done for image pre-processing
+                RandBiasFieldd(keys=["image"],
+                               coeff_range=(0.0, 0.5),
+                               degree=3, 
+                               prob=0.1),
                 # RandShiftIntensityd(
                 #     keys=["image"],
                 #     offsets=0.1,
