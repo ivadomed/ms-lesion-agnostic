@@ -13,7 +13,20 @@ For detecting MS lesions in the spinal cord, two main contrasts emerge: PSIR and
 
 ## How to manually segment lesions:
 
-- MS spinal cord lesions can be manually corrected from the prediction of a segmentation model or manually segmented from scratch. In the first case, make sure to build the json file associated with the segmentation prediction such as detailed in this comment (https://github.com/ivadomed/canproco/issues/73#issuecomment-1912302223). 
+- MS spinal cord lesions can be manually corrected from the prediction of a segmentation model or manually segmented from scratch. In the first case, make sure to build the json file associated with the segmentation prediction such as the following :
+
+```json
+{
+        "GeneratedBy": [
+            {
+                "Name": "2D nnUNet model model_ms_seg_sc-lesion_regionBased.zip",
+                "Version": "https://github.com/ivadomed/canproco/releases/tag/r20240125",
+                "Date": "2024-01-26"
+            }
+        ]
+    }
+```
+
 - For manual correction of the segmentation file use the manual-correction (https://github.com/spinalcordtoolbox/manual-correction) repository. The command can be inspired from this: 
 
 ```console
