@@ -145,11 +145,11 @@ class Model(pl.LightningModule):
                 ),
                 # # This crops the image around areas where the mask is non-zero 
                 # # (the margin is added because otherwise the image would be just the size of the lesion)
-                # CropForegroundd(
-                #     keys=["image", "label"],
-                #     source_key="label",
-                #     margin=150
-                # ),
+                CropForegroundd(
+                    keys=["image", "label"],
+                    source_key="label",
+                    margin=200
+                ),
                 # This crops the image around a foreground object of label with ratio pos/(pos+neg) (however, it cannot pad so keeping padding after)
                 # RandCropByPosNegLabeld(
                 #     keys=["image", "label"],
