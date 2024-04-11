@@ -7,7 +7,7 @@ For detecting MS lesions in the spinal cord, two main contrasts emerge: PSIR and
 ## Criteria to segment MS lesions in the spinal cord:
 
 - Do not segment lesions in images with too many artifacts (such as this [example](https://github.com/ivadomed/canproco/issues/53#issue-1938136790)). Preferably, add the image to the exclude file so that it isn’t used for model training…
-- When segmenting lesions on thick slices, always look at the above/below slices to build the volume of the lesion (this can minimize partial volume effect).
+- When segmenting lesions on thick slices, always look at the adjacent slices, as partial volume effect can sometimes reduce the appearance of a lesion (close to noise level).
 - Do not segment lesions above the first vertebrae (because here we focus only on MS lesions in the spinal cord). 
 - For lesions segmentations which you are not 100% sure, flag the subject and report it for external validation of the segmentation.
 
