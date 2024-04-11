@@ -55,7 +55,7 @@ One of the most challenging task of MS lesion segmentation is to distinguish the
 
 Finally, for trainees will little or no experience with MS lesion segmentation, a checklist will be built to avoid being overwhelmed by the multiple images/contrasts/acquisitions. We typically recommend to start with the view in the highest resolution (often the sagittal view) to first identify lesions, and to move to other contrast/acquisition to validate the segmentation borders and lesion detection. During this step, playing with the brightness and the contrast is key. After locating the lesion to be traced, we recommend starting in a middle slice around the middle of the lesion and then move toward each end of the lesioned area. We also recommended frequently scrolling back and forth around the slice they are tracing on to ensure border consistency.
 
-## More details:
+## Taxonomy to evaluation lesion segmentation
 The following section details the different types of errors which occur during lesion segmentation. It is based on the condensed Nascimento Taxonomy:
 
 <img width="522" alt="nascimento_taxonomy" src="https://github.com/ivadomed/canproco/assets/67429280/36d9e45e-4a36-40f0-a4f5-e5f3ea3f06a0">
