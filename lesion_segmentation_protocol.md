@@ -27,7 +27,7 @@ For detecting MS lesions in the spinal cord, two main contrasts emerge: PSIR and
     }
 ```
 
-- For manual correction of the segmentation file use the manual-correction (https://github.com/spinalcordtoolbox/manual-correction) repository. The command can be inspired from this: 
+- To manually create/correct the segmentation, please use the manual-correction (https://github.com/spinalcordtoolbox/manual-correction) repository. The command can be inspired from this: 
 
 ```console
 python manual_correction.py -path-img ~/data/canproco -config ~/config_seg.yml  -path-label ~/data/canproco/derivatives/labels  -suffix-files-lesion _lesion-manual -fsleyes-dr="-40,70"
