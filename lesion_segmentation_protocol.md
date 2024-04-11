@@ -51,7 +51,7 @@ Before, moving on to MS lesion segmentation, trainees are advised to study the n
 
 To learn the specificity of MS lesions, trainees should work on differentiating MS lesions from other diseases. 
 
-One of the most challenging task of MS lesion segmentation is to distinguish the border of a lesion and the cerebrospinal fluid (CSF). To learn where to draw the lesion border, a set of tricky examples validated by a NeuroRadioligist will be created. (TO DISCUSS AS WELL). 
+One of the most challenging task of MS lesion segmentation is to distinguish the border of a lesion and the cerebrospinal fluid (CSF). To learn where to draw the lesion border, a set of tricky examples validated by a NeuroRadioligist will be created. 
 
 Finally, for trainees will little or no experience with MS lesion segmentation, a checklist will be built to avoid being overwhelmed by the multiple images/contrasts/acquisitions. We typically recommend to start with the view in the highest resolution (often the sagittal view) to first identify lesions, and to move to other contrast/acquisition to validate the segmentation borders and lesion detection. During this step, playing with the brightness and the contrast is key. After locating the lesion to be traced, we recommend starting in a middle slice around the middle of the lesion and then move toward each end of the lesioned area. We also recommended frequently scrolling back and forth around the slice they are tracing on to ensure border consistency.
 
