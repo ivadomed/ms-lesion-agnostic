@@ -51,3 +51,8 @@ The following section details the different types of errors which occur during l
 
 <img width="522" alt="nascimento_taxonomy" src="https://github.com/ivadomed/canproco/assets/67429280/36d9e45e-4a36-40f0-a4f5-e5f3ea3f06a0">
 
+## Sources
+This lesion segmentation protocol was inspired from these ressources: 
+- deSouza NM, van der Lugt A, Deroose CM, et al. Standardised lesion segmentation for imaging biomarker quantitation: a consensus recommendation from ESR and EORTC. Insights Imaging. 2022;13(1):159. Published 2022 Oct 4. doi:10.1186/s13244-022-01287-4 : [link](https://pubmed.ncbi.nlm.nih.gov/36194301/)
+- Lo BP, Donnelly MR, Barisano G, Liew SL. A standardized protocol for manually segmenting stroke lesions on high-resolution T1-weighted MR images. Front Neuroimaging. 2023;1:1098604. Published 2023 Jan 10. doi:10.3389/fnimg.2022.1098604 : [link](https://pubmed.ncbi.nlm.nih.gov/37555152/)
+
