@@ -49,7 +49,7 @@ Furthermore, it is recommended to get familiar with SCT for creating QCs and for
 ## Step 2: Spinal cord anatomy and lesion segmentation
 Before, moving on to MS lesion segmentation, trainees are advised to study the neuroanatomical structures of healthy spinal cords. Trainees should look at healthy spinal cords in MRI images of different contrasts: T2w, T1w, PSIR, STIR, MP2RAGE... A public dataset will be built for this purpose.
 
-To learn the specificity of MS lesions, trainees should work on differentiating MS lesions from Spinal Cord Injury (traumatic and non-traumatic) and DCM. A training dataset will be built especially for this case (TO DISCUSS: BUILDING A (PUBLIC) REPO TO TRAIN TO DISTINGUISH PATHOLOGIES). 
+To learn the specificity of MS lesions, trainees should work on differentiating MS lesions from other diseases. 
 
 One of the most challenging task of MS lesion segmentation is to distinguish the border of a lesion and the cerebrospinal fluid (CSF). To learn where to draw the lesion border, a set of tricky examples validated by a NeuroRadioligist will be created. (TO DISCUSS AS WELL). 
 
