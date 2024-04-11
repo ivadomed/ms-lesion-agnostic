@@ -13,7 +13,7 @@ For detecting MS lesions in the spinal cord, two main contrasts emerge: PSIR and
 
 ## How to manually segment lesions
 
-- MS spinal cord lesions can be manually corrected from the prediction of a segmentation model or manually segmented from scratch. In the first case, make sure to build the json file associated with the segmentation prediction such as the following :
+- MS spinal cord lesions can either (i) be automatically segmented from an algorithm and then manually corrected, or (ii) manually segmented from scratch. In the former case, make sure to use the JSON file that was created by the automatic segmentation algorithm, in order to track provenance:
 
 ```json
 {
