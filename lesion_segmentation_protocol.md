@@ -43,7 +43,7 @@ sct_qc -i {image_file} -d {lesion_seg_file} -s {sc_seg_file} -p sct_deepseg_lesi
 
 - If you are not sure about the segmentation on a subject, it should be flagged on GitHub for a more open discussion: here are some examples [(1)](https://github.com/ivadomed/ms-lesion-agnostic/issues/4#issuecomment-1947326493) and [(2)](https://github.com/ivadomed/ms-lesion-agnostic/issues/4#issuecomment-1947338624)
 
-## Step 1: Get familiar with FSLeyes and SCT:
+## Step 1: Software to create/correct lesions
 It is common practice to use FSLeyes at NeuroPoly for visual inspection of MRI images and manual segmentation of MS lesions. Therefore, naturally, the first step of the lesion segmentation process is to complete the FSLeyes tutorial ([FSLeyes documentation](https://open.win.ox.ac.uk/pages/fsl/fsleyes/fsleyes/userdoc/) and [video tutorial](https://www.youtube.com/playlist?list=PLIQIswOrUH69qFMNg8KYkEGkvCNEwlnfT)). Trainees are encouraged to learn keyboard shortcuts (ctrl+F to toggle an image, shift+↑ to scroll through volumes, ...).
 
 Furthermore, it is recommended to get familiar with SCT for creating QCs and for manual correction ([SCT tutorial](https://spinalcordtoolbox.com/user_section/tutorials.html)). 
