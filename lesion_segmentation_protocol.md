@@ -47,7 +47,7 @@ It is common practice to use FSLeyes at NeuroPoly for visual inspection of MRI i
 Furthermore, it is recommended to get familiar with SCT for creating QCs and for manual correction ([SCT tutorial](https://spinalcordtoolbox.com/user_section/tutorials.html)). 
 
 ## Step 2: Spinal cord anatomy and lesion segmentation
-Before, moving on to MS lesion segmentation, trainees are advised to study the neuroanatomical structures of healthy spinal cords. Trainees should look at healthy spinal cords in MRI images of different contrasts: T2w, T1w, PSIR, STIR, MP2RAGE... (DISCUSS BUILDING THIS DATASET).
+Before, moving on to MS lesion segmentation, trainees are advised to study the neuroanatomical structures of healthy spinal cords. Trainees should look at healthy spinal cords in MRI images of different contrasts: T2w, T1w, PSIR, STIR, MP2RAGE... A public dataset will be built for this purpose.
 
 To learn the specificity of MS lesions, trainees should work on differentiating MS lesions from Spinal Cord Injury (traumatic and non-traumatic) and DCM. A training dataset will be built especially for this case (TO DISCUSS: BUILDING A (PUBLIC) REPO TO TRAIN TO DISTINGUISH PATHOLOGIES). 
 
