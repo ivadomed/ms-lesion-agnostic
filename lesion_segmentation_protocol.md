@@ -11,7 +11,7 @@ For detecting MS lesions in the spinal cord, two main contrasts emerge: PSIR and
 - Do not segment lesions above the first vertebrae (because here we focus only on MS lesions in the spinal cord). 
 - For lesions segmentations which you are not 100% sure, flag the subject and report it for external validation of the segmentation.
 
-## How to manually segment lesions:
+## How to manually segment lesions
 
 - MS spinal cord lesions can be manually corrected from the prediction of a segmentation model or manually segmented from scratch. In the first case, make sure to build the json file associated with the segmentation prediction such as the following :
 
