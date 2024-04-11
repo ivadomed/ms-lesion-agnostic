@@ -46,6 +46,15 @@ It is common practice to use FSLeyes at NeuroPoly for visual inspection of MRI i
 
 Furthermore, it is recommended to get familiar with SCT for creating QCs and for manual correction ([SCT tutorial](https://spinalcordtoolbox.com/user_section/tutorials.html)). 
 
+## Step 2: Spinal cord anatomy and lesion segmentation
+Before, moving on to MS lesion segmentation, trainees are advised to study the neuroanatomical structures of healthy spinal cords. Trainees should look at healthy spinal cords in MRI images of different contrasts: T2w, T1w, PSIR, STIR, MP2RAGE... (DISCUSS BUILDING THIS DATASET).
+
+To learn the specificity of MS lesions, trainees should work on differentiating MS lesions from Spinal Cord Injury (traumatic and non-traumatic) and DCM. A training dataset will be built especially for this case (TO DISCUSS: BUILDING A (PUBLIC) REPO TO TRAIN TO DISTINGUISH PATHOLOGIES). 
+
+One of the most challenging task of MS lesion segmentation is to distinguish the border of a lesion and the cerebrospinal fluid (CSF). To learn where to draw the lesion border, a set of tricky examples validated by a NeuroRadioligist will be created. (TO DISCUSS AS WELL). 
+
+Finally, for trainees will little or no experience with MS lesion segmentation, a checklist will be built to avoid being overwhelmed by the multiple images/contrasts/acquisitions. We typically recommend to start with the view in the highest resolution (often the sagittal view) to first identify lesions, and to move to other contrast/acquisition to validate the segmentation borders and lesion detection. During this step, playing with the brightness and the contrast is key. After locating the lesion to be traced, we recommend starting in a middle slice around the middle of the lesion and then move toward each end of the lesioned area. We also recommended frequently scrolling back and forth around the slice they are tracing on to ensure border consistency.
+
 ## More details:
 The following section details the different types of errors which occur during lesion segmentation. It is based on the condensed Nascimento Taxonomy:
 
