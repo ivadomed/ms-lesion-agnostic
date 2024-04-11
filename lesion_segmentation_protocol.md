@@ -39,7 +39,7 @@ python manual_correction.py -path-img ~/data/canproco -config ~/config_seg.yml  
 sct_qc -i {image_file} -d {lesion_seg_file} -s {sc_seg_file} -p sct_deepseg_lesion -plane {sagittal, axial} -qc {canproco_qc_folder}
 ```  
 
-- If you are not sure of a subject, it should be flagged on Github for a more open discussion: here are some examples [(1)](https://github.com/ivadomed/ms-lesion-agnostic/issues/4#issuecomment-1947326493) and [(2)](https://github.com/ivadomed/ms-lesion-agnostic/issues/4#issuecomment-1947338624)
+- If you are not sure about the segmentation on a subject, it should be flagged on GitHub for a more open discussion: here are some examples [(1)](https://github.com/ivadomed/ms-lesion-agnostic/issues/4#issuecomment-1947326493) and [(2)](https://github.com/ivadomed/ms-lesion-agnostic/issues/4#issuecomment-1947338624)
 
 ## Step 1: Get familiar with FSLeyes and SCT:
 It is common practice to use FSLeyes at NeuroPoly for visual inspection of MRI images and manual segmentation of MS lesions. Therefore, naturally, the first step of the lesion segmentation process is to complete the FSLeyes tutorial ([FSLeyes documentation](https://open.win.ox.ac.uk/pages/fsl/fsleyes/fsleyes/userdoc/) and [video tutorial](https://www.youtube.com/playlist?list=PLIQIswOrUH69qFMNg8KYkEGkvCNEwlnfT)). Trainees are encouraged to learn keyboard shortcuts (ctrl+F to toggle an image, shift+↑ to scroll through volumes, ...).
