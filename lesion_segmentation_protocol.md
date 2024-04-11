@@ -9,7 +9,7 @@ For detecting MS lesions in the spinal cord, two main contrasts emerge: PSIR and
 - Do not segment lesions in images with too many artifacts (such as this [example](https://github.com/ivadomed/canproco/issues/53#issue-1938136790)). Preferably, add the image to the exclude file so that it isn’t used for model training…
 - When segmenting lesions on thick slices, always look at the adjacent slices, as partial volume effect can sometimes reduce the appearance of a lesion (close to noise level).
 - Unless otherwise stated, do not segment lesions above the first vertebrae (because here we focus only on MS lesions in the spinal cord). 
-- For lesions segmentations which you are not 100% sure, flag the subject and report it for external validation of the segmentation.
+- If you have any doubt and/or are not 100% confident about one (or more) lesion(s) segmentation(s), flag the subject and report it for external validation of the segmentation.
 
 ## How to manually segment lesions
 
@@ -27,7 +27,7 @@ For detecting MS lesions in the spinal cord, two main contrasts emerge: PSIR and
     }
 ```
 
-- To manually create/correct the segmentation, please use the manual-correction (https://github.com/spinalcordtoolbox/manual-correction) repository. The command can be inspired from this: 
+- To manually create/correct the segmentation, please use the manual-correction (https://github.com/spinalcordtoolbox/manual-correction) repository. The command can be inspired by this: 
 
 ```console
 python manual_correction.py -path-img ~/data/canproco -config ~/config_seg.yml  -path-label ~/data/canproco/derivatives/labels  -suffix-files-lesion _lesion-manual -fsleyes-dr="-40,70"
@@ -51,17 +51,20 @@ Before, moving on to MS lesion segmentation, trainees are advised to study the n
 
 To learn the specificity of MS lesions, trainees should work on differentiating MS lesions from other diseases. 
 
-One of the most challenging task of MS lesion segmentation is to distinguish the border of a lesion and the cerebrospinal fluid (CSF). To learn where to draw the lesion border, a set of tricky examples validated by a NeuroRadioligist will be created. 
+One of the most challenging tasks of MS lesion segmentation is to distinguish the border of a lesion and the cerebrospinal fluid (CSF). To learn where to draw the lesion border, a set of tricky examples validated by a NeuroRadioligist will be created. 
 
-Finally, for trainees will little or no experience with MS lesion segmentation, a checklist will be built to avoid being overwhelmed by the multiple images/contrasts/acquisitions. We typically recommend to start with the view in the highest resolution (often the sagittal view) to first identify lesions, and to move to other contrast/acquisition to validate the segmentation borders and lesion detection. During this step, playing with the brightness and the contrast is key. After locating the lesion to be traced, we recommend starting in a middle slice around the middle of the lesion and then move toward each end of the lesioned area. We also recommended frequently scrolling back and forth around the slice they are tracing on to ensure border consistency.
+Finally, for trainees will little or no experience with MS lesion segmentation, a checklist will be built to avoid being overwhelmed by the multiple images/contrasts/acquisitions. We typically recommend starting with the view in the highest resolution (often the sagittal view) to first identify lesions and to move to other contrast/acquisition to validate the segmentation borders and lesion detection. During this step, playing with the brightness and the contrast is key. After locating the lesion to be traced, we recommend starting in a middle slice around the middle of the lesion and then moving toward each end of the lesioned area. We also recommended frequently scrolling back and forth around the slice they are tracing on to ensure border consistency.
 
-## Taxonomy to evaluation lesion segmentation
+## Step 3: Manual segmentation assessment
+After manual segmentation of MS SC lesion in 5 cases, trainees will receive feedback (from a NeuroRadiologist or a comparison with a QC with the real segmentation). One week later, they will be asked to re-segment the same images as well as 2 other images without using their previous segmentation to validate their improvements. The segmentation should also be accompanied by a JSON file for the data to be BIDS compliant. 
+
+## Taxonomy to evaluate lesion segmentation
 The following section details the different types of errors which occur during lesion segmentation. It is based on the condensed Nascimento Taxonomy:
 
 <img width="522" alt="nascimento_taxonomy" src="https://github.com/ivadomed/canproco/assets/67429280/36d9e45e-4a36-40f0-a4f5-e5f3ea3f06a0">
 
 ## Sources
-This lesion segmentation protocol was inspired from these ressources: 
+This lesion segmentation protocol was inspired by these resources: 
 - deSouza NM, van der Lugt A, Deroose CM, et al. Standardised lesion segmentation for imaging biomarker quantitation: a consensus recommendation from ESR and EORTC. Insights Imaging. 2022;13(1):159. Published 2022 Oct 4. doi:10.1186/s13244-022-01287-4 : [link](https://pubmed.ncbi.nlm.nih.gov/36194301/)
 - Lo BP, Donnelly MR, Barisano G, Liew SL. A standardized protocol for manually segmenting stroke lesions on high-resolution T1-weighted MR images. Front Neuroimaging. 2023;1:1098604. Published 2023 Jan 10. doi:10.3389/fnimg.2022.1098604 : [link](https://pubmed.ncbi.nlm.nih.gov/37555152/)
 
