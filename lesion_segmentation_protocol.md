@@ -5,6 +5,8 @@ Imaging the spinal cord is often essential to confirm the diagnosis of MS. That 
 For detecting MS lesions in the spinal cord, two main contrasts emerge: PSIR and STIR contrasts. New studies [(Peters et al. 2024)](https://pubmed.ncbi.nlm.nih.gov/38289376/)[(Fechner et al. 2019)](https://pubmed.ncbi.nlm.nih.gov/30679225/) showed that using PSIR contrasts improved MS lesion detection in the spinal cord. [(Fechner et al. 2019)](https://pubmed.ncbi.nlm.nih.gov/30679225/) showed that the PSIR contrast showed a higher signal-to-noise (SNR) ratio compared to the STIR contrast. 
 
 ## Criteria to segment MS lesions in the spinal cord:
+Based on the definition proposed for MS lesions in the spinal cord in the 2017 revisions of the McDonald criteria:
+"A hyperintense lesion in the cervical, thoracic, or lumbar spinal cord seen on T2 plus short tau inversion recovery, proton-density images, or other appropriate sequences, or in two planes on T2 images."  [(Thompson et al. 2018)](https://pubmed.ncbi.nlm.nih.gov/29275977/) [(Filippi et al. 2016)](https://pubmed.ncbi.nlm.nih.gov/26822746/) [(Brownlee et al. 2018)](https://pubmed.ncbi.nlm.nih.gov/27889190/) [(Rovira et al. 2016)](https://pubmed.ncbi.nlm.nih.gov/26149978/) 
 
 - Do not segment lesions in images with too many artifacts (such as this [example](https://github.com/ivadomed/canproco/issues/53#issue-1938136790)). Preferably, add the image to the exclude file so that it isn’t used for model training…
 - When segmenting lesions on thick slices, always look at the adjacent slices, as partial volume effect can sometimes reduce the appearance of a lesion (close to noise level).
