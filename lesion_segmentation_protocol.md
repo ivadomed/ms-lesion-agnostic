@@ -1,4 +1,4 @@
-# Lesion segmentation protocol:
+# Lesion segmentation protocol
 
 The following details the protocol for Multiple Sclerosis (MS) lesion segmentation in the spinal cord.
 Imaging the spinal cord is often essential to confirm the diagnosis of MS. That is because the lesions of the spinal cord are included in the McDonald diagnostic criteria, which considers dissemination in space and in time [(Thompson et al. 2018)](https://pubmed.ncbi.nlm.nih.gov/29275977/). While the MAGNIMS-CMSC-NAIMS working group recommends to use at least two sagittal images for MS diagnosis, still, axial imaging is mentioned as optional in international imaging guidelines [(Wattjes et al. 2021)](https://pubmed.ncbi.nlm.nih.gov/34139157/).
