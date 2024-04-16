@@ -67,7 +67,7 @@ def plot_slices(image, gt, pred, debug=False):
     return fig
 
 
-def lesion_wise_precision_recall(prediction, groundtruth, iou_threshold=0.2):
+def lesion_wise_precision_recall(prediction, groundtruth, iou_threshold=0.1):
     """
     This function computes the lesion-wise precision and recall.
 
@@ -84,29 +84,38 @@ def lesion_wise_precision_recall(prediction, groundtruth, iou_threshold=0.2):
 
     precision = []
     recall = []
-    print(prediction_cpu.shape)
+    # print(prediction_cpu.shape)
     for i in range(prediction_cpu.shape[0]):
         # Compute connected components in the predicted and ground truth segmentation masks
         if len(prediction_cpu.shape) == 4:
-            print("iteration")
-            pred_labels = skimage.measure.label(prediction_cpu[0], connectivity=2)
-            gt_labels = skimage.measure.label(groundtruth_cpu[0], connectivity=2)
-            print('c', pred_labels.shape)
-            print('d', gt_labels.shape)
+            # print("iteration")
+            # binarize the prediction and ground truth
+            prediction_cpu[0] = prediction_cpu[0] > 0.2
+            groundtruth_cpu[0] = groundtruth_cpu[0] > 0.2
+            # compute connected components
+            pred_labels, num_components_pred = skimage.measure.label(prediction_cpu[0], connectivity=2, return_num=True)
+            gt_labels, num_components_gt = skimage.measure.label(groundtruth_cpu[0], connectivity=2, return_num=True)
+            # print('c', pred_labels.shape)
+            # print('d', gt_labels.shape)
         if len(prediction_cpu.shape) == 5:
-            pred_labels = skimage.measure.label(prediction_cpu[i][0], connectivity=2)
-            gt_labels = skimage.measure.label(groundtruth_cpu[i][0], connectivity=2)
-            print('e', pred_labels.shape)
-            print('f', gt_labels.shape)
+            # binarize the prediction and ground truth
+            prediction_cpu[i][0] = prediction_cpu[i][0] > 0.2
+            groundtruth_cpu[i][0] = groundtruth_cpu[i][0] > 0.2
+            # compute connected components
+            pred_labels, num_components_pred  = skimage.measure.label(prediction_cpu[i][0], connectivity=2, return_num=True)
+            gt_labels, num_components_gt = skimage.measure.label(groundtruth_cpu[i][0], connectivity=2, return_num=True)
+            # print('e', pred_labels.shape)
+            # print('f', gt_labels.shape)
         
         # If there are no connected components in the predicted or ground truth segmentation masks we return 0 and continue
-        if np.max(pred_labels)==0 or np.max(gt_labels)==0:
+        if num_components_gt==0 or num_components_pred==0:
             precision+= [0]
             recall+= [0]
             continue
 
         # Compute the intersection over union (IoU) between each pair of connected components
         iou_matrix = np.zeros((np.max(pred_labels), np.max(gt_labels)))
+        intersection_matrix = np.zeros((np.max(pred_labels), np.max(gt_labels)))
         for i in range(np.max(pred_labels)):
             for j in range(np.max(gt_labels)):
                 # Compute the intersection
@@ -115,13 +124,25 @@ def lesion_wise_precision_recall(prediction, groundtruth, iou_threshold=0.2):
                 union = np.sum((pred_labels == i + 1)) + np.sum((gt_labels == j + 1)) - intersection
                 # Compute the IoU
                 iou_matrix[i, j] = intersection / union
+                # if iou_matrix[i, j] > 0:
+                    # print("iou_matrix", iou_matrix[i, j])
+                # Compute the intersection
+                intersection_matrix[i, j] = intersection
         
+        # # Compute lesion-wise precision and recall
+        # true_positives = np.sum(np.max(iou_matrix, axis=1) > iou_threshold)
+        # false_positives = np.sum(np.max(iou_matrix, axis=0) <= iou_threshold)
+        # false_negatives = np.sum(np.max(iou_matrix, axis=1) <= iou_threshold)
+        # precision += [true_positives / (true_positives + false_positives)]
+        # recall+= [true_positives / (true_positives + false_negatives)]
+
         # Compute lesion-wise precision and recall
-        true_positives = np.sum(np.max(iou_matrix, axis=1) > iou_threshold)
-        false_positives = np.sum(np.max(iou_matrix, axis=0) <= iou_threshold)
-        false_negatives = np.sum(np.max(iou_matrix, axis=1) <= iou_threshold)
+        true_positives = np.sum(np.max(intersection_matrix, axis=1) > iou_threshold)
+        false_positives = np.sum(np.max(intersection_matrix, axis=0) <= iou_threshold)
+        false_negatives = np.sum(np.max(intersection_matrix, axis=1) <= iou_threshold)
         precision += [true_positives / (true_positives + false_positives)]
         recall+= [true_positives / (true_positives + false_negatives)]
+
 
     # Put it back in cuda
     precision = torch.tensor(precision).cuda()
