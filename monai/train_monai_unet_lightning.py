@@ -181,38 +181,38 @@ class Model(pl.LightningModule):
                 RandFlipd(
                     keys=["image", "label"],
                     spatial_axis=[0],
-                    prob=0.2,
+                    prob=self.cfg["DA_probability"],
                 ),
                 # Flips the image : supperior becomes inferior
                 RandFlipd(
                     keys=["image", "label"],
                     spatial_axis=[1],
-                    prob=0.2,
+                    prob=self.cfg["DA_probability"],
                 ),
                 # Flips the image : anterior becomes posterior
                 RandFlipd(
                     keys=["image", "label"],
                     spatial_axis=[2],
-                    prob=0.2,
+                    prob=self.cfg["DA_probability"],
                 ),
                 # Random elastic deformation
                 Rand3DElasticd(
                     keys=["image", "label"],
                     sigma_range=(5, 7),
                     magnitude_range=(50, 150),
-                    prob=0.2,
+                    prob=self.cfg["DA_probability"],
                     mode=['bilinear', 'nearest'],
                 ),
                 # Random affine transform of the image
                 RandAffined(
                     keys=["image", "label"],
-                    prob=0.2,
+                    prob=self.cfg["DA_probability"],
                     mode=('bilinear', 'nearest'),
                     padding_mode='zeros',
                 ),
                 # RandAdjustContrastd(
                 #     keys=["image"],
-                #     prob=0.2,
+                #     prob=self.cfg["DA_probability"],
                 #     gamma=(0.5, 4.5),
                 #     invert_image=True,
                 # ),
@@ -220,7 +220,7 @@ class Model(pl.LightningModule):
                 # RandLambdad(
                 #     keys='image',
                 #     func=multiply_by_negative_one,
-                #     prob=0.2
+                #     prob=self.cfg["DA_probability"]
                 #     ),
                 # LabelToContourd(
                 #     keys=["image"],
@@ -228,20 +228,20 @@ class Model(pl.LightningModule):
                 # ),
                 RandGaussianNoised(
                     keys=["image"],
-                    prob=0.2,
+                    prob=self.cfg["DA_probability"],
                 ),
                 # Random simulation of low resolution 
                 RandSimulateLowResolutiond(
                     keys=["image"],
                     zoom_range=(0.8, 1.5),
-                    prob=0.2
+                    prob=self.cfg["DA_probability"]
                 ),
                 # Adding a random bias field which is usefull considering that this sometimes done for image pre-processing
                 RandBiasFieldd(
                     keys=["image"],
                     coeff_range=(0.0, 0.5),
                     degree=3, 
-                    prob=0.2
+                    prob=self.cfg["DA_probability"]
                 ),
                 # RandShiftIntensityd(
                 #     keys=["image"],
@@ -657,11 +657,13 @@ def main():
     # define optimizer
     optimizer_class = torch.optim.Adam
 
-    wandb.init(project=f'monai-ms-lesion-seg-unet', config=config)
+    output_path = os.path.join(config["output_path"], str(datetime.now().date()) +"_" +str(datetime.now().time()))
+    os.makedirs(output_path, exist_ok=True)
+
+    wandb.init(project=f'monai-ms-lesion-seg-unet', config=config, save_code=True, dir=output_path)
 
     logger.info("Building the model ...")
     
-
     # define model
 
     # net = UNet(
@@ -693,8 +695,8 @@ def main():
             spatial_dims=3,
             in_channels=1,
             out_channels=1,
-            channels=(32, 64, 128, 256),
-            strides=(2, 2, 2,),
+            channels=config["attention_unet_channels"],
+            strides=config["attention_unet_strides"],
             dropout=0.1,
         )
 
@@ -714,8 +716,8 @@ def main():
 
     # net = create_nnunet_from_plans()
 
-    logger.add(os.path.join(config["log_path"], str(datetime.now()) + 'log.txt'), rotation="10 MB", level="INFO")
 
+    logger.add(os.path.join(output_path, 'log.txt'), rotation="10 MB", level="INFO")
 
     # define loss function
     # loss_func = AdapWingLoss(theta=0.5, omega=8, alpha=2.1, epsilon=1, reduction="sum")
@@ -734,14 +736,16 @@ def main():
 
     lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='epoch')
 
+    best_model_path = os.path.join(output_path, "best_model.pth")
+
     # i.e. train by loading weights from scratch
     pl_model = Model(config, data_root=dataset_root,
                         optimizer_class=optimizer_class, loss_function=loss_func, net=net, 
-                        exp_id="test", results_path=config["best_model_path"])
+                        exp_id="test", results_path=best_model_path)
             
     # saving the best model based on validation loss
     checkpoint_callback_loss = pl.callbacks.ModelCheckpoint(
-        dirpath=config["best_model_path"], filename='best_model', monitor='val_loss', 
+        dirpath= best_model_path, filename='best_model', monitor='val_loss', 
         save_top_k=1, mode="min", save_last=True, save_weights_only=True)
     
     
@@ -749,17 +753,13 @@ def main():
     # wandb logger
     exp_logger = pl.loggers.WandbLogger(
                         name="test",
-                        save_dir="/home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results",
+                        save_dir=output_path,
                         group="test-on-canproco",
                         log_model=True, # save best model using checkpoint callback
-                        project='ms-lesion-agnostic',
-                        entity='pierre-louis-benveniste',
                         config=config)
 
     # Saving training script to wandb
-    wandb.save("ms-lesion-agnostic/monai/config.yml")
-    wandb.save("ms-lesion-agnostic/monai/train_monai_unet_lightning.py")
-
+    wandb.save(args.config)
 
     # initialise Lightning's trainer.
     trainer = pl.Trainer(

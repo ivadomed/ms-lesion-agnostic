@@ -1,4 +1,5 @@
 # Description: Configuration file for the UNETR model
+
 # Path to the data json file
 # data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake.json
 # data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake_lesion_sc.json
@@ -6,21 +7,18 @@
 # data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake_sc.json
 # data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-03-13_seed42_canproco.json
 data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-04-05_seed42_lesionOnly.json
-# Path to the output directory
-output_dir : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
+
 # Resampling resolution
 # pixdim : [1.0, 1.0, 1.0]
 pixdim : [0.7, 0.7, 0.7]
 # pixdim : [0.5, 0.5, 0.5]
+
 # Spatial size of the input data
 spatial_size : [64, 128, 128] # RL, AP, IS
 batch_size : 4 # smaller batch size lead to better generalization https://arxiv.org/abs/1609.04836 but longer to train
 
-# UNETR model parameters
-feature_size : 8
-hidden_size : 768
-mlp_dim : 3072
-num_heads : 12
+# Augmentation parameters
+DA_probability : 0.2
 
 # Optimizer parameters
 lr : 0.001
@@ -31,21 +29,16 @@ early_stopping_patience : 100
 max_iterations : 1000
 eval_num : 2
 
-# Model saving
-best_model_path : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/best_metric_model.pth
+# Outputs
+output_path : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
 
-# log saving
-log_path : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
-
-# WANDB
-experiment_name : monai_unet_canproco
-
+# Seed
 seed : 42
 
 # UNET model parameters
 unet_channels : [32, 64, 128, 256, 512, 1024]
 unet_strides : [2, 2, 2, 2, 2, 2, 2]
 
-#Attention Unet
-channels : [32, 64, 128, 256, 512]
-strides : [2, 2, 2, 2, 2]
+# AttentionUnet
+attention_unet_channels : [32, 64, 128, 256, 512]
+attention_unet_strides : [2, 2, 2, 2, 2]
