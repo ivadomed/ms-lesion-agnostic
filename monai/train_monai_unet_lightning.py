@@ -21,7 +21,7 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 from losses import AdapWingLoss, SoftDiceLoss
 
 from utils import dice_score, check_empty_patch, multiply_by_negative_one, plot_slices, lesion_wise_precision_recall
-from monai.networks.nets import UNet, BasicUNet, AttentionUnet
+from monai.networks.nets import UNet, BasicUNet, AttentionUnet, SwinUNETR
 from monai.metrics import DiceMetric
 from monai.losses import DiceLoss, DiceCELoss
 from monai.networks.layers import Norm
@@ -402,8 +402,8 @@ class Model(pl.LightningModule):
         train_soft_dice = self.soft_dice_metric(output, labels) 
 
         # Compute precision and recall
-        train_precision, train_recall = self.lesion_wise_precision_recall(output.detach().cpu(), labels.detach().cpu())
-        print("sucess")
+        # train_precision, train_recall = self.lesion_wise_precision_recall(output.detach().cpu(), labels.detach().cpu())
+        # print("sucess")
 
         metrics_dict = {
             "loss": loss.cpu(),
@@ -412,8 +412,8 @@ class Model(pl.LightningModule):
             "train_image": inputs[0].detach().cpu().squeeze(),
             "train_gt": labels[0].detach().cpu().squeeze(),
             "train_pred": output[0].detach().cpu().squeeze(),
-            "train_precision": train_precision.detach().cpu(),
-            "train_recall": train_recall.detach().cpu(),
+            # "train_precision": train_precision.detach().cpu(),
+            # "train_recall": train_recall.detach().cpu(),
         }
         self.train_step_outputs.append(metrics_dict)
 
@@ -426,24 +426,24 @@ class Model(pl.LightningModule):
             return None
         else:
             train_loss, train_soft_dice = 0, 0
-            precision_score, recall_score = 0, 0
+            # precision_score, recall_score = 0, 0
             num_items = len(self.train_step_outputs)
             for output in self.train_step_outputs:
                 train_loss += output["loss"].item()
                 train_soft_dice += output["train_soft_dice"].item()
-            precision_score = output["train_precision"]
-            recall_score = output["train_recall"]
+            # precision_score = output["train_precision"]
+            # recall_score = output["train_recall"]
             
             mean_train_loss = (train_loss / num_items)
             mean_train_soft_dice = (train_soft_dice / num_items)
-            mean_precision_score = np.mean(precision_score.detach().numpy())
-            mean_recall_score = np.mean(recall_score.detach().numpy())
+            # mean_precision_score = np.mean(precision_score.detach().numpy())
+            # mean_recall_score = np.mean(recall_score.detach().numpy())
 
             wandb_logs = {
                 "train_soft_dice": mean_train_soft_dice, 
                 "train_loss": mean_train_loss,
-                "train_precision": mean_precision_score,
-                "train_recall": mean_recall_score,
+                # "train_precision": mean_precision_score,
+                # "train_recall": mean_recall_score,
             }
 
             self.log_dict(wandb_logs)
@@ -489,8 +489,8 @@ class Model(pl.LightningModule):
         val_hard_dice = self.soft_dice_metric(hard_preds, hard_labels)
 
         # compute precision and recall
-        val_precision, val_recall = self.lesion_wise_precision_recall(post_outputs[0].detach().cpu(), post_labels[0].detach().cpu())
-        print("sucess val")
+        # val_precision, val_recall = self.lesion_wise_precision_recall(post_outputs[0].detach().cpu(), post_labels[0].detach().cpu())
+        # print("sucess val")
 
         # NOTE: there was a massive memory leak when storing cuda tensors in this dict. Hence,
         # using .detach() to avoid storing the whole computation graph
@@ -503,8 +503,8 @@ class Model(pl.LightningModule):
             "val_image": inputs[0].detach().cpu().squeeze(),
             "val_gt": labels[0].detach().cpu().squeeze(),
             "val_pred": post_outputs[0].detach().cpu().squeeze(),
-            "val_precision": val_precision.detach().cpu(),
-            "val_recall": val_recall.detach().cpu(),
+            # "val_precision": val_precision.detach().cpu(),
+            # "val_recall": val_recall.detach().cpu(),
         }
         self.val_step_outputs.append(metrics_dict)
         
@@ -513,27 +513,27 @@ class Model(pl.LightningModule):
     def on_validation_epoch_end(self):
 
         val_loss, num_items, val_soft_dice, val_hard_dice = 0, 0, 0, 0
-        val_precision, val_recall = 0, 0
+        # val_precision, val_recall = 0, 0
         for output in self.val_step_outputs:
             val_loss += output["val_loss"].sum().item()
             val_soft_dice += output["val_soft_dice"].sum().item()
             val_hard_dice += output["val_hard_dice"].sum().item()
             num_items += output["val_number"]
-            val_precision += output["val_precision"].sum().item()
-            val_recall += output["val_recall"].sum().item()
+            # val_precision += output["val_precision"].sum().item()
+            # val_recall += output["val_recall"].sum().item()
         
         mean_val_loss = (val_loss / num_items)
         mean_val_soft_dice = (val_soft_dice / num_items)
         mean_val_hard_dice = (val_hard_dice / num_items)
-        mean_val_precision = (val_precision / num_items)
-        mean_val_recall = (val_recall / num_items)
+        # mean_val_precision = (val_precision / num_items)
+        # mean_val_recall = (val_recall / num_items)
                 
         wandb_logs = {
             "val_soft_dice": mean_val_soft_dice,
             # "val_hard_dice": mean_val_hard_dice,
             "val_loss": mean_val_loss,
-            "val_precision": mean_val_precision,
-            "val_recall": mean_val_recall,
+            # "val_precision": mean_val_precision,
+            # "val_recall": mean_val_recall,
         }
 
         self.log_dict(wandb_logs)
@@ -680,23 +680,35 @@ def main():
     #     adn_ordering='NDA',
     # )
 
-    net=UNet(
-        spatial_dims=3,
-        in_channels=1,
-        out_channels=1,
-        channels=(32, 64, 128),
-        strides=(2, 2, 2, ),
-        # dropout=0.1
-    )
+    # net=UNet(
+    #     spatial_dims=3,
+    #     in_channels=1,
+    #     out_channels=1,
+    #     channels=(32, 64, 128),
+    #     strides=(2, 2, 2, ),
+    #     # dropout=0.1
+    # )
 
-    # net = AttentionUnet(
-    #         spatial_dims=3,
-    #         in_channels=1,
-    #         out_channels=1,
-    #         channels=(32, 64, 128, 256, 512),
-    #         strides=(2, 2, 2, 2,),
-    #         dropout=0.1,
-    #     )
+    net = AttentionUnet(
+            spatial_dims=3,
+            in_channels=1,
+            out_channels=1,
+            channels=(32, 64, 128, 256),
+            strides=(2, 2, 2,),
+            dropout=0.1,
+        )
+
+    # net = SwinUNETR(
+    #     img_size=config["spatial_size"],
+    #     spatial_dims=3,
+    #     in_channels=1,
+    #     out_channels=1,
+    #     feature_size=48,
+    #     use_checkpoint=True,
+    # )
+
+    # net.use_multiprocessing = False
+
     
     # net = BasicUNet(spatial_dims=3, features=(32, 64, 128, 256, 32), out_channels=1)
 
@@ -706,7 +718,7 @@ def main():
 
 
     # define loss function
-    #loss_func = AdapWingLoss(theta=0.5, omega=8, alpha=2.1, epsilon=1, reduction="sum")
+    # loss_func = AdapWingLoss(theta=0.5, omega=8, alpha=2.1, epsilon=1, reduction="sum")
     # loss_func = DiceLoss(sigmoid=False, smooth_dr=1e-4)
     loss_func = DiceCELoss(sigmoid=False, smooth_dr=1e-4)
     # loss_func = SoftDiceLoss(smooth=1e-5)
