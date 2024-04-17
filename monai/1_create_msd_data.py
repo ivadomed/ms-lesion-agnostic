@@ -4,14 +4,12 @@ The datasets used are CanProCo, Bavaria-quebec, basel and sct-testing-large.
 
 Arguments:
     -pd, --path-data: Path to the data set directory
-    -pj, --path-joblib: Path to joblib file from ivadomed containing the dataset splits.
     -po, --path-out: Path to the output directory where dataset json is saved
-    --contrast: Contrast to use for training
-    --label-type: Type of labels to use for training
+    --lesion-only: Use only masks which contain some lesions
     --seed: Seed for reproducibility
 
 Example:
-    python create_msd_data.py -pd /path/dataset -po /path/output 
+    python create_msd_data.py -pd /path/dataset -po /path/output --lesion-only --seed 42 
 
 TO DO: 
     *
@@ -180,7 +178,7 @@ def main():
                 elif 'basel-mp2rage' in str(subject):
                     relative_path = subject.relative_to(basel_path).parent
                     temp_data_basel["image"] = str(subject)
-                    temp_data_basel["label"] = str(basel_path / 'derivatives' / 'labels' /  relative_path / str(subject).replace('UNIT1.nii.gz', 'UNIT1_desc-rater3_label-lesion_seg.nii.gz'))
+                    temp_data_basel["label"] = str(basel_path) + '/derivatives/labels/' +  str(relative_path) +'/'+ str(subject.name).replace('UNIT1.nii.gz', 'UNIT1_desc-rater3_label-lesion_seg.nii.gz')
                     if os.path.exists(temp_data_basel["label"]) and os.path.exists(temp_data_basel["image"]):
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_basel["label"])
                         temp_data_basel["total_lesion_volume"] = total_lesion_volume
@@ -206,7 +204,7 @@ def main():
                 elif 'bavaria-quebec-spine-ms' in str(subject):
                     relative_path = subject.relative_to(bavaria_path).parent
                     temp_data_bavaria["image"] = str(subject)
-                    temp_data_bavaria["label"] = str(bavaria_path / 'derivatives' / 'labels' / relative_path / subject.name.replace('T2w.nii.gz', 'T2w_lesion-manual.nii.gz'))
+                    temp_data_bavaria["label"] = str(bavaria_path) + '/derivatives/labels/' + str(relative_path) + '/'  +str(subject.name).replace('T2w.nii.gz', 'lesions-manual_T2w.nii.gz')
                     if os.path.exists(temp_data_bavaria["label"]) and os.path.exists(temp_data_bavaria["image"]):
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_bavaria["label"])
                         temp_data_bavaria["total_lesion_volume"] = total_lesion_volume
