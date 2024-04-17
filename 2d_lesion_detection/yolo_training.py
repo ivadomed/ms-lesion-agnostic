@@ -50,7 +50,7 @@ def _main():
         config = json.load(file)
 
     # Load a pretrained model
-    model = YOLO('yolov8m.pt')
+    model = YOLO('yolov8n.pt')
 
     # Train the model
     model.train(data=args.data,
@@ -60,9 +60,6 @@ def _main():
 
 
     ## Add canproco version to model metadata
-        # Assuming no project is given to model.train
-        # If that becomes the case, ultralytics.settings["runs_dir"]/"detect" needs to be replaced by project
-
     # Define the metadata
     metadata = {'dataset_version': CANPROCO_VERSION,
                 'description': 'Model for multiple sclerosis lesion detection on MRI images of spinal cord.'}

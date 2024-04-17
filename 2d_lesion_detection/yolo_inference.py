@@ -101,7 +101,7 @@ def _main():
     result_dict = _get_slice_results_dict(results, args.keep_conf_values)
 
     
-    # Save results (and merge overlaping boxes if volume is true)
+    # Save results
     print(f"\nSaving results to {str(args.output_folder)}")
     for name, boxes in result_dict.items():
         # name is either slice name (if volume is False)
@@ -114,8 +114,8 @@ def _main():
         # Save to txt
         with open(args.output_folder/(name+".txt"), "w") as file:
             # Iterate over the tensors in the list
-            for tensor in boxes:
-                line = ' '.join(['0'] + [str(val) for val in tensor.numpy()]) # add a zero to indicate the class (assuming there is only one class)
+            for box in boxes:
+                line = ' '.join(['0'] + [str(val) for val in box.cpu().data.numpy()]) # add a zero to indicate the class (assuming there is only one class)
                 file.write(line + '\n')
 
 

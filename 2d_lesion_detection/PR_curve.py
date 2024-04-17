@@ -39,7 +39,7 @@ def _main():
                         type = Path,
                         help = 'Output directory to save the PR curve to.')
     parser.add_argument('-i', '--iou',
-                        default= 0.4,
+                        default= 0.2,
                         type = str,
                         help = 'IoU threshold for a TP')
    

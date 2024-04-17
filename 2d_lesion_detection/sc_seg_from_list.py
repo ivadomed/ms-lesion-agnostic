@@ -7,11 +7,13 @@ Make sure to activate the sct env before running:
 source ~/sct_6.2/python/envs/venv_sct/bin/activate
 """
 
-from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
-import json
 from pathlib import Path
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 import subprocess
 import logging
+
+from typing import List, Dict
+import json
 
 logging.basicConfig(filename='sc_seg_warning.log', level=logging.WARNING, filemode='w')
 
@@ -35,9 +37,17 @@ def segment_spinal_cord(image_path:str, labels_path:str, seg_name:str):
     ]
     subprocess.run(command, check=True)
 
-def remove_errors_from_json(json_data, remove_list):
+def remove_errors_from_json(json_data:Dict[str, str], remove_list:List[str]):
     """
-    
+    Removes volumes that are in remove_list from json_data
+
+    Args:
+        json_data (Dict[str, str]): Dictionary of volume names in each dataset (contents of json list)
+        remove_list (List[str]): List of volume names to remove from json_data
+
+    Returns:
+        json_data (Dict[str, str]): Modified dictionary of volume names in each dataset
+                                    without the volumes in remove_list
     """
     for key, value in json_data.items():
     # Check if the current value is a list

@@ -391,35 +391,6 @@ def get_volume_boxes(txt_paths:List[str], yolo_img_folder:Path, iosa:float)-> Di
     return labels_dict
 
 
-def get_pred_boxes(txt_paths:List[str])-> Dict[str, List[torch.Tensor]]:
-    """
-    From a list of txt file paths containing volume-wise bounding box coordinates, generates
-    a dictionary with volume name as key and bounding boxes as volume
-
-    Args:
-        txt_paths (List[str]): 
-
-    Returns:
-        preds_dict (Dict[str, List[torch.Tensor]]): dictionary containing bounding boxes for every volume
-            key is volume name (sub-cal080_ses-M0_STIR for example)
-            value is a Tensor containg bounding box coordinates 
-                format -> torch.tensor([x1, y1, x2, y2], [x1, y1, x2, y2], ...)
-    """
-    preds_dict = {}
-    for txt_path in txt_paths:
-        volume = Path(txt_path).name.replace(".txt", "")
-
-        data = []
-        with open(txt_path, 'r') as file:
-            for line in file:
-                line = line.strip().split()
-                line = [float(x) for x in line]
-                data.append(line)
-            preds_dict[volume] = torch.tensor(data).round().int() 
-
-    return preds_dict
-
-
 def compute_metrics(volumes_list:List[str], 
                     labels_dict:Dict[str, List[torch.Tensor]],
                     preds_dict:Dict[str, List[torch.Tensor]],
@@ -516,7 +487,7 @@ def _main():
                         type = Path,
                         help = 'Path to canproco database')
     parser.add_argument('-i', '--iou',
-                        default= 0.5,
+                        default= 0.2,
                         type = float,
                         help = 'IoU threshold for a TP')
 

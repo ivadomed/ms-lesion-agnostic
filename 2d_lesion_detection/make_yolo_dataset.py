@@ -72,11 +72,11 @@ def process_scan(nii_volume:str, output_dir:Path, database:Path, set_name:str):
     patient = nii_volume.split("_")[0]
     ses = nii_volume.split("_")[1]
 
-    print(f"Processing scan {patient}")
+    print(f"Processing scan {nii_volume}")
 
     # 1- get bounding boxes from segmentation and save to txt file
     # Check if scan has already been processed
-    label_pattern = output_dir / "labels"/ set_name/(patient+"*")
+    label_pattern = output_dir / "labels"/ set_name/(nii_volume+"*")
     matching_slices = glob.glob(str(label_pattern))
 
     if matching_slices == []: # if no slices are found, process scan
@@ -85,7 +85,7 @@ def process_scan(nii_volume:str, output_dir:Path, database:Path, set_name:str):
 
     # 2- save spinal cord slices as pngs
     # Check if scan has already been processed
-    img_pattern = output_dir / "images"/ set_name/(patient+"*")
+    img_pattern = output_dir / "images"/ set_name/(nii_volume+"*")
     matching_slices = glob.glob(str(img_pattern))
 
     if matching_slices == []: # if no slices are found, process scan
