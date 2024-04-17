@@ -33,7 +33,7 @@ def get_parser():
     """
     parser = argparse.ArgumentParser(description="Test the model on the test set")
     parser.add_argument("-c", "--config", help="Path to the config file (.yml file)", required=True)
-    parser.add_argument("--data_split", help="Data split to use (train, validation, test)", required=True, type=str)
+    parser.add_argument("--data-split", help="Data split to use (train, validation, test)", required=True, type=str)
     return parser
 
 
