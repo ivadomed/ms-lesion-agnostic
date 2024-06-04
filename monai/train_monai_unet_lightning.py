@@ -20,7 +20,7 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 
 from losses import AdapWingLoss, SoftDiceLoss
 
-from utils import dice_score, check_empty_patch, multiply_by_negative_one, plot_slices, lesion_wise_precision_recall
+from utils import dice_score, check_empty_patch, multiply_by_negative_one, plot_slices, remove_small_lesions
 from monai.networks.nets import UNet, BasicUNet, AttentionUnet, SwinUNETR
 from monai.metrics import DiceMetric
 from monai.losses import DiceLoss, DiceCELoss
@@ -105,7 +105,7 @@ class Model(pl.LightningModule):
 
         # define evaluation metric
         self.soft_dice_metric = dice_score
-        self.lesion_wise_precision_recall = lesion_wise_precision_recall
+        # self.lesion_wise_precision_recall = lesion_wise_precision_recall
 
         # temp lists for storing outputs from training, validation, and testing
         self.train_step_outputs = []
@@ -160,18 +160,18 @@ class Model(pl.LightningModule):
                 #     source_key="label",
                 #     margin=200
                 # ),
-                # This crops the image around a foreground object of label with ratio pos/(pos+neg) (however, it cannot pad so keeping padding after)
-                RandCropByPosNegLabeld(
-                    keys=["image", "label"],
-                    label_key="label",
-                    spatial_size=self.cfg["spatial_size"],
-                    pos=1,
-                    neg=0,
-                    num_samples=4,
-                    image_key="image",
-                    image_threshold=0,
-                    allow_smaller=True,
-                ),
+                # # This crops the image around a foreground object of label with ratio pos/(pos+neg) (however, it cannot pad so keeping padding after)
+                # RandCropByPosNegLabeld(
+                #     keys=["image", "label"],
+                #     label_key="label",
+                #     spatial_size=self.cfg["spatial_size"],
+                #     pos=1,
+                #     neg=0,
+                #     num_samples=4,
+                #     image_key="image",
+                #     image_threshold=0,
+                #     allow_smaller=True,
+                # ),
                 # This resizes the image and the label to the spatial size defined in the config
                 ResizeWithPadOrCropd(
                     keys=["image", "label"],
@@ -254,7 +254,13 @@ class Model(pl.LightningModule):
                 #     num_classes=2,
                 #     threshold_values=True,
                 #     logit_thresh=0.2,
-                # )
+                # ),
+                # Remove small lesions in the label
+                RandLambdad(
+                    keys='label',
+                    func=lambda label: remove_small_lesions(label, self.cfg["pixdim"]),
+                    prob=1.0
+                )
             ]
         )
         val_transforms = Compose(
@@ -303,6 +309,12 @@ class Model(pl.LightningModule):
                 #     threshold_values=True,
                 #     logit_thresh=0.2,
                 # )
+                # Remove small lesions in the label
+                RandLambdad(
+                    keys='label',
+                    func=lambda label: remove_small_lesions(label, self.cfg["pixdim"]),
+                    prob=1.0
+                )
             ]
         )
         
@@ -328,6 +340,12 @@ class Model(pl.LightningModule):
                     orig_keys=["image", "label"], 
                     meta_keys=["pred_meta_dict", "label_meta_dict"],
                     nearest_interp=False, to_tensor=True),
+            # Remove small lesions in the label
+            RandLambdad(
+                keys='label',
+                func=lambda label: remove_small_lesions(label, self.cfg["pixdim"]),
+                prob=1.0
+            )
             ])
         self.test_ds = CacheDataset(data=test_files, transform=transforms_test, cache_rate=0.1, num_workers=4)
 
@@ -381,11 +399,10 @@ class Model(pl.LightningModule):
         # label_nifti = nib.Nifti1Image(label_0.numpy(), affine=np.eye(4))
         # nib.save(label_nifti, f"~/ms_lesion_agnostic/temp/label_0_{time_0}.nii.gz")
         
-
-        # # check if any label image patch is empty in the batch
-        if check_empty_patch(labels) is None:
-            print(f"Empty label patch found. Skipping training step ...")
-            return None
+        # # # check if any label image patch is empty in the batch
+        # if check_empty_patch(labels) is None:
+        #     print(f"Empty label patch found. Skipping training step ...")
+        #     return None
 
         output = self.forward(inputs)   # logits
         # print(f"labels.shape: {labels.shape} \t output.shape: {output.shape}")
