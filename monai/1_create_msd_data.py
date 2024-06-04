@@ -9,7 +9,7 @@ Arguments:
     --seed: Seed for reproducibility
 
 Example:
-    python create_msd_data.py -pd /path/dataset -po /path/output --lesion-only --seed 42 --canproco-exclude /path/exclude_list.txt
+    python 1_create_msd_data.py -pd /path/dataset -po /path/output --lesion-only --seed 42 --canproco-exclude /path/exclude_list.txt
 
 TO DO: 
     *
@@ -105,7 +105,7 @@ def main():
     subjects_canproco = list(canproco_path.rglob('*_lesion-manual.nii.gz'))
     subjects_basel = list(basel_path.rglob('*UNIT1.nii.gz'))
     subjects_sct = list(sct_testing_path.rglob('*_lesion-manual.nii.gz'))
-    subjects_bavaria = list(bavaria_path.rglob('*T2w.nii.gz'))
+    subjects_bavaria = list(bavaria_path.rglob('*_lesion-manual.nii.gz'))
 
     # Path to the file containing the list of subjects to exclude from CanProCo
     if args.canproco_exclude is not None:
@@ -175,7 +175,6 @@ def main():
                     subject_id = subject.name.replace('_PSIR_lesion-manual.nii.gz', '')
                     subject_id = subject_id.replace('_STIR_lesion-manual.nii.gz', '')
                     if subject_id in canproco_exclude_list:
-                        print(f"Excluding {subject_id}")
                         continue  
                     temp_data_canproco["label"] = str(subject)
                     temp_data_canproco["image"] = str(subject).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
@@ -215,9 +214,8 @@ def main():
 
                 # Bavaria-quebec
                 elif 'bavaria-quebec-spine-ms' in str(subject):
-                    relative_path = subject.relative_to(bavaria_path).parent
-                    temp_data_bavaria["image"] = str(subject)
-                    temp_data_bavaria["label"] = str(bavaria_path) + '/derivatives/labels/' + str(relative_path) + '/'  +str(subject.name).replace('T2w.nii.gz', 'lesions-manual_T2w.nii.gz')
+                    temp_data_bavaria["label"] = str(subject)
+                    temp_data_bavaria["image"] = str(subject).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
                     if os.path.exists(temp_data_bavaria["label"]) and os.path.exists(temp_data_bavaria["image"]):
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_bavaria["label"])
                         temp_data_bavaria["total_lesion_volume"] = total_lesion_volume
