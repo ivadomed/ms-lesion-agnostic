@@ -10,7 +10,8 @@ from dynamic_network_architectures.architectures.unet import PlainConvUNet, Resi
 from dynamic_network_architectures.building_blocks.helper import get_matching_instancenorm, convert_dim_to_conv_op
 from dynamic_network_architectures.initialization.weight_init import init_last_bn_before_add_to_0
 
-import skimage
+from scipy import ndimage
+
 
 
 def dice_score(prediction, groundtruth, smooth=1.):
@@ -67,6 +68,155 @@ def plot_slices(image, gt, pred, debug=False):
     return fig
 
 
+def lesion_wise_tp_fp_fn(truth, prediction):
+    """
+    Computes the true positives, false positives, and false negatives two masks. Masks are considered true positives
+    if at least one voxel overlaps between the truth and the prediction.
+    Adapted from: https://github.com/npnl/atlas2_grand_challenge/blob/main/isles/scoring.py#L341
+
+    Parameters
+    ----------
+    truth : array-like, bool
+        3D array. If not boolean, will be converted.
+    prediction : array-like, bool
+        3D array with a shape matching 'truth'. If not boolean, will be converted.
+    empty_value : scalar, float
+        Optional. Value to which to default if there are no labels. Default: 1.0.
+
+    Returns
+    -------
+    tp (int): 3D connected-component from the ground-truth image that overlaps at least on one voxel with the prediction image.
+    fp (int): 3D connected-component from the prediction image that has no voxel overlapping with the ground-truth image.
+    fn (int): 3d connected-component from the ground-truth image that has no voxel overlapping with the prediction image.
+
+    Notes
+    -----
+    This function computes lesion-wise score by defining true positive lesions (tp), false positive lesions (fp) and
+    false negative lesions (fn) using 3D connected-component-analysis.
+
+    tp: 3D connected-component from the ground-truth image that overlaps at least on one voxel with the prediction image.
+    fp: 3D connected-component from the prediction image that has no voxel overlapping with the ground-truth image.
+    fn: 3d connected-component from the ground-truth image that has no voxel overlapping with the prediction image.
+    """
+    tp, fp, fn = 0, 0, 0
+
+    # For each true lesion, check if there is at least one overlapping voxel. This determines true positives and
+    # false negatives (unpredicted lesions)
+    labeled_ground_truth, num_lesions = ndimage.label(truth.astype(bool))
+    for idx_lesion in range(1, num_lesions+1):
+        lesion = labeled_ground_truth == idx_lesion
+        lesion_pred_sum = lesion + prediction
+        if(np.max(lesion_pred_sum) > 1):
+            tp += 1
+        else:
+            fn += 1
+
+    # For each predicted lesion, check if there is at least one overlapping voxel in the ground truth.
+    labaled_prediction, num_pred_lesions = ndimage.label(prediction.astype(bool))
+    for idx_lesion in range(1, num_pred_lesions+1):
+        lesion = labaled_prediction == idx_lesion
+        lesion_pred_sum = lesion + truth
+        if(np.max(lesion_pred_sum) <= 1):  # No overlap
+            fp += 1
+
+    return tp, fp, fn
+
+
+def lesion_sensitivity(truth, prediction):
+    """
+    Computes the lesion-wise sensitivity between two masks
+    Returns
+    -------
+    sensitivity (float): Lesion-wise sensitivity as float.
+        Max score = 1
+        Min score = 0
+        If both images are empty (tp + fp + fn =0) = empty_value
+    """
+    empty_value = 1.0   # Value to which to default if there are no labels. Default: 1.0.
+
+    if np.sum(truth) == 0 and np.sum(prediction)==0:
+        # Both reference and prediction are empty --> model learned correctly
+        return 1.0
+    # if the prediction is not empty and ref is empty, it's false positive
+    # if both are not empty, it's true positive
+    else:
+
+        tp, _, fn = lesion_wise_tp_fp_fn(truth, prediction)
+        sensitivity = empty_value
+
+        # Compute sensitivity
+        denom = tp + fn
+        if(denom != 0):
+            sensitivity = tp / denom
+        return sensitivity
+        
+
+def lesion_ppv(truth, prediction):
+    """
+    Computes the lesion-wise positive predictive value (PPV) between two masks
+    Returns
+    -------
+    ppv (float): Lesion-wise positive predictive value as float.
+        Max score = 1
+        Min score = 0
+        If both images are empty (tp + fp + fn =0) = empty_value
+    """
+    if np.sum(truth) == 0 and np.sum(prediction)==0:
+        # Both reference and prediction are empty --> model learned correctly
+        return 1.0
+    elif np.sum(truth) != 0 and np.sum(prediction)==0:
+        # Reference is not empty, prediction is empty --> model did not learn correctly (it's false negative)
+        return 0.0
+    # if the predction is not empty and ref is empty, it's false positive
+    # if both are not empty, it's true positive
+    else:
+        tp, fp, _ = lesion_wise_tp_fp_fn(truth, prediction)
+        # ppv = 1.0
+
+        # Compute ppv
+        denom = tp + fp
+        # denom should ideally not be zero inside this else as it should be caught by the empty checks above
+        if(denom != 0):
+            ppv = tp / denom
+        return ppv
+    
+
+def lesion_f1_score(truth, prediction):
+    """
+    Computes the lesion-wise F1-score between two masks by defining true positive lesions (tp), false positive lesions (fp)
+    and false negative lesions (fn) using 3D connected-component-analysis.
+
+    Masks are considered true positives if at least one voxel overlaps between the truth and the prediction.
+
+    Returns
+    -------
+    f1_score : float
+        Lesion-wise F1-score as float.
+        Max score = 1
+        Min score = 0
+        If both images are empty (tp + fp + fn =0) = empty_value
+    """
+    empty_value = 1.0   # Value to which to default if there are no labels. Default: 1.0.
+
+    if np.sum(truth) == 0 and np.sum(prediction)==0:
+        # Both reference and prediction are empty --> model learned correctly
+        return 1.0
+    elif np.sum(truth) != 0 and np.sum(prediction)==0:
+        # Reference is not empty, prediction is empty --> model did not learn correctly (it's false negative)
+        return 0.0
+    # if the predction is not empty and ref is empty, it's false positive
+    # if both are not empty, it's true positive
+    else:
+        tp, fp, fn = lesion_wise_tp_fp_fn(truth, prediction)
+        f1_score = empty_value
+
+        # Compute f1_score
+        denom = tp + (fp + fn)/2
+        if(denom != 0):
+            f1_score = tp / denom
+        return f1_score
+
+
 def lesion_wise_precision_recall(prediction, groundtruth, iou_threshold=0.1):
     """
     This function computes the lesion-wise precision and recall.
@@ -75,82 +225,92 @@ def lesion_wise_precision_recall(prediction, groundtruth, iou_threshold=0.1):
         prediction: predicted segmentation mask
         groundtruth: ground truth segmentation mask
         iou_threshold: threshold for intersection over union (IoU) for a lesion to be considered as true positive
-    Returns:
-        precision: lesion-wise precision
-        recall: lesion-wise recall
-    """
-    prediction_cpu = prediction#.detach().numpy()
-    groundtruth_cpu = groundtruth#.detach().numpy()
 
-    precision = []
-    recall = []
-    # print(prediction_cpu.shape)
-    for i in range(prediction_cpu.shape[0]):
-        # Compute connected components in the predicted and ground truth segmentation masks
-        if len(prediction_cpu.shape) == 4:
-            # print("iteration")
-            # binarize the prediction and ground truth
-            prediction_cpu[0] = prediction_cpu[0] > 0.2
-            groundtruth_cpu[0] = groundtruth_cpu[0] > 0.2
-            # compute connected components
-            pred_labels, num_components_pred = skimage.measure.label(prediction_cpu[0], connectivity=2, return_num=True)
-            gt_labels, num_components_gt = skimage.measure.label(groundtruth_cpu[0], connectivity=2, return_num=True)
-            # print('c', pred_labels.shape)
-            # print('d', gt_labels.shape)
-        if len(prediction_cpu.shape) == 5:
-            # binarize the prediction and ground truth
-            prediction_cpu[i][0] = prediction_cpu[i][0] > 0.2
-            groundtruth_cpu[i][0] = groundtruth_cpu[i][0] > 0.2
-            # compute connected components
-            pred_labels, num_components_pred  = skimage.measure.label(prediction_cpu[i][0], connectivity=2, return_num=True)
-            gt_labels, num_components_gt = skimage.measure.label(groundtruth_cpu[i][0], connectivity=2, return_num=True)
-            # print('e', pred_labels.shape)
-            # print('f', gt_labels.shape)
+
+# def lesion_wise_precision_recall(prediction, groundtruth, iou_threshold=0.1):
+#     """
+#     This function computes the lesion-wise precision and recall.
+
+#     Args:
+#         prediction: predicted segmentation mask
+#         groundtruth: ground truth segmentation mask
+#         iou_threshold: threshold for intersection over union (IoU) for a lesion to be considered as true positive
+#     Returns:
+#         precision: lesion-wise precision
+#         recall: lesion-wise recall
+#     """
+#     prediction_cpu = prediction#.detach().numpy()
+#     groundtruth_cpu = groundtruth#.detach().numpy()
+
+#     precision = []
+#     recall = []
+#     # print(prediction_cpu.shape)
+#     for i in range(prediction_cpu.shape[0]):
+#         # Compute connected components in the predicted and ground truth segmentation masks
+#         if len(prediction_cpu.shape) == 4:
+#             # print("iteration")
+#             # binarize the prediction and ground truth
+#             prediction_cpu[0] = prediction_cpu[0] > 0.2
+#             groundtruth_cpu[0] = groundtruth_cpu[0] > 0.2
+#             # compute connected components
+#             pred_labels, num_components_pred = skimage.measure.label(prediction_cpu[0], connectivity=2, return_num=True)
+#             gt_labels, num_components_gt = skimage.measure.label(groundtruth_cpu[0], connectivity=2, return_num=True)
+#             # print('c', pred_labels.shape)
+#             # print('d', gt_labels.shape)
+#         if len(prediction_cpu.shape) == 5:
+#             # binarize the prediction and ground truth
+#             prediction_cpu[i][0] = prediction_cpu[i][0] > 0.2
+#             groundtruth_cpu[i][0] = groundtruth_cpu[i][0] > 0.2
+#             # compute connected components
+#             pred_labels, num_components_pred  = skimage.measure.label(prediction_cpu[i][0], connectivity=2, return_num=True)
+#             gt_labels, num_components_gt = skimage.measure.label(groundtruth_cpu[i][0], connectivity=2, return_num=True)
+#             # print('e', pred_labels.shape)
+#             # print('f', gt_labels.shape)
         
-        # If there are no connected components in the predicted or ground truth segmentation masks we return 0 and continue
-        if num_components_gt==0 or num_components_pred==0:
-            precision+= [0]
-            recall+= [0]
-            continue
+#         # If there are no connected components in the predicted or ground truth segmentation masks we return 0 and continue
+#         if num_components_gt==0 or num_components_pred==0:
+#             precision+= [0]
+#             recall+= [0]
+#             continue
 
-        # Compute the intersection over union (IoU) between each pair of connected components
-        iou_matrix = np.zeros((np.max(pred_labels), np.max(gt_labels)))
-        intersection_matrix = np.zeros((np.max(pred_labels), np.max(gt_labels)))
-        for i in range(np.max(pred_labels)):
-            for j in range(np.max(gt_labels)):
-                # Compute the intersection
-                intersection = np.sum((pred_labels == i + 1) * (gt_labels == j + 1))
-                # Compute the union
-                union = np.sum((pred_labels == i + 1)) + np.sum((gt_labels == j + 1)) - intersection
-                # Compute the IoU
-                iou_matrix[i, j] = intersection / union
-                # if iou_matrix[i, j] > 0:
-                    # print("iou_matrix", iou_matrix[i, j])
-                # Compute the intersection
-                intersection_matrix[i, j] = intersection
+#         # Compute the intersection over union (IoU) between each pair of connected components
+#         iou_matrix = np.zeros((np.max(pred_labels), np.max(gt_labels)))
+#         intersection_matrix = np.zeros((np.max(pred_labels), np.max(gt_labels)))
+#         for i in range(np.max(pred_labels)):
+#             for j in range(np.max(gt_labels)):
+#                 # Compute the intersection
+#                 intersection = np.sum((pred_labels == i + 1) * (gt_labels == j + 1))
+#                 # Compute the union
+#                 union = np.sum((pred_labels == i + 1)) + np.sum((gt_labels == j + 1)) - intersection
+#                 # Compute the IoU
+#                 iou_matrix[i, j] = intersection / union
+#                 # if iou_matrix[i, j] > 0:
+#                     # print("iou_matrix", iou_matrix[i, j])
+#                 # Compute the intersection
+#                 intersection_matrix[i, j] = intersection
         
-        # # Compute lesion-wise precision and recall
-        # true_positives = np.sum(np.max(iou_matrix, axis=1) > iou_threshold)
-        # false_positives = np.sum(np.max(iou_matrix, axis=0) <= iou_threshold)
-        # false_negatives = np.sum(np.max(iou_matrix, axis=1) <= iou_threshold)
-        # precision += [true_positives / (true_positives + false_positives)]
-        # recall+= [true_positives / (true_positives + false_negatives)]
+#         # # Compute lesion-wise precision and recall
+#         # true_positives = np.sum(np.max(iou_matrix, axis=1) > iou_threshold)
+#         # false_positives = np.sum(np.max(iou_matrix, axis=0) <= iou_threshold)
+#         # false_negatives = np.sum(np.max(iou_matrix, axis=1) <= iou_threshold)
+#         # precision += [true_positives / (true_positives + false_positives)]
+#         # recall+= [true_positives / (true_positives + false_negatives)]
 
-        # Compute lesion-wise precision and recall
-        true_positives = np.sum(np.max(intersection_matrix, axis=1) > iou_threshold)
-        false_positives = np.sum(np.max(intersection_matrix, axis=0) <= iou_threshold)
-        false_negatives = np.sum(np.max(intersection_matrix, axis=1) <= iou_threshold)
-        precision += [true_positives / (true_positives + false_positives)]
-        recall+= [true_positives / (true_positives + false_negatives)]
+#         # Compute lesion-wise precision and recall
+#         true_positives = np.sum(np.max(intersection_matrix, axis=1) > iou_threshold)
+#         false_positives = np.sum(np.max(intersection_matrix, axis=0) <= iou_threshold)
+#         false_negatives = np.sum(np.max(intersection_matrix, axis=1) <= iou_threshold)
+#         precision += [true_positives / (true_positives + false_positives)]
+#         recall+= [true_positives / (true_positives + false_negatives)]
 
 
-    # Put it back in cuda
-    precision = torch.tensor(precision).cuda()
-    recall = torch.tensor(recall).cuda()
+#     # Put it back in cuda
+#     precision = torch.tensor(precision).cuda()
+#     recall = torch.tensor(recall).cuda()
 
-    print("precision", precision)
-    print("recall", recall)
-    return precision, recall
+#     print("precision", precision)
+#     print("recall", recall)
+#     return precision, recall
 
 
 # ############################################################################################################
