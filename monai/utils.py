@@ -217,7 +217,7 @@ def lesion_f1_score(truth, prediction):
         return f1_score
 
 
-def remove_small_lesions(lesion_seg, resolution, min_volume=50):
+def remove_small_lesions(lesion_seg, resolution, min_volume=7.5):
     """
     Remove lesions which are smaller than a given volume threshold.
 
