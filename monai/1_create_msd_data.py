@@ -9,7 +9,7 @@ Arguments:
     --seed: Seed for reproducibility
 
 Example:
-    python create_msd_data.py -pd /path/dataset -po /path/output --lesion-only --seed 42 
+    python create_msd_data.py -pd /path/dataset -po /path/output --lesion-only --seed 42 --canproco-exclude /path/exclude_list.txt
 
 TO DO: 
     *
@@ -46,6 +46,7 @@ def get_parser():
 
     parser.add_argument('-pd', '--path-data', required=True, type=str, help='Path to the folder containing the datasets')
     parser.add_argument('-po', '--path-out', type=str, help='Path to the output directory where dataset json is saved')
+    parser.add_argument('--canproco-exclude', type=str, help='Path to the file containing the list of subjects to exclude from CanProCo')
     parser.add_argument('--lesion-only', action='store_true', help='Use only masks which contain some lesions')
     parser.add_argument('--seed', default=42, type=int, help="Seed for reproducibility")
 
@@ -106,6 +107,13 @@ def main():
     subjects_sct = list(sct_testing_path.rglob('*_lesion-manual.nii.gz'))
     subjects_bavaria = list(bavaria_path.rglob('*T2w.nii.gz'))
 
+    # Path to the file containing the list of subjects to exclude from CanProCo
+    if args.canproco_exclude is not None:
+       with open(args.canproco_exclude, 'r') as file:
+            canproco_exclude_list = yaml.load(file, Loader=yaml.FullLoader)
+    # only keep the contrast psir and stir
+    canproco_exclude_list = canproco_exclude_list['PSIR'] + canproco_exclude_list['STIR']
+
     subjects = subjects_canproco + subjects_basel + subjects_sct + subjects_bavaria
     # logger.info(f"Total number of subjects in the root directory: {len(subjects)}")
 
@@ -164,6 +172,11 @@ def main():
 
                 # Canproco
                 if 'canproco' in str(subject):
+                    subject_id = subject.name.replace('_PSIR_lesion-manual.nii.gz', '')
+                    subject_id = subject_id.replace('_STIR_lesion-manual.nii.gz', '')
+                    if subject_id in canproco_exclude_list:
+                        print(f"Excluding {subject_id}")
+                        continue  
                     temp_data_canproco["label"] = str(subject)
                     temp_data_canproco["image"] = str(subject).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
                     if os.path.exists(temp_data_canproco["label"]) and os.path.exists(temp_data_canproco["image"]):
