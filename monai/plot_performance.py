@@ -50,9 +50,18 @@ def main():
     # Add the contrats column 
     test_dice_results['contrast'] = test_dice_results['name'].apply(lambda x: x.split('_')[-1])
 
-    # plot a violin plot per contrast
+    # Count the number of samples per contrast
+    contrast_counts = test_dice_results['contrast'].value_counts()
+    
+    # In the df replace the contrats by the number of samples of the contarsts( for example, T2 becomes T2 (n=10))
+    test_dice_results['contrast'] = test_dice_results['contrast'].apply(lambda x: x + f' (n={contrast_counts[x]})')
+
+    # plot a violin plot per contrast 
     plt.figure(figsize=(20, 10))
+    plt.grid(True)
     sns.violinplot(x='contrast', y='dice_score', data=test_dice_results)
+    # y ranges from -0.2 to 1.2
+    plt.ylim(-0.2, 1.2)
     plt.title('Dice scores per contrast')
     plt.show()
 

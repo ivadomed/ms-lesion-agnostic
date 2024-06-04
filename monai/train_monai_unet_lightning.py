@@ -145,7 +145,7 @@ class Model(pl.LightningModule):
                 Spacingd(
                     keys=["image", "label"],
                     pixdim=self.cfg["pixdim"],
-                    mode=(2, 1),
+                    mode=(2, 0),
                 ),
                 # Normalize the intensity of the image
                 NormalizeIntensityd(
@@ -220,7 +220,7 @@ class Model(pl.LightningModule):
                 # RandLambdad(
                 #     keys='image',
                 #     func=multiply_by_negative_one,
-                #     prob=self.cfg["DA_probability"]
+                #     prob=0.5
                 #     ),
                 # LabelToContourd(
                 #     keys=["image"],
@@ -265,7 +265,7 @@ class Model(pl.LightningModule):
                 Spacingd(
                     keys=["image", "label"],
                     pixdim=self.cfg["pixdim"],
-                    mode=(2, 1),
+                    mode=(2, 0),
                 ),
                 # This normalizes the intensity of the image
                 NormalizeIntensityd(

@@ -7,6 +7,7 @@
 # data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake_sc.json
 # data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-03-13_seed42_canproco.json
 data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-04-05_seed42_lesionOnly.json
+# data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-04-17_seed42_lesionOnly.json
 
 # Resampling resolution
 # pixdim : [1.0, 1.0, 1.0]
@@ -21,12 +22,12 @@ batch_size : 4 # smaller batch size lead to better generalization https://arxiv.
 DA_probability : 0.2
 
 # Optimizer parameters
-lr : 0.001
+lr : 0.0001
 weight_decay: 0.00001
-early_stopping_patience : 100
+early_stopping_patience : 50
 
 # Training parameters
-max_iterations : 1000
+max_iterations : 250
 eval_num : 2
 
 # Outputs
