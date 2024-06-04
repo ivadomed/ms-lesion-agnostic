@@ -217,14 +217,31 @@ def lesion_f1_score(truth, prediction):
         return f1_score
 
 
-def lesion_wise_precision_recall(prediction, groundtruth, iou_threshold=0.1):
+def remove_small_lesions(lesion_seg, resolution, min_volume=50):
     """
-    This function computes the lesion-wise precision and recall.
+    Remove lesions which are smaller than a given volume threshold.
 
     Args:
-        prediction: predicted segmentation mask
-        groundtruth: ground truth segmentation mask
-        iou_threshold: threshold for intersection over union (IoU) for a lesion to be considered as true positive
+        predictions (ndarray or nibabel object): Input segmentation. Image could be 2D or 3D.
+        resolution (list): Resolution of the image (Example: [1, 1, 1]) in mm
+        min_volume (float): Minimum volume of the lesion to be kept. in mm3 (Default is 5 voxels in canproco = 5*0.7*0.7*3=7.35 )
+
+    Returns:
+        ndarray or nibabel (same object as the input).
+    """
+    # Find number of closed objects using skimage "label"
+    labeled_obj, num_obj = ndimage.label(np.copy(lesion_seg))
+    # Compute the volume of each object
+    obj_volume = np.zeros(num_obj)
+    for i in range(num_obj):
+        obj_volume[i] = np.sum(labeled_obj == i+1)*np.prod(resolution)
+    # Remove objects with volume less than min_volume
+    lesion_seg = np.copy(lesion_seg)
+    for i in range(num_obj):
+        if obj_volume[i] < min_volume:
+            lesion_seg[labeled_obj == i+1] = 0
+    labeled_obj, num_obj = ndimage.label(lesion_seg)
+    return lesion_seg
 
 
 # def lesion_wise_precision_recall(prediction, groundtruth, iou_threshold=0.1):
