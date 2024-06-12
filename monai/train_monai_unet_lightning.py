@@ -52,11 +52,15 @@ from monai.transforms import (
     Rand3DElasticd,
     RandSimulateLowResolutiond,
     RandBiasFieldd,
-    RandAffined 
+    RandAffined,
+    RandSpatialCropd 
 )
 from monai.utils import set_determinism
 from monai.inferers import sliding_window_inference
 from monai.data import (DataLoader, CacheDataset, load_decathlon_datalist, decollate_batch)
+
+# Adding Mednext model
+from nnunet_mednext import MedNeXt
 
 # Added this because of following warning received:
 ## You are using a CUDA device ('NVIDIA RTX A6000') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')`
@@ -160,17 +164,23 @@ class Model(pl.LightningModule):
                 #     source_key="label",
                 #     margin=200
                 # ),
-                # # This crops the image around a foreground object of label with ratio pos/(pos+neg) (however, it cannot pad so keeping padding after)
-                # RandCropByPosNegLabeld(
+                # This crops the image around a foreground object of label with ratio pos/(pos+neg) (however, it cannot pad so keeping padding after)
+                RandCropByPosNegLabeld(
+                    keys=["image", "label"],
+                    label_key="label",
+                    spatial_size=self.cfg["spatial_size"],
+                    pos=1,
+                    neg=0,
+                    num_samples=4,
+                    image_key="image",
+                    image_threshold=0,
+                    allow_smaller=True,
+                ),
+                # # Crop random areas of the image and label
+                # RandSpatialCropd(
                 #     keys=["image", "label"],
-                #     label_key="label",
-                #     spatial_size=self.cfg["spatial_size"],
-                #     pos=1,
-                #     neg=0,
-                #     num_samples=4,
-                #     image_key="image",
-                #     image_threshold=0,
-                #     allow_smaller=True,
+                #     roi_size=self.cfg["spatial_size"],
+                #     random_size=False,
                 # ),
                 # This resizes the image and the label to the spatial size defined in the config
                 ResizeWithPadOrCropd(
@@ -255,12 +265,12 @@ class Model(pl.LightningModule):
                 #     threshold_values=True,
                 #     logit_thresh=0.2,
                 # ),
-                # Remove small lesions in the label
-                RandLambdad(
-                    keys='label',
-                    func=lambda label: remove_small_lesions(label, self.cfg["pixdim"]),
-                    prob=1.0
-                )
+                # # Remove small lesions in the label
+                # RandLambdad(
+                #     keys='label',
+                #     func=lambda label: remove_small_lesions(label, self.cfg["pixdim"]),
+                #     prob=1.0
+                # )
             ]
         )
         val_transforms = Compose(
@@ -309,12 +319,12 @@ class Model(pl.LightningModule):
                 #     threshold_values=True,
                 #     logit_thresh=0.2,
                 # )
-                # Remove small lesions in the label
-                RandLambdad(
-                    keys='label',
-                    func=lambda label: remove_small_lesions(label, self.cfg["pixdim"]),
-                    prob=1.0
-                )
+                # # Remove small lesions in the label
+                # RandLambdad(
+                #     keys='label',
+                #     func=lambda label: remove_small_lesions(label, self.cfg["pixdim"]),
+                #     prob=1.0
+                # )
             ]
         )
         
@@ -340,12 +350,12 @@ class Model(pl.LightningModule):
                     orig_keys=["image", "label"], 
                     meta_keys=["pred_meta_dict", "label_meta_dict"],
                     nearest_interp=False, to_tensor=True),
-            # Remove small lesions in the label
-            RandLambdad(
-                keys='label',
-                func=lambda label: remove_small_lesions(label, self.cfg["pixdim"]),
-                prob=1.0
-            )
+            # # Remove small lesions in the label
+            # RandLambdad(
+            #     keys='label',
+            #     func=lambda label: remove_small_lesions(label, self.cfg["pixdim"]),
+            #     prob=1.0
+            # )
             ])
         self.test_ds = CacheDataset(data=test_files, transform=transforms_test, cache_rate=0.1, num_workers=4)
 
@@ -725,6 +735,19 @@ def main():
     #     feature_size=48,
     #     use_checkpoint=True,
     # )
+
+    net = MedNeXt(
+            in_channels=1,
+            n_channels=16,
+            n_classes=1,
+            exp_r=2,
+            kernel_size=3,
+            do_res=True,
+            do_res_up_down=True,
+            checkpoint_style="outside_block",
+            block_counts=[2,2,2,2,1,1,1,1,1]
+        )
+
 
     # net.use_multiprocessing = False
 
