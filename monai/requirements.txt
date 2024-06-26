@@ -5,3 +5,4 @@ torchvision
 matplotlib
 pytorch_lightning
 cupy-cuda117==10.6.0
+loguru
