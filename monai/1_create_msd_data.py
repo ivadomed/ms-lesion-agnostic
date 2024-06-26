@@ -7,6 +7,7 @@ Arguments:
     -po, --path-out: Path to the output directory where dataset json is saved
     --lesion-only: Use only masks which contain some lesions
     --seed: Seed for reproducibility
+    --canproco-exclude: Path to the file containing the list of subjects to exclude from CanProCo
 
 Example:
     python 1_create_msd_data.py -pd /path/dataset -po /path/output --lesion-only --seed 42 --canproco-exclude /path/exclude_list.txt
@@ -97,15 +98,17 @@ def main():
     seed = args.seed
 
     # Get all subjects
-    canproco_path = Path(os.path.join(root, "canproco"))
     basel_path = Path(os.path.join(root, "basel-mp2rage"))
-    bavaria_path = Path(os.path.join(root, "bavaria-quebec-spine-ms"))
+    bavaria_path = Path(os.path.join(root, "bavaria-quebec-spine-ms-unstitched"))
+    canproco_path = Path(os.path.join(root, "canproco"))
+    nih_path = Path(os.path.join(root, "nih-ms-mp2rage"))
     sct_testing_path = Path(os.path.join(root, "sct-testing-large"))
 
-    subjects_canproco = list(canproco_path.rglob('*_lesion-manual.nii.gz'))
-    subjects_basel = list(basel_path.rglob('*UNIT1.nii.gz'))
-    subjects_sct = list(sct_testing_path.rglob('*_lesion-manual.nii.gz'))
-    subjects_bavaria = list(bavaria_path.rglob('*_lesion-manual.nii.gz'))
+    derivatives_basel = list(basel_path.rglob('*_desc-rater3_label-lesion_seg.nii.gz'))
+    derivatives_bavaria = list(bavaria_path.rglob('*_lesion-manual.nii.gz'))
+    derivatives_canproco = list(canproco_path.rglob('*_lesion-manual.nii.gz'))
+    derivatives_nih = list(nih_path.rglob('*_label-lesion_seg.nii.gz'))
+    derivatives_sct = list(sct_testing_path.rglob('*_lesion-manual.nii.gz'))
 
     # Path to the file containing the list of subjects to exclude from CanProCo
     if args.canproco_exclude is not None:
@@ -114,19 +117,19 @@ def main():
     # only keep the contrast psir and stir
     canproco_exclude_list = canproco_exclude_list['PSIR'] + canproco_exclude_list['STIR']
 
-    subjects = subjects_canproco + subjects_basel + subjects_sct + subjects_bavaria
-    # logger.info(f"Total number of subjects in the root directory: {len(subjects)}")
+    derivatives = derivatives_basel + derivatives_bavaria + derivatives_canproco + derivatives_nih + derivatives_sct
+    logger.info(f"Total number of derivatives in the root directory: {len(derivatives)}")
 
     # create one json file with 60-20-20 train-val-test split
     train_ratio, val_ratio, test_ratio = 0.6, 0.2, 0.2
-    train_subjects, test_subjects = train_test_split(subjects, test_size=test_ratio, random_state=args.seed)
+    train_derivatives, test_derivatives = train_test_split(derivatives, test_size=test_ratio, random_state=args.seed)
     # Use the training split to further split into training and validation splits
-    train_subjects, val_subjects = train_test_split(train_subjects, test_size=val_ratio / (train_ratio + val_ratio),
+    train_derivatives, val_derivatives = train_test_split(train_derivatives, test_size=val_ratio / (train_ratio + val_ratio),
                                                     random_state=args.seed, )
     # sort the subjects
-    train_subjects = sorted(train_subjects)
-    val_subjects = sorted(val_subjects)
-    test_subjects = sorted(test_subjects)
+    train_derivatives = sorted(train_derivatives)
+    val_derivatives = sorted(val_derivatives)
+    test_derivatives = sorted(test_derivatives)
 
     # logger.info(f"Number of training subjects: {len(train_subjects)}")
     # logger.info(f"Number of validation subjects: {len(val_subjects)}")
@@ -134,7 +137,7 @@ def main():
 
     # dump train/val/test splits into a yaml file
     with open(f"{args.path_out}/data_split_{str(date.today())}_seed{seed}.yaml", 'w') as file:
-        yaml.dump({'train': train_subjects, 'val': val_subjects, 'test': test_subjects}, file, indent=2, sort_keys=True)
+        yaml.dump({'train': train_derivatives, 'val': val_derivatives, 'test': test_derivatives}, file, indent=2, sort_keys=True)
 
     # keys to be defined in the dataset_0.json
     params = {}
@@ -152,45 +155,31 @@ def main():
     params["reference"] = "NeuroPoly"
     params["tensorImageSize"] = "3D"
 
-    train_subjects_dict = {"train": train_subjects}
-    val_subjects_dict = {"validation": val_subjects}
-    test_subjects_dict =  {"test": test_subjects}
-    all_subjects_list = [train_subjects_dict, val_subjects_dict, test_subjects_dict]
+    train_derivatives_dict = {"train": train_derivatives}
+    val_derivatives_dict = {"validation": val_derivatives}
+    test_derivatives_dict =  {"test": test_derivatives}
+    all_derivatives_list = [train_derivatives_dict, val_derivatives_dict, test_derivatives_dict]
 
     # iterate through the train/val/test splits and add those which have both image and label
-    for subjects_dict in tqdm(all_subjects_list, desc="Iterating through train/val/test splits"):
+    for derivatives_dict in tqdm(all_derivatives_list, desc="Iterating through train/val/test splits"):
 
-        for name, subs_list in subjects_dict.items():
+        for name, derivs_list in derivatives_dict.items():
 
             temp_list = []
-            for subject_no, subject in enumerate(subs_list):
+            for subject_no, derivative in enumerate(derivs_list):
 
-                temp_data_canproco = {}
-                temp_data_basel = {}
-                temp_data_sct = {}
-                temp_data_bavaria = {}
-
-                # Canproco
-                if 'canproco' in str(subject):
-                    subject_id = subject.name.replace('_PSIR_lesion-manual.nii.gz', '')
-                    subject_id = subject_id.replace('_STIR_lesion-manual.nii.gz', '')
-                    if subject_id in canproco_exclude_list:
-                        continue  
-                    temp_data_canproco["label"] = str(subject)
-                    temp_data_canproco["image"] = str(subject).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
-                    if os.path.exists(temp_data_canproco["label"]) and os.path.exists(temp_data_canproco["image"]):
-                        total_lesion_volume, nb_lesions = count_lesion(temp_data_canproco["label"])
-                        temp_data_canproco["total_lesion_volume"] = total_lesion_volume
-                        temp_data_canproco["nb_lesions"] = nb_lesions
-                        if args.lesion_only and nb_lesions == 0:
-                            continue
-                        temp_list.append(temp_data_canproco)
                 
+                temp_data_basel = {}
+                temp_data_bavaria = {}
+                temp_data_canproco = {}
+                temp_data_nih = {}
+                temp_data_sct = {}
+
                 # Basel
-                elif 'basel-mp2rage' in str(subject):
-                    relative_path = subject.relative_to(basel_path).parent
-                    temp_data_basel["image"] = str(subject)
-                    temp_data_basel["label"] = str(basel_path) + '/derivatives/labels/' +  str(relative_path) +'/'+ str(subject.name).replace('UNIT1.nii.gz', 'UNIT1_desc-rater3_label-lesion_seg.nii.gz')
+                if 'basel-mp2rage' in str(derivative):
+                    relative_path = derivative.relative_to(basel_path).parent
+                    temp_data_basel["label"] = str(derivative)
+                    temp_data_basel["image"] = str(derivative).replace('_desc-rater3_label-lesion_seg.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
                     if os.path.exists(temp_data_basel["label"]) and os.path.exists(temp_data_basel["image"]):
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_basel["label"])
                         temp_data_basel["total_lesion_volume"] = total_lesion_volume
@@ -199,23 +188,10 @@ def main():
                             continue
                         temp_list.append(temp_data_basel)
 
-                # sct-testing-large
-                elif 'sct-testing-large' in str(subject):
-                    temp_data_sct["label"] = str(subject)
-                    temp_data_sct["image"] = str(subject).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
-                    if os.path.exists(temp_data_sct["label"]) and os.path.exists(temp_data_sct["image"]):
-                        total_lesion_volume, nb_lesions = count_lesion(temp_data_sct["label"])
-                        temp_data_sct["total_lesion_volume"] = total_lesion_volume
-                        temp_data_sct["nb_lesions"] = nb_lesions
-                        if args.lesion_only and nb_lesions == 0:
-                            continue
-                        temp_list.append(temp_data_sct)
-                        
-
                 # Bavaria-quebec
-                elif 'bavaria-quebec-spine-ms' in str(subject):
-                    temp_data_bavaria["label"] = str(subject)
-                    temp_data_bavaria["image"] = str(subject).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                elif 'bavaria-quebec-spine-ms' in str(derivative):
+                    temp_data_bavaria["label"] = str(derivative)
+                    temp_data_bavaria["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
                     if os.path.exists(temp_data_bavaria["label"]) and os.path.exists(temp_data_bavaria["image"]):
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_bavaria["label"])
                         temp_data_bavaria["total_lesion_volume"] = total_lesion_volume
@@ -224,6 +200,46 @@ def main():
                             continue
                         temp_list.append(temp_data_bavaria)
                 
+                # Canproco
+                elif 'canproco' in str(derivative):
+                    subject_id = derivative.name.replace('_PSIR_lesion-manual.nii.gz', '')
+                    subject_id = subject_id.replace('_STIR_lesion-manual.nii.gz', '')
+                    if subject_id in canproco_exclude_list:
+                        continue  
+                    temp_data_canproco["label"] = str(derivative)
+                    temp_data_canproco["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    if os.path.exists(temp_data_canproco["label"]) and os.path.exists(temp_data_canproco["image"]):
+                        total_lesion_volume, nb_lesions = count_lesion(temp_data_canproco["label"])
+                        temp_data_canproco["total_lesion_volume"] = total_lesion_volume
+                        temp_data_canproco["nb_lesions"] = nb_lesions
+                        if args.lesion_only and nb_lesions == 0:
+                            continue
+                        temp_list.append(temp_data_canproco)
+
+                # nih-ms-mp2rage
+                elif 'nih-ms-mp2rage' in str(derivative):
+                    temp_data_nih["label"] = str(derivative)
+                    temp_data_nih["image"] = str(derivative).replace('_label-lesion_seg.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    if os.path.exists(temp_data_nih["label"]) and os.path.exists(temp_data_nih["image"]):
+                        total_lesion_volume, nb_lesions = count_lesion(temp_data_nih["label"])
+                        temp_data_nih["total_lesion_volume"] = total_lesion_volume
+                        temp_data_nih["nb_lesions"] = nb_lesions
+                        if args.lesion_only and nb_lesions == 0:
+                            continue
+                        temp_list.append(temp_data_nih)
+
+                # sct-testing-large
+                elif 'sct-testing-large' in str(derivative):
+                    temp_data_sct["label"] = str(derivative)
+                    temp_data_sct["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    if os.path.exists(temp_data_sct["label"]) and os.path.exists(temp_data_sct["image"]):
+                        total_lesion_volume, nb_lesions = count_lesion(temp_data_sct["label"])
+                        temp_data_sct["total_lesion_volume"] = total_lesion_volume
+                        temp_data_sct["nb_lesions"] = nb_lesions
+                        if args.lesion_only and nb_lesions == 0:
+                            continue
+                        temp_list.append(temp_data_sct)
+                        
             params[name] = temp_list
             logger.info(f"Number of images in {name} set: {len(temp_list)}")
     params["numTest"] = len(params["test"])
