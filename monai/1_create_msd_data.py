@@ -107,7 +107,7 @@ def main():
     derivatives_basel = list(basel_path.rglob('*_desc-rater3_label-lesion_seg.nii.gz'))
     derivatives_bavaria = list(bavaria_path.rglob('*_lesion-manual.nii.gz'))
     derivatives_canproco = list(canproco_path.rglob('*_lesion-manual.nii.gz'))
-    derivatives_nih = list(nih_path.rglob('*_label-lesion_seg.nii.gz'))
+    derivatives_nih = list(nih_path.rglob('*_desc-rater1_label-lesion_seg.nii.gz'))
     derivatives_sct = list(sct_testing_path.rglob('*_lesion-manual.nii.gz'))
 
     # Path to the file containing the list of subjects to exclude from CanProCo
@@ -219,7 +219,7 @@ def main():
                 # nih-ms-mp2rage
                 elif 'nih-ms-mp2rage' in str(derivative):
                     temp_data_nih["label"] = str(derivative)
-                    temp_data_nih["image"] = str(derivative).replace('_label-lesion_seg.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    temp_data_nih["image"] = str(derivative).replace('_desc-rater1_label-lesion_seg.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
                     if os.path.exists(temp_data_nih["label"]) and os.path.exists(temp_data_nih["image"]):
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_nih["label"])
                         temp_data_nih["total_lesion_volume"] = total_lesion_volume
