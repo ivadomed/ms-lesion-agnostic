@@ -92,26 +92,22 @@ def get_orientation(image_path):
         orientation : str : Orientation of the image
     """
     img = Image(str(image_path))
+    img.change_orientation('RPI')
+    # Get pixdim
     pixdim = img.dim[4:7]
-    # if all pixdim are the same than, the image orientation is isotropic (a small threshold is used)
+    # If all are the same, the image is isotropic
     if np.allclose(pixdim, pixdim[0], atol=1e-3):
         orientation = 'iso'
-        print("orientation", orientation)
         return orientation
-    # Get arg of 2 lowest pixdim
-    arg = np.argsort(pixdim)[:2]
-    # Get corresponding orientation letters
-    orientation = ''.join([img.orientation[i] for i in arg])
-    # print("orientation", orientation)
-    # if A-P and L-R : orientation is axial
-    if  orientation in ['AL', 'LA', 'AR', 'RA', 'PL', 'LP', 'PR', 'RP']:
-        orientation = 'ax'
-    # elif A-P and I-S: orientation is sagittal
-    elif orientation in ['AI', 'IA', 'AS', 'SA', 'PI', 'IP', 'PS', 'SP']:
+    # Elif, the lowest arg is 0 then the orientation is sagittal
+    elif np.argmax(pixdim) == 0:
         orientation = 'sag'
-    # Finaly for coronal: I-S and L-R
-    else:
+    # Elif, the lowest arg is 1 then the orientation is coronal
+    elif np.argmax(pixdim) == 1:
         orientation = 'cor'
+    # Else the orientation is axial
+    else:
+        orientation = 'ax'
     return orientation
 
 
