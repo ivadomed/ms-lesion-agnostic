@@ -30,6 +30,7 @@ from pathlib import Path
 import nibabel as nib
 import numpy as np
 import skimage
+from utils.image import Image
 
 
 def get_parser():
@@ -78,6 +79,40 @@ def count_lesion(label_file):
     _, nb_lesions = skimage.measure.label(label_data, connectivity=2, return_num=True)
     
     return  total_volume, nb_lesions
+
+
+def get_orientation(image_path):
+    """
+    This function takes an image file as input and returns its orientation.
+
+    Input:
+        image_path : str : Path to the image file
+
+    Returns:
+        orientation : str : Orientation of the image
+    """
+    img = Image(str(image_path))
+    pixdim = img.dim[4:7]
+    # if all pixdim are the same than, the image orientation is isotropic (a small threshold is used)
+    if np.allclose(pixdim, pixdim[0], atol=1e-3):
+        orientation = 'iso'
+        print("orientation", orientation)
+        return orientation
+    # Get arg of 2 lowest pixdim
+    arg = np.argsort(pixdim)[:2]
+    # Get corresponding orientation letters
+    orientation = ''.join([img.orientation[i] for i in arg])
+    # print("orientation", orientation)
+    # if A-P and L-R : orientation is axial
+    if  orientation in ['AL', 'LA', 'AR', 'RA', 'PL', 'LP', 'PR', 'RP']:
+        orientation = 'ax'
+    # elif A-P and I-S: orientation is sagittal
+    elif orientation in ['AI', 'IA', 'AS', 'SA', 'PI', 'IP', 'PS', 'SP']:
+        orientation = 'sag'
+    # Finaly for coronal: I-S and L-R
+    else:
+        orientation = 'cor'
+    return orientation
 
 
 def main():
@@ -184,6 +219,9 @@ def main():
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_basel["label"])
                         temp_data_basel["total_lesion_volume"] = total_lesion_volume
                         temp_data_basel["nb_lesions"] = nb_lesions
+                        temp_data_basel["site"]='basel'
+                        temp_data_basel["contrast"] = str(derivative).replace('_desc-rater3_label-lesion_seg.nii.gz', '.nii.gz').split('_')[-1]
+                        temp_data_basel["orientation"] = get_orientation(temp_data_basel["image"])
                         if args.lesion_only and nb_lesions == 0:
                             continue
                         temp_list.append(temp_data_basel)
@@ -196,6 +234,9 @@ def main():
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_bavaria["label"])
                         temp_data_bavaria["total_lesion_volume"] = total_lesion_volume
                         temp_data_bavaria["nb_lesions"] = nb_lesions
+                        temp_data_bavaria["site"]='bavaria-quebec'
+                        temp_data_bavaria["contrast"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+                        temp_data_bavaria["orientation"] = get_orientation(temp_data_bavaria["image"])
                         if args.lesion_only and nb_lesions == 0:
                             continue
                         temp_list.append(temp_data_bavaria)
@@ -212,6 +253,9 @@ def main():
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_canproco["label"])
                         temp_data_canproco["total_lesion_volume"] = total_lesion_volume
                         temp_data_canproco["nb_lesions"] = nb_lesions
+                        temp_data_canproco["site"]='canproco'
+                        temp_data_canproco["contrast"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+                        temp_data_canproco["orientation"] = get_orientation(temp_data_canproco["image"])
                         if args.lesion_only and nb_lesions == 0:
                             continue
                         temp_list.append(temp_data_canproco)
@@ -224,6 +268,9 @@ def main():
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_nih["label"])
                         temp_data_nih["total_lesion_volume"] = total_lesion_volume
                         temp_data_nih["nb_lesions"] = nb_lesions
+                        temp_data_nih["site"]='nih'
+                        temp_data_nih["contrast"] = str(derivative).replace('_desc-rater1_label-lesion_seg.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+                        temp_data_nih["orientation"] = get_orientation(temp_data_nih["image"])
                         if args.lesion_only and nb_lesions == 0:
                             continue
                         temp_list.append(temp_data_nih)
@@ -236,6 +283,9 @@ def main():
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_sct["label"])
                         temp_data_sct["total_lesion_volume"] = total_lesion_volume
                         temp_data_sct["nb_lesions"] = nb_lesions
+                        temp_data_sct["site"]='sct-testing-large'
+                        temp_data_sct["contrast"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+                        temp_data_sct["orientation"] = get_orientation(temp_data_sct["image"])
                         if args.lesion_only and nb_lesions == 0:
                             continue
                         temp_list.append(temp_data_sct)
