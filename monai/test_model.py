@@ -169,7 +169,7 @@ def main():
             pred_saver(pred)
 
             # Save the dice score
-            dice_scores[file_name] = dice
+            dice_scores[test_files[i]["image"]] = dice
 
             test_input.detach()
 
