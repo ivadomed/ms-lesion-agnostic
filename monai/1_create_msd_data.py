@@ -216,7 +216,7 @@ def main():
                         temp_data_basel["total_lesion_volume"] = total_lesion_volume
                         temp_data_basel["nb_lesions"] = nb_lesions
                         temp_data_basel["site"]='basel'
-                        temp_data_basel["contrast"] = str(derivative).replace('_desc-rater3_label-lesion_seg.nii.gz', '.nii.gz').split('_')[-1]
+                        temp_data_basel["contrast"] = str(derivative).replace('_desc-rater3_label-lesion_seg.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
                         temp_data_basel["orientation"] = get_orientation(temp_data_basel["image"])
                         if args.lesion_only and nb_lesions == 0:
                             continue
