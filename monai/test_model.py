@@ -20,7 +20,7 @@ from monai.networks.nets import AttentionUnet
 import torch
 from monai.inferers import sliding_window_inference
 import torch.nn.functional as F
-from utils import dice_score
+from utils.utils import dice_score
 import argparse
 import yaml
 import torch.multiprocessing
@@ -78,7 +78,7 @@ def main():
                     Spacingd(
                         keys=["image", "label"],
                         pixdim=cfg["pixdim"],
-                        mode=(2, 1),
+                        mode=(2, 0),
                     ),
                     NormalizeIntensityd(
                         keys=["image"], 
