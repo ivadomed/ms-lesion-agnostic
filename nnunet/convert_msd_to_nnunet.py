@@ -100,6 +100,13 @@ def main():
         # Update the conversion dict
         conversion_dict[str(os.path.abspath(img_dict['image']))] = image_file_nnunet
         conversion_dict[str(os.path.abspath(img_dict['label']))] = label_file_nnunet
+
+        # For each label fils, we reorient them to the same orientation as the image using sct_register_multimodal -identity 1
+        os.system(f"sct_register_multimodal -i {str(img_dict['label'])} -d {str(img_dict['image'])} -identity 1 -o {str(img_dict['label'])} -owarp file_to_delete.nii.gz -owarpinv file_to_delete_2.nii.gz ")
+        # Remove the other useless files
+        os.system("rm file_to_delete.nii.gz file_to_delete_2.nii.gz")
+        other_file_to_remove = str(img_dict['label']).replace('.nii.gz', '_inv.nii.gz')
+        os.system(f"rm {other_file_to_remove}")
     
     # Iterate over all test images
     for img_dict in tqdm.tqdm(test_data):
@@ -124,6 +131,13 @@ def main():
         # Update the conversion dict
         conversion_dict[str(os.path.abspath(img_dict['image']))] = image_file_nnunet
         conversion_dict[str(os.path.abspath(img_dict['label']))] = label_file_nnunet
+
+        # For each label fils, we reorient them to the same orientation as the image using sct_register_multimodal -identity 1
+        os.system(f"sct_register_multimodal -i {str(img_dict['label'])} -d {str(img_dict['image'])} -identity 1 -o {str(img_dict['label'])} -owarp file_to_delete.nii.gz -owarpinv file_to_delete_2.nii.gz ")
+        # Remove the other useless files
+        os.system("rm file_to_delete.nii.gz file_to_delete_2.nii.gz")
+        other_file_to_remove = str(img_dict['label']).replace('.nii.gz', '_inv.nii.gz')
+        os.system(f"rm {other_file_to_remove}")
 
     # Display of number of training and number of testing images
     print("Number of images for training: " + str(scan_cnt_train))
