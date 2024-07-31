@@ -107,6 +107,10 @@ def main():
         os.system("rm file_to_delete.nii.gz file_to_delete_2.nii.gz")
         other_file_to_remove = str(label_file_nnunet).replace('.nii.gz', '_inv.nii.gz')
         os.system(f"rm {other_file_to_remove}")
+
+        # Then we binarize the label
+        os.system(f"sct_maths -i {str(label_file_nnunet)} -bin 0.5 -o {str(label_file_nnunet)}")
+
     
     # Iterate over all test images
     for img_dict in tqdm.tqdm(test_data):
@@ -136,8 +140,11 @@ def main():
         os.system(f"sct_register_multimodal -i {str(label_file_nnunet)} -d {str(image_file_nnunet)} -identity 1 -o {str(label_file_nnunet)} -owarp file_to_delete.nii.gz -owarpinv file_to_delete_2.nii.gz ")
         # Remove the other useless files
         os.system("rm file_to_delete.nii.gz file_to_delete_2.nii.gz")
-        other_file_to_remove = str(img_dict['label']).replace('.nii.gz', '_inv.nii.gz')
+        other_file_to_remove = str(label_file_nnunet).replace('.nii.gz', '_inv.nii.gz')
         os.system(f"rm {other_file_to_remove}")
+
+        # Then we binarize the label
+        os.system(f"sct_maths -i {str(label_file_nnunet)} -bin 0. -o {str(label_file_nnunet)}")
 
     # Display of number of training and number of testing images
     print("Number of images for training: " + str(scan_cnt_train))
