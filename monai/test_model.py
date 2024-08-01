@@ -103,8 +103,8 @@ def main():
             ])
 
     # Create the data loader
-    test_ds = CacheDataset(data=test_files, transform=test_transforms, cache_rate=0.1, num_workers=4)
-    test_data_loader = DataLoader(test_ds, batch_size=1, shuffle=False, num_workers=1)
+    test_ds = CacheDataset(data=test_files, transform=test_transforms, cache_rate=0.1, num_workers=0)
+    test_data_loader = DataLoader(test_ds, batch_size=1, shuffle=False, num_workers=0)
 
     # Load the model
     net = AttentionUnet(
