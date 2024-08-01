@@ -69,6 +69,8 @@ def main():
                 test_dice_results.loc[test_dice_results['name'] == file, 'contrast'] = data['contrast']
                 test_dice_results.loc[test_dice_results['name'] == file, 'site'] = data['site']
                 test_dice_results.loc[test_dice_results['name'] == file, 'orientation'] = data['orientation']
+                test_dice_results.loc[test_dice_results['name'] == file, 'nb_lesions'] = data['nb_lesions']
+                test_dice_results.loc[test_dice_results['name'] == file, 'total_lesion_volume'] = data['total_lesion_volume']
 
     # Count the number of samples per contrast
     contrast_counts = test_dice_results['contrast'].value_counts()
