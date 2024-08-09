@@ -12,15 +12,16 @@ import pytorch_lightning as pl
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import time
+import torch.multiprocessing
 
 # Added this to solve problem with too many files open 
 ## Link here : https://github.com/pytorch/pytorch/issues/11201#issuecomment-421146936
-import torch.multiprocessing
+## Linke to other issue: https://github.com/sct-pipeline/contrast-agnostic-softseg-spinalcord/issues/59 
 torch.multiprocessing.set_sharing_strategy('file_system')
 
-from losses import AdapWingLoss, SoftDiceLoss
+from utils.losses import AdapWingLoss, SoftDiceLoss
 
-from utils import dice_score, check_empty_patch, multiply_by_negative_one, plot_slices, remove_small_lesions
+from utils.utils import dice_score, check_empty_patch, multiply_by_negative_one, plot_slices, remove_small_lesions
 from monai.networks.nets import UNet, BasicUNet, AttentionUnet, SwinUNETR
 from monai.metrics import DiceMetric
 from monai.losses import DiceLoss, DiceCELoss
@@ -142,11 +143,10 @@ class Model(pl.LightningModule):
         
         # define training and validation transforms
         train_transforms = Compose(
-            [  
+            [
                 LoadImaged(keys=["image", "label"], reader="NibabelReader"),
                 EnsureChannelFirstd(keys=["image", "label"]),
                 Orientationd(keys=["image", "label"], axcodes="RPI"),
-                # This changes the spacing of the image
                 Spacingd(
                     keys=["image", "label"],
                     pixdim=self.cfg["pixdim"],
@@ -158,21 +158,47 @@ class Model(pl.LightningModule):
                     nonzero=False, 
                     channel_wise=False
                 ),
+                # # This crops the image around areas where the mask is non-zero 
+                # # (the margin is added because otherwise the image would be just the size of the lesion)
+                # CropForegroundd(
+                #     keys=["image", "label"],
+                #     source_key="label",
+                #     margin=200
+                # ),
+                # This crops the image around a foreground object of label with ratio pos/(pos+neg) (however, it cannot pad so keeping padding after)
+                RandCropByPosNegLabeld(
+                    keys=["image", "label"],
+                    label_key="label",
+                    spatial_size=self.cfg["spatial_size"],
+                    pos=1,
+                    neg=0,
+                    num_samples=4,
+                    image_key="image",
+                    image_threshold=0,
+                    allow_smaller=True,
+                ),
                 # This resizes the image and the label to the spatial size defined in the config
                 ResizeWithPadOrCropd(
                     keys=["image", "label"],
                     spatial_size=self.cfg["spatial_size"],
                 ),
-                # Spatial transforms
-                # Random rotation of the image
-                RandRotated(
+                # Flips the image : left becomes right
+                RandFlipd(
                     keys=["image", "label"],
-                    range_x=np.pi,
-                    range_y=np.pi,
-                    range_z=np.pi,
+                    spatial_axis=[0],
                     prob=self.cfg["DA_probability"],
-                    keep_size=True,
-                    mode=('bilinear', 'nearest'),
+                ),
+                # Flips the image : supperior becomes inferior
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[1],
+                    prob=self.cfg["DA_probability"],
+                ),
+                # Flips the image : anterior becomes posterior
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[2],
+                    prob=self.cfg["DA_probability"],
                 ),
                 # Random elastic deformation
                 Rand3DElasticd(
@@ -182,15 +208,6 @@ class Model(pl.LightningModule):
                     prob=self.cfg["DA_probability"],
                     mode=['bilinear', 'nearest'],
                 ),
-                # Changes the spacing of the image
-                RandZoomd(
-                    keys=["image", "label"],
-                    prob=self.cfg["DA_probability"],
-                    min_zoom=0.75,
-                    max_zoom=1.25,
-                    mode=('bilinear', 'nearest'),
-                    keep_size=True,
-                ),
                 # Random affine transform of the image
                 RandAffined(
                     keys=["image", "label"],
@@ -198,49 +215,31 @@ class Model(pl.LightningModule):
                     mode=('bilinear', 'nearest'),
                     padding_mode='zeros',
                 ),
-                # Intensity transforms
-                # Random Gaussian noise is added to the image
+                # RandAdjustContrastd(
+                #     keys=["image"],
+                #     prob=self.cfg["DA_probability"],
+                #     gamma=(0.5, 4.5),
+                #     invert_image=True,
+                # ),
+                # # we add the multiplication of the image by -1
+                # RandLambdad(
+                #     keys='image',
+                #     func=multiply_by_negative_one,
+                #     prob=0.5
+                #     ),
+                # LabelToContourd(
+                #     keys=["image"],
+                #     kernel_type='Laplace',
+                # ),
                 RandGaussianNoised(
                     keys=["image"],
                     prob=self.cfg["DA_probability"],
-                    mean=0.0,
-                    std=0.1,
-                ),           
-                # Gaussian blur with RandGaussianSmoothd
-                RandGaussianSmoothd(
-                    keys=["image"],
-                    prob=self.cfg["DA_probability"],
-                    sigma_x=(0.5, 1.),
-                    sigma_y=(0.5, 1.),
-                    sigma_z=(0.5, 1.),
                 ),
-                # Brightness transform: with RandScaleIntensityd
-                RandScaleIntensityd(
-                    keys=["image"],
-                    prob=self.cfg["DA_probability"],
-                    factors=0.25,
-                ),
-                # Contrast transform: with RandAdjustContrastd
-                RandAdjustContrastd(
-                    keys=["image"],
-                    prob=self.cfg["DA_probability"],
-                    invert_image=True,
-                    retain_stats=True,
-                ),
-                # Contrast transform: with RandAdjustContrastd
-                RandAdjustContrastd(
-                    keys=["image"],
-                    prob=self.cfg["DA_probability"],
-                    invert_image=False,
-                    retain_stats=True,
-                ),
-                # Simulate low resolution with RandSimulateLowResolutiond
+                # Random simulation of low resolution 
                 RandSimulateLowResolutiond(
                     keys=["image"],
-                    prob=self.cfg["DA_probability"],
-                    downsample_mode='nearest',
-                    upsample_mode='trilinear',
-                    zoom_range=(0.5, 1.0),
+                    zoom_range=(0.8, 1.5),
+                    prob=self.cfg["DA_probability"]
                 ),
                 # Adding a random bias field which is usefull considering that this sometimes done for image pre-processing
                 RandBiasFieldd(
@@ -249,58 +248,24 @@ class Model(pl.LightningModule):
                     degree=3, 
                     prob=self.cfg["DA_probability"]
                 ),
-                # Binary thresholding of the label
-                AsDiscreted(
-                    keys=["label"],
-                    threshold=0.5,
-                ),
-
-
-                # # This crops the image around areas where the mask is non-zero 
-                # # (the margin is added because otherwise the image would be just the size of the lesion)
-                # CropForegroundd(
-                #     keys=["image", "label"],
-                #     source_key="label",
-                #     margin=200
-                # ),
-                # # This crops the image around a foreground object of label with ratio pos/(pos+neg) (however, it cannot pad so keeping padding after)
-                # RandCropByPosNegLabeld(
-                #     keys=["image", "label"],
-                #     label_key="label",
-                #     spatial_size=self.cfg["spatial_size"],
-                #     pos=1,
-                #     neg=0,
-                #     num_samples=4,
-                #     image_key="image",
-                #     image_threshold=0,
-                #     allow_smaller=True,
-                # ),
-                # Multiplication of image by -1
-                # RandLambdad(
-                #     keys='image',
-                #     func=multiply_by_negative_one,
-                #     prob=0.5
-                #     ),
-                # Takes the laplacian of the image
-                # LabelToContourd(
+                # RandShiftIntensityd(
                 #     keys=["image"],
-                #     kernel_type='Laplace',
+                #     offsets=0.1,
+                #     prob=0.2,
                 # ),
-                
                 # EnsureTyped(keys=["image", "label"]),
-
+                # AsDiscreted(
+                #     keys=["label"],
+                #     num_classes=2,
+                #     threshold_values=True,
+                #     logit_thresh=0.2,
+                # ),
                 # # Remove small lesions in the label
                 # RandLambdad(
                 #     keys='label',
                 #     func=lambda label: remove_small_lesions(label, self.cfg["pixdim"]),
                 #     prob=1.0
                 # )
-
-                # This resizes the image and the label to the spatial size defined in the config
-                ResizeWithPadOrCropd(
-                    keys=["image", "label"],
-                    spatial_size=self.cfg["spatial_size"],
-                ),
             ]
         )
         val_transforms = Compose(
@@ -313,28 +278,50 @@ class Model(pl.LightningModule):
                     pixdim=self.cfg["pixdim"],
                     mode=(2, 0),
                 ),
+                # This normalizes the intensity of the image
                 NormalizeIntensityd(
                     keys=["image"], 
                     nonzero=False, 
                     channel_wise=False
                 ),
+                # CropForegroundd(
+                #     keys=["image", "label"],
+                #     source_key="label",
+                #     margin=150),
+                # RandCropByPosNegLabeld(
+                #     keys=["image", "label"],
+                #     label_key="label",
+                #     spatial_size=self.cfg["spatial_size"],
+                #     pos=1,
+                #     neg=1,
+                #     num_samples=4,
+                #     image_key="image",
+                #     image_threshold=0,
+                #     allow_smaller=True,
+                # ),
                 ResizeWithPadOrCropd(
                     keys=["image", "label"],
                     spatial_size=self.cfg["spatial_size"],
                 ),
-                # Binary thresholding of the label
-                AsDiscreted(
-                    keys=["label"],
-                    threshold=0.5,
-                ),
-                # # This normalizes the intensity of the image
-                # NormalizeIntensityd(
-                #     keys=["image"], 
-                #     nonzero=False, 
-                #     channel_wise=False
+                # LabelToContourd(
+                #     keys=["image"],
+                #     kernel_type='Laplace',
                 # ),
                 # EnsureTyped(keys=["image", "label"]),
+                # AsDiscreted(
+                #     keys=["label"],
+                #     num_classes=2,
+                #     threshold_values=True,
+                #     logit_thresh=0.2,
+                # )
+                # # Remove small lesions in the label
+                # RandLambdad(
+                #     keys='label',
+                #     func=lambda label: remove_small_lesions(label, self.cfg["pixdim"]),
+                #     prob=1.0
+                # )
             ]
+        
         )
         
         # load the dataset
@@ -353,22 +340,22 @@ class Model(pl.LightningModule):
         transforms_test = val_transforms
         
         # Hidden because we don't use it
-        # # define post-processing transforms for testing; taken (with explanations) from 
-        # # https://github.com/Project-MONAI/tutorials/blob/main/3d_segmentation/torch/unet_inference_dict.py#L66
-        # self.test_post_pred = Compose([
-        #     EnsureTyped(keys=["pred", "label"]),
-        #     Invertd(keys=["pred", "label"], transform=transforms_test, 
-        #             orig_keys=["image", "label"], 
-        #             meta_keys=["pred_meta_dict", "label_meta_dict"],
-        #             nearest_interp=False, to_tensor=True),
-        #     # # Remove small lesions in the label
-        #     # RandLambdad(
-        #     #     keys='label',
-        #     #     func=lambda label: remove_small_lesions(label, self.cfg["pixdim"]),
-        #     #     prob=1.0
-        #     # )
-        #     ])
-        # self.test_ds = CacheDataset(data=test_files, transform=transforms_test, cache_rate=0.1, num_workers=4)
+        # define post-processing transforms for testing; taken (with explanations) from 
+        # https://github.com/Project-MONAI/tutorials/blob/main/3d_segmentation/torch/unet_inference_dict.py#L66
+        self.test_post_pred = Compose([
+            EnsureTyped(keys=["pred", "label"]),
+            Invertd(keys=["pred", "label"], transform=transforms_test, 
+                    orig_keys=["image", "label"], 
+                    meta_keys=["pred_meta_dict", "label_meta_dict"],
+                    nearest_interp=False, to_tensor=True),
+            # # Remove small lesions in the label
+            # RandLambdad(
+            #     keys='label',
+            #     func=lambda label: remove_small_lesions(label, self.cfg["pixdim"]),
+            #     prob=1.0
+            # )
+            ])
+        self.test_ds = CacheDataset(data=test_files, transform=transforms_test, cache_rate=0.1, num_workers=4)
 
 
     # --------------------------------
@@ -378,14 +365,16 @@ class Model(pl.LightningModule):
         return DataLoader(self.train_ds, batch_size=self.cfg["batch_size"], shuffle=True, num_workers=8, 
                             pin_memory=True, persistent_workers=True) 
 
+
     def val_dataloader(self):
-        return DataLoader(self.val_ds, batch_size=1, shuffle=False, num_workers=4, pin_memory=True, 
-                          persistent_workers=True)
+        return DataLoader(self.val_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=True, 
+                          persistent_workers=False)
+    
     
     def test_dataloader(self):
         return DataLoader(self.test_ds, batch_size=1, shuffle=False, num_workers=1, pin_memory=True)
-
     
+
     # --------------------------------
     # OPTIMIZATION
     # --------------------------------
@@ -457,6 +446,7 @@ class Model(pl.LightningModule):
 
         return metrics_dict
 
+
     def on_train_epoch_end(self):
 
         if self.train_step_outputs == []:
@@ -516,7 +506,6 @@ class Model(pl.LightningModule):
         
         # calculate validation loss
         loss = self.loss_function(outputs, labels)
-        
         
         # post-process for calculating the evaluation metric
         post_outputs = [self.val_post_pred(i) for i in decollate_batch(outputs)]
@@ -658,6 +647,7 @@ class Model(pl.LightningModule):
 
         return metrics_dict
 
+
     def on_test_epoch_end(self):
         
         avg_hard_dice_test, std_hard_dice_test = np.stack([x["test_hard_dice"] for x in self.test_step_outputs]).mean(), \
@@ -673,6 +663,7 @@ class Model(pl.LightningModule):
         
         # free up memory
         self.test_step_outputs.clear()
+
 
 # --------------------------------
 # MAIN
@@ -748,12 +739,10 @@ def main():
     # )
 
     # net.use_multiprocessing = False
-
     
     # net = BasicUNet(spatial_dims=3, features=(32, 64, 128, 256, 32), out_channels=1)
 
     # net = create_nnunet_from_plans()
-
 
     logger.add(os.path.join(output_path, 'log.txt'), rotation="10 MB", level="INFO")
 
@@ -785,7 +774,6 @@ def main():
     checkpoint_callback_loss = pl.callbacks.ModelCheckpoint(
         dirpath= best_model_path, filename='best_model', monitor='val_loss', 
         save_top_k=1, mode="min", save_last=True, save_weights_only=True)
-    
     
     logger.info(f"Starting training from scratch ...")
     # wandb logger
