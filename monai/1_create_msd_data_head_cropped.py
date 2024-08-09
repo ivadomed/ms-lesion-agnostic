@@ -225,10 +225,6 @@ def main():
     # logger.info(f"Number of validation subjects: {len(val_subjects)}")
     # logger.info(f"Number of testing subjects: {len(test_subjects)}")
 
-    # dump train/val/test splits into a yaml file
-    with open(f"{args.path_out}/data_split_{str(date.today())}_seed{seed}.yaml", 'w') as file:
-        yaml.dump({'train': train_derivatives, 'val': val_derivatives, 'test': test_derivatives}, file, indent=2, sort_keys=True)
-
     # keys to be defined in the dataset_0.json
     params = {}
     params["description"] = "ms-lesion-agnostic"
@@ -387,6 +383,10 @@ def main():
         jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}.json", "w")
     jsonFile.write(final_json)
     jsonFile.close()
+
+    # dump train/val/test splits into a yaml file
+    with open(f"{args.path_out}/data_split_{str(date.today())}_seed{seed}.yaml", 'w') as file:
+        yaml.dump({'train': train_derivatives, 'val': val_derivatives, 'test': test_derivatives}, file, indent=2, sort_keys=True)
 
     return None
 
