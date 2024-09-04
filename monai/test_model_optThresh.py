@@ -25,6 +25,7 @@ import argparse
 import yaml
 import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system')
+import numpy as np
 
 
 def get_parser():
@@ -77,6 +78,9 @@ def main():
     dice_scores_0_7 = {}
     dice_scores_0_8 = {}
     dice_scores_0_9 = {}
+    dice_scores_0_95 = {}
+    dice_scores_0_98 = {}
+    dice_scores_0_99 = {}
 
 
     # Load the data
@@ -160,78 +164,112 @@ def main():
                 batch["pred"] = F.relu(batch["pred"])
 
             # compute the dice score
-            # dice = dice_score(batch["pred"].cpu(), batch["label"].cpu())
+            dice = dice_score(batch["pred"].cpu(), batch["label"].cpu())
 
             # post-process the prediction
             post_test_out = [test_post_pred(i) for i in decollate_batch(batch)]
                 
             pred = post_test_out[0]['pred'].cpu()
+            
+            pred_cpu = batch["pred"].cpu()
+            label_cpu = batch["label"].cpu()
 
             # Threshold the prediction and compute the dice score
-            pred_0 = pred.clone()
+            pred_0 = pred_cpu.clone()
             pred_0[pred_0 < 0.01] = 0
             pred_0[pred_0 >= 0.01] = 1
             dice = dice_score(pred_0, batch["label"].cpu())
+            print(f"For thresh 0 dice score = {dice}")
 
-            pred_0_01 = pred.clone()
+            pred_0_01 = pred_cpu.clone()
             pred_0_01[pred_0_01 < 0.01] = 0
             pred_0_01[pred_0_01 >= 0.01] = 1
             dice_0_01 = dice_score(pred_0_01, batch["label"].cpu())
+            print(f"For thresh 0.01 dice score = {dice_0_01}")
 
-            pred_0_02 = pred.clone()
+            pred_0_02 = pred_cpu.clone()
             pred_0_02[pred_0_02 < 0.02] = 0
             pred_0_02[pred_0_02 >= 0.02] = 1
             dice_0_02 = dice_score(pred_0_02, batch["label"].cpu())
+            print(f"For thresh 0.02 dice score = {dice_0_02}")
 
-            pred_0_05 = pred.clone()
+            pred_0_05 = pred_cpu.clone()
             pred_0_05[pred_0_05 < 0.05] = 0
             pred_0_05[pred_0_05 >= 0.05] = 1
             dice_0_05 = dice_score(pred_0_05, batch["label"].cpu())
+            print(f"For thresh 0.05 dice score = {dice_0_05}")
 
-            pred_0_1 = pred.clone()
+            pred_0_1 = pred_cpu.clone()
             pred_0_1[pred_0_1 < 0.1] = 0
             pred_0_1[pred_0_1 >= 0.1] = 1
             dice_0_1 = dice_score(pred_0_1, batch["label"].cpu())
+            print(f"For thresh 0.1 dice score = {dice_0_1}")
 
-            pred_0_2 = pred.clone()
+            pred_0_2 = pred_cpu.clone()
             pred_0_2[pred_0_2 < 0.2] = 0
             pred_0_2[pred_0_2 >= 0.2] = 1
             dice_0_2 = dice_score(pred_0_2, batch["label"].cpu())
+            print(f"For thresh 0.2 dice score = {dice_0_2}")
 
-            pred_0_3 = pred.clone()
+            pred_0_3 = pred_cpu.clone()
             pred_0_3[pred_0_3 < 0.3] = 0
             pred_0_3[pred_0_3 >= 0.3] = 1
             dice_0_3 = dice_score(pred_0_3, batch["label"].cpu())
+            print(f"For thresh 0.3 dice score = {dice_0_3}")
 
-            pred_0_4 = pred.clone()
+            pred_0_4 = pred_cpu.clone()
             pred_0_4[pred_0_4 < 0.4] = 0
             pred_0_4[pred_0_4 >= 0.4] = 1
             dice_0_4 = dice_score(pred_0_4, batch["label"].cpu())
+            print(f"For thresh 0.4 dice score = {dice_0_4}")
 
-            pred_0_5 = pred.clone()
+            pred_0_5 = pred_cpu.clone()
             pred_0_5[pred_0_5 < 0.5] = 0
             pred_0_5[pred_0_5 >= 0.5] = 1
             dice_0_5 = dice_score(pred_0_5, batch["label"].cpu())
+            print(f"For thresh 0.5 dice score = {dice_0_5}")
 
-            pred_0_6 = pred.clone()
+            pred_0_6 = pred_cpu.clone()
             pred_0_6[pred_0_6 < 0.6] = 0
             pred_0_6[pred_0_6 >= 0.6] = 1
             dice_0_6 = dice_score(pred_0_6, batch["label"].cpu())
+            print(f"For thresh 0.6 dice score = {dice_0_6}")
 
-            pred_0_7 = pred.clone()
+            pred_0_7 = pred_cpu.clone()
             pred_0_7[pred_0_7 < 0.7] = 0
             pred_0_7[pred_0_7 >= 0.7] = 1
             dice_0_7 = dice_score(pred_0_7, batch["label"].cpu())
+            print(f"For thresh 0.7 dice score = {dice_0_7}")
 
-            pred_0_8 = pred.clone()
+            pred_0_8 = pred_cpu.clone()
             pred_0_8[pred_0_8 < 0.8] = 0
             pred_0_8[pred_0_8 >= 0.8] = 1
             dice_0_8 = dice_score(pred_0_8, batch["label"].cpu())
+            print(f"For thresh 0.8 dice score = {dice_0_8}")
 
-            pred_0_9 = pred.clone()
+            pred_0_9 = pred_cpu.clone()
             pred_0_9[pred_0_9 < 0.9] = 0
             pred_0_9[pred_0_9 >= 0.9] = 1
             dice_0_9 = dice_score(pred_0_9, batch["label"].cpu())
+            print(f"For thresh 0.9 dice score = {dice_0_9}")
+
+            pred_0_95 = pred_cpu.clone()
+            pred_0_95[pred_0_95 < 0.95] = 0
+            pred_0_95[pred_0_95 >= 0.95] = 1
+            dice_0_95 = dice_score(pred_0_95, batch["label"].cpu())
+            print(f"For thresh 0.95 dice score = {dice_0_95}")
+
+            pred_0_98 = pred_cpu.clone()
+            pred_0_98[pred_0_98 < 0.98] = 0
+            pred_0_98[pred_0_98 >= 0.98] = 1
+            dice_0_98 = dice_score(pred_0_98, batch["label"].cpu())
+            print(f"For thresh 0.98 dice score = {dice_0_98}")
+        
+            pred_0_99 = pred_cpu.clone()
+            pred_0_99[pred_0_99 < 0.99] = 0
+            pred_0_99[pred_0_99 >= 0.99] = 1
+            dice_0_99 = dice_score(pred_0_99, batch["label"].cpu())
+            print(f"For thresh 0.99 dice score = {dice_0_99}")
             
             # Get file name
             file_name = test_files[i]["image"].split("/")[-1].split(".")[0]
@@ -258,6 +296,9 @@ def main():
             dice_scores_0_7[test_files[i]["image"]] = dice_0_7
             dice_scores_0_8[test_files[i]["image"]] = dice_0_8
             dice_scores_0_9[test_files[i]["image"]] = dice_0_9
+            dice_scores_0_95[test_files[i]["image"]] = dice_0_95
+            dice_scores_0_98[test_files[i]["image"]] = dice_0_98
+            dice_scores_0_99[test_files[i]["image"]] = dice_0_99
 
             test_input.detach()
 
@@ -301,6 +342,15 @@ def main():
             f.write(f"{key}: {value}\n")
     with open(os.path.join(output_dir, "dice_scores_0_9.txt"), "w") as f:
         for key, value in dice_scores_0_9.items():
+            f.write(f"{key}: {value}\n")
+    with open(os.path.join(output_dir, "dice_scores_0_95.txt"), "w") as f:
+        for key, value in dice_scores_0_95.items():
+            f.write(f"{key}: {value}\n")
+    with open(os.path.join(output_dir, "dice_scores_0_98.txt"), "w") as f:
+        for key, value in dice_scores_0_98.items():
+            f.write(f"{key}: {value}\n")
+    with open(os.path.join(output_dir, "dice_scores_0_99.txt"), "w") as f:
+        for key, value in dice_scores_0_99.items():
             f.write(f"{key}: {value}\n")
 
 
