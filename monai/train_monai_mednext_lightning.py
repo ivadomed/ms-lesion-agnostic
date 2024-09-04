@@ -69,6 +69,8 @@ from monai.data import (DataLoader, CacheDataset, load_decathlon_datalist, decol
 ## read https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision
 # torch.set_float32_matmul_precision('medium' | 'high')
 
+# Adding Mednext model
+from nnunet_mednext import MedNeXt
 
 def get_parser():
     """
@@ -172,7 +174,7 @@ class Model(pl.LightningModule):
                     spatial_size=self.cfg["spatial_size"],
                     pos=1,
                     neg=0,
-                    num_samples=4,
+                    num_samples=2,
                     image_key="image",
                     image_threshold=0,
                     allow_smaller=True,
@@ -720,14 +722,14 @@ def main():
     #     dropout=0.1
     # )
 
-    net = AttentionUnet(
-            spatial_dims=3,
-            in_channels=1,
-            out_channels=1,
-            channels=config["attention_unet_channels"],
-            strides=config["attention_unet_strides"],
-            dropout=0.1,
-    )
+    # net = AttentionUnet(
+    #         spatial_dims=3,
+    #         in_channels=1,
+    #         out_channels=1,
+    #         channels=config["attention_unet_channels"],
+    #         strides=config["attention_unet_strides"],
+    #         dropout=0.1,
+    # )
 
     # net = SwinUNETR(
     #     img_size=config["spatial_size"],
@@ -737,6 +739,18 @@ def main():
     #     feature_size=48,
     #     use_checkpoint=True,
     # )
+
+    net = MedNeXt(
+            in_channels=1,
+            n_channels=32,
+            n_classes=1,
+            exp_r=2,
+            kernel_size=3,
+            do_res=True,
+            do_res_up_down=True,
+            checkpoint_style="outside_block",
+            block_counts=[2,2,2,2,1,1,1,1,1]
+        )
 
     # net.use_multiprocessing = False
     
