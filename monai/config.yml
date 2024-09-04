@@ -9,6 +9,8 @@
 # data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-04-05_seed42_lesionOnly.json
 # data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-04-17_seed42_lesionOnly.json
 data: /home/plbenveniste/net/ms-lesion-agnostic/msd_data/dataset_2024-06-26_seed42_lesionOnly.json
+# data: /home/plbenveniste/net/ms-lesion-agnostic/msd_data/dataset_2024-08-13_seed42_lesionOnly.json
+# data: /home/plbenveniste/net/ms-lesion-agnostic/msd_data/fake.json
 
 # Resampling resolution
 # pixdim : [1.0, 1.0, 1.0]
@@ -34,6 +36,7 @@ eval_num : 2
 # Outputs
 # output_path : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
 output_path : /home/plbenveniste/net/ms-lesion-agnostic/results/
+# output_path : /home/plbenveniste/net/ms-lesion-agnostic/results_cropped_head/
 
 # Seed
 seed : 42
