@@ -10,3 +10,4 @@ loguru==0.7.2
 wandb==0.15.12
 dynamic-network-architectures==0.2
 seaborn==0.13.2
+monai-generative==0.2.3
