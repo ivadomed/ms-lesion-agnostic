@@ -85,10 +85,10 @@ def main():
                         nonzero=False, 
                         channel_wise=False
                     ),
-                    ResizeWithPadOrCropd(
-                        keys=["image", "label"],
-                        spatial_size=cfg["spatial_size"],
-                    ),
+                    # ResizeWithPadOrCropd(
+                    #     keys=["image", "label"],
+                    #     spatial_size=cfg["spatial_size"],
+                    # ),
                 ]
             )
 
@@ -159,7 +159,7 @@ def main():
             
             # Get file name
             file_name = test_files[i]["image"].split("/")[-1].split(".")[0]
-            print(f"Saving {file_name}")
+            print(f"Saving {file_name}: dice score = {dice}")
 
             # Save the prediction
             pred_saver = SaveImage(
