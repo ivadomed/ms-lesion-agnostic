@@ -146,16 +146,20 @@ def main():
             else:
                 batch["pred"] = F.relu(batch["pred"])
 
-            # compute the dice score
-            dice = dice_score(batch["pred"].cpu(), batch["label"].cpu())
+            # Threshold the prediction with 0.5 based on this investigation: https://github.com/ivadomed/ms-lesion-agnostic/issues/32
+            pred_cpu = batch["pred"].cpu() 
+            pred_cpu[pred_cpu < 0.5] = 0
+            pred_cpu[pred_cpu >= 0.5] = 1
+            # Compute the dice score
+            dice = dice_score(pred_cpu, batch["label"].cpu)
 
             # post-process the prediction
             post_test_out = [test_post_pred(i) for i in decollate_batch(batch)]
-                
-            pred = post_test_out[0]['pred'].cpu()
 
-            # Threshold the prediction
+            # Threshold the prediction with 0.5 before saving    
+            pred = post_test_out[0]['pred'].cpu()
             pred[pred < 0.5] = 0
+            pred[pred >= 0.5] = 1
             
             # Get file name
             file_name = test_files[i]["image"].split("/")[-1].split(".")[0]
