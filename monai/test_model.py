@@ -151,7 +151,7 @@ def main():
             pred_cpu[pred_cpu < 0.5] = 0
             pred_cpu[pred_cpu >= 0.5] = 1
             # Compute the dice score
-            dice = dice_score(pred_cpu, batch["label"].cpu)
+            dice = dice_score(pred_cpu, batch["label"].cpu())
 
             # post-process the prediction
             post_test_out = [test_post_pred(i) for i in decollate_batch(batch)]
