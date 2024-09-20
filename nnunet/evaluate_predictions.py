@@ -77,9 +77,9 @@ def main():
 
         # Compute dice score
         dice = dice_score(pred_data, label_data)
-        ppv = lesion_ppv(pred_data, label_data)
-        f1 = lesion_f1_score(pred_data, label_data)
-        sensitivity = lesion_sensitivity(pred_data, label_data)
+        ppv = lesion_ppv(label_data, pred_data)
+        f1 = lesion_f1_score(label_data, pred_data)
+        sensitivity = lesion_sensitivity(label_data, pred_data)
 
         # Get initial image name from conversion dict
         image_name = None
