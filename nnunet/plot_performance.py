@@ -122,7 +122,7 @@ def main():
     # plot a violin plot per contrast for dice scores
     plt.figure(figsize=(20, 10))
     plt.grid(True)
-    sns.violinplot(x='contrast_count', y='dice_score', data=test_dice_results)
+    sns.violinplot(x='contrast_count', y='dice_score', data=metrics_results)
     # y ranges from -0.2 to 1.2
     plt.ylim(-0.2, 1.2)
     plt.title('Dice scores per contrast')
@@ -134,7 +134,7 @@ def main():
     # plot a violin plot per contrast for ppv scores
     plt.figure(figsize=(20, 10))
     plt.grid(True)
-    sns.violinplot(x='contrast_count', y='ppv_score', data=test_dice_results)
+    sns.violinplot(x='contrast_count', y='ppv_score', data=metrics_results)
     # y ranges from -0.2 to 1.2
     plt.ylim(-0.2, 1.2)
     plt.title('PPV scores per contrast')
@@ -147,7 +147,7 @@ def main():
     # plot a violin plot per contrast for f1 scores
     plt.figure(figsize=(20, 10))
     plt.grid(True)
-    sns.violinplot(x='contrast_count', y='f1_score', data=test_dice_results)
+    sns.violinplot(x='contrast_count', y='f1_score', data=metrics_results)
     # y ranges from -0.2 to 1.2
     plt.ylim(-0.2, 1.2)
     plt.title('F1 scores per contrast')
@@ -160,7 +160,7 @@ def main():
     # plot a violin plot per contrast for f1 scores
     plt.figure(figsize=(20, 10))
     plt.grid(True)
-    sns.violinplot(x='contrast_count', y='sensitivity_score', data=test_dice_results)
+    sns.violinplot(x='contrast_count', y='sensitivity_score', data=metrics_results)
     # y ranges from -0.2 to 1.2
     plt.ylim(-0.2, 1.2)
     plt.title('Sensitivity scores per contrast')
