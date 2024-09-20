@@ -86,47 +86,120 @@ def main():
     resolution_counts = test_dice_results['orientation'].value_counts()
     test_dice_results['orientation_count'] = test_dice_results['orientation'].apply(lambda x: x + f' (n={resolution_counts[x]})')
 
-    # plot a violin plot per contrast 
+    # then we add the ppv score to the df
+    ppv_score_file = path_to_outputs + '/ppv_scores.txt'
+    ppv_scores = {}
+    with open(ppv_score_file, 'r') as file:
+        for line in file:
+            key, value = line.strip().split(':')
+            ppv_scores[key] = float(value)
+    test_dice_results['ppv_score'] = test_dice_results['name'].apply(lambda x: ppv_scores[x])
+
+    # then we add the f1 score to the df
+    f1_score_file = path_to_outputs + '/f1_scores.txt'
+    f1_scores = {}
+    with open(f1_score_file, 'r') as file:
+        for line in file:
+            key, value = line.strip().split(':')
+            f1_scores[key] = float(value)
+    test_dice_results['f1_score'] = test_dice_results['name'].apply(lambda x: f1_scores[x])
+
+    # then we add the sensitivity score to the df
+    sensitivity_score_file = path_to_outputs + '/sensitivity_scores.txt'
+    sensitivity_scores = {}
+    with open(sensitivity_score_file, 'r') as file:
+        for line in file:
+            key, value = line.strip().split(':')
+            sensitivity_scores[key] = float(value)
+    test_dice_results['sensitivity_score'] = test_dice_results['name'].apply(lambda x: sensitivity_scores[x])
+
+    # We rename th df to metrics_results
+    metrics_results = test_dice_results
+
+    # Sort the order of the lines by contrast (alphabetical order)
+    metrics_results = metrics_results.sort_values(by='contrast').reset_index(drop=True)
+
+    # plot a violin plot per contrast for dice scores
     plt.figure(figsize=(20, 10))
     plt.grid(True)
-    sns.violinplot(x='contrast_count', y='dice_score', data=test_dice_results, order=['UNIT1 (n=57)', 'T2w (n=358)', 'STIR (n=11)','PSIR (n=60)', 'T2star (n=83)'])
+    sns.violinplot(x='contrast_count', y='dice_score', data=test_dice_results)
     # y ranges from -0.2 to 1.2
     plt.ylim(-0.2, 1.2)
     plt.title('Dice scores per contrast')
     plt.show()
-
-    # Save the plot
+    # # Save the plot
     plt.savefig(path_to_outputs + '/dice_scores_contrast.png')
-    print(f"Saved the dice_scores plot in {path_to_outputs}")
+    print(f"Saved the dice plot in {path_to_outputs}")
 
-    # plot a violin plot per site
+    # plot a violin plot per contrast for ppv scores
     plt.figure(figsize=(20, 10))
     plt.grid(True)
-    sns.violinplot(x='site_count', y='dice_score', data=test_dice_results, order = ['bavaria-quebec (n=208)', 'sct-testing-large (n=233)', 'canproco (n=71)','nih (n=25)','basel (n=32)'])
+    sns.violinplot(x='contrast_count', y='ppv_score', data=test_dice_results)
     # y ranges from -0.2 to 1.2
     plt.ylim(-0.2, 1.2)
-    plt.title('Dice scores per site')
+    plt.title('PPV scores per contrast')
     plt.show()
 
-    # Save the plot
-    plt.savefig(path_to_outputs + '/dice_scores_site.png')
-    print(f"Saved the dice_scores per site plot in {path_to_outputs}")
+    # # Save the plot
+    plt.savefig(path_to_outputs + '/ppv_scores_contrast.png')
+    print(f"Saved the ppv plot in {path_to_outputs}")
 
-    # plot a violin plot per resolution
+    # plot a violin plot per contrast for f1 scores
     plt.figure(figsize=(20, 10))
     plt.grid(True)
-    sns.violinplot(x='orientation_count', y='dice_score', data=test_dice_results, order = ['iso (n=58)', 'ax (n=343)', 'sag (n=168)'])
+    sns.violinplot(x='contrast_count', y='f1_score', data=test_dice_results)
     # y ranges from -0.2 to 1.2
     plt.ylim(-0.2, 1.2)
-    plt.title('Dice scores per orientation')
+    plt.title('F1 scores per contrast')
     plt.show()
 
-    # Save the plot
-    plt.savefig(path_to_outputs + '/dice_scores_orientation.png')
-    print(f"Saved the dice_scores per orientation plot in {path_to_outputs}")
+    # # Save the plot
+    plt.savefig(path_to_outputs + '/f1_scores_contrast.png')
+    print(f"Saved the F1 plot in {path_to_outputs}")
 
-    # Save the test_dice_results dataframe
-    test_dice_results.to_csv(path_to_outputs + '/dice_results.csv', index=False)
+    # plot a violin plot per contrast for f1 scores
+    plt.figure(figsize=(20, 10))
+    plt.grid(True)
+    sns.violinplot(x='contrast_count', y='sensitivity_score', data=test_dice_results)
+    # y ranges from -0.2 to 1.2
+    plt.ylim(-0.2, 1.2)
+    plt.title('Sensitivity scores per contrast')
+    plt.show()
+
+    # # Save the plot
+    plt.savefig(path_to_outputs + '/sensitivity_scores_contrast.png')
+    print(f"Saved the sensitivity plot in {path_to_outputs}")
+
+
+
+    # # plot a violin plot per site
+    # plt.figure(figsize=(20, 10))
+    # plt.grid(True)
+    # sns.violinplot(x='site_count', y='dice_score', data=test_dice_results, order = ['bavaria-quebec (n=208)', 'sct-testing-large (n=233)', 'canproco (n=71)','nih (n=25)','basel (n=32)'])
+    # # y ranges from -0.2 to 1.2
+    # plt.ylim(-0.2, 1.2)
+    # plt.title('Dice scores per site')
+    # plt.show()
+
+    # # Save the plot
+    # plt.savefig(path_to_outputs + '/dice_scores_site.png')
+    # print(f"Saved the dice_scores per site plot in {path_to_outputs}")
+
+    # # plot a violin plot per resolution
+    # plt.figure(figsize=(20, 10))
+    # plt.grid(True)
+    # sns.violinplot(x='orientation_count', y='dice_score', data=test_dice_results, order = ['iso (n=58)', 'ax (n=343)', 'sag (n=168)'])
+    # # y ranges from -0.2 to 1.2
+    # plt.ylim(-0.2, 1.2)
+    # plt.title('Dice scores per orientation')
+    # plt.show()
+
+    # # Save the plot
+    # plt.savefig(path_to_outputs + '/dice_scores_orientation.png')
+    # print(f"Saved the dice_scores per orientation plot in {path_to_outputs}")
+
+    # # Save the test_dice_results dataframe
+    # test_dice_results.to_csv(path_to_outputs + '/dice_results.csv', index=False)
     
     return None
 

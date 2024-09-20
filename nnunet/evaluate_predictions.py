@@ -25,6 +25,7 @@ from pathlib import Path
 import json
 import nibabel as nib
 from tqdm import tqdm
+from utils import dice_score, lesion_ppv, lesion_f1_score, lesion_sensitivity
 
 
 def parse_args():
@@ -37,14 +38,6 @@ def parse_args():
     return parser.parse_args()
 
 
-def dice_score(prediction, groundtruth, smooth=1.):
-    numer = (prediction * groundtruth).sum()
-    denor = (prediction + groundtruth).sum()
-    # loss = (2 * numer + self.smooth) / (denor + self.smooth)
-    dice = (2 * numer + smooth) / (denor + smooth)
-    return dice
-
-
 def main():
 
     # Parse arguments
@@ -55,6 +48,10 @@ def main():
     conversion_dict = args.conversion_dict
     output_folder = args.output_folder
 
+    # Create output folder if it does not exist
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
     # Get all the predictions (with rglob)
     predictions = list(Path(pred_folder).rglob("*.nii.gz"))
 
@@ -64,6 +61,9 @@ def main():
 
     # Dict of dice score
     dice_scores = {}
+    ppv_scores = {}
+    f1_scores = {}
+    sensitivity_scores = {}
 
     # Iterate over the results
     for pred in tqdm(predictions):
@@ -77,6 +77,9 @@ def main():
 
         # Compute dice score
         dice = dice_score(pred_data, label_data)
+        ppv = lesion_ppv(pred_data, label_data)
+        f1 = lesion_f1_score(pred_data, label_data)
+        sensitivity = lesion_sensitivity(pred_data, label_data)
 
         # Get initial image name from conversion dict
         image_name = None
@@ -88,10 +91,22 @@ def main():
         
         # Save the dice score
         dice_scores[image_name] = dice
+        ppv_scores[image_name] = ppv
+        f1_scores[image_name] = f1
+        sensitivity_scores[image_name] = sensitivity
 
     # Save the results
     with open(os.path.join(output_folder, "dice_scores.txt"), "w") as f:
         for key, value in dice_scores.items():
+            f.write(f"{key}: {value}\n")
+    with open(os.path.join(output_folder, "ppv_scores.txt"), "w") as f:
+        for key, value in ppv_scores.items():
+            f.write(f"{key}: {value}\n")
+    with open(os.path.join(output_folder, "f1_scores.txt"), "w") as f:
+        for key, value in f1_scores.items():
+            f.write(f"{key}: {value}\n")
+    with open(os.path.join(output_folder, "sensitivity_scores.txt"), "w") as f:
+        for key, value in sensitivity_scores.items():
             f.write(f"{key}: {value}\n")
 
     return None
