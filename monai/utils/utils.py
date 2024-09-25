@@ -122,65 +122,6 @@ def lesion_wise_tp_fp_fn(truth, prediction):
     return tp, fp, fn
 
 
-def lesion_sensitivity(truth, prediction):
-    """
-    Computes the lesion-wise sensitivity between two masks
-    Returns
-    -------
-    sensitivity (float): Lesion-wise sensitivity as float.
-        Max score = 1
-        Min score = 0
-        If both images are empty (tp + fp + fn =0) = empty_value
-    """
-    empty_value = 1.0   # Value to which to default if there are no labels. Default: 1.0.
-
-    if np.sum(truth) == 0 and np.sum(prediction)==0:
-        # Both reference and prediction are empty --> model learned correctly
-        return 1.0
-    # if the prediction is not empty and ref is empty, it's false positive
-    # if both are not empty, it's true positive
-    else:
-
-        tp, _, fn = lesion_wise_tp_fp_fn(truth, prediction)
-        sensitivity = empty_value
-
-        # Compute sensitivity
-        denom = tp + fn
-        if(denom != 0):
-            sensitivity = tp / denom
-        return sensitivity
-        
-
-def lesion_ppv(truth, prediction):
-    """
-    Computes the lesion-wise positive predictive value (PPV) between two masks
-    Returns
-    -------
-    ppv (float): Lesion-wise positive predictive value as float.
-        Max score = 1
-        Min score = 0
-        If both images are empty (tp + fp + fn =0) = empty_value
-    """
-    if np.sum(truth) == 0 and np.sum(prediction)==0:
-        # Both reference and prediction are empty --> model learned correctly
-        return 1.0
-    elif np.sum(truth) != 0 and np.sum(prediction)==0:
-        # Reference is not empty, prediction is empty --> model did not learn correctly (it's false negative)
-        return 0.0
-    # if the predction is not empty and ref is empty, it's false positive
-    # if both are not empty, it's true positive
-    else:
-        tp, fp, _ = lesion_wise_tp_fp_fn(truth, prediction)
-        # ppv = 1.0
-
-        # Compute ppv
-        denom = tp + fp
-        # denom should ideally not be zero inside this else as it should be caught by the empty checks above
-        if(denom != 0):
-            ppv = tp / denom
-        return ppv
-    
-
 def lesion_f1_score(truth, prediction):
     """
     Computes the lesion-wise F1-score between two masks by defining true positive lesions (tp), false positive lesions (fp)
@@ -198,10 +139,10 @@ def lesion_f1_score(truth, prediction):
     """
     empty_value = 1.0   # Value to which to default if there are no labels. Default: 1.0.
 
-    if np.sum(truth) == 0 and np.sum(prediction)==0:
+    if not np.any(truth) and not np.any(prediction):
         # Both reference and prediction are empty --> model learned correctly
         return 1.0
-    elif np.sum(truth) != 0 and np.sum(prediction)==0:
+    elif np.any(truth) and not np.any(prediction):
         # Reference is not empty, prediction is empty --> model did not learn correctly (it's false negative)
         return 0.0
     # if the predction is not empty and ref is empty, it's false positive
@@ -215,6 +156,65 @@ def lesion_f1_score(truth, prediction):
         if(denom != 0):
             f1_score = tp / denom
         return f1_score
+
+
+def lesion_ppv(truth, prediction):
+    """
+    Computes the lesion-wise positive predictive value (PPV) between two masks
+    Returns
+    -------
+    ppv (float): Lesion-wise positive predictive value as float.
+        Max score = 1
+        Min score = 0
+        If both images are empty (tp + fp + fn =0) = empty_value
+    """
+    if not np.any(truth) and not np.any(prediction):
+        # Both reference and prediction are empty --> model learned correctly
+        return 1.0
+    elif np.any(truth) and not np.any(prediction):
+        # Reference is not empty, prediction is empty --> model did not learn correctly (it's false negative)
+        return 0.0
+    # if the predction is not empty and ref is empty, it's false positive
+    # if both are not empty, it's true positive
+    else:
+        tp, fp, _ = lesion_wise_tp_fp_fn(truth, prediction)
+        # ppv = 1.0
+
+        # Compute ppv
+        denom = tp + fp
+        # denom should ideally not be zero inside this else as it should be caught by the empty checks above
+        if(denom != 0):
+            ppv = tp / denom
+        return ppv
+
+
+def lesion_sensitivity(truth, prediction):
+    """
+    Computes the lesion-wise sensitivity between two masks
+    Returns
+    -------
+    sensitivity (float): Lesion-wise sensitivity as float.
+        Max score = 1
+        Min score = 0
+        If both images are empty (tp + fp + fn =0) = empty_value
+    """
+    empty_value = 1.0   # Value to which to default if there are no labels. Default: 1.0.
+
+    if not np.any(truth) and not np.any(prediction):
+        # Both reference and prediction are empty --> model learned correctly
+        return 1.0
+    # if the predction is not empty and ref is empty, it's false positive
+    # if both are not empty, it's true positive
+    else:
+
+        tp, _, fn = lesion_wise_tp_fp_fn(truth, prediction)
+        sensitivity = empty_value
+
+        # Compute sensitivity
+        denom = tp + fn
+        if(denom != 0):
+            sensitivity = tp / denom
+        return sensitivity
 
 
 def remove_small_lesions(lesion_seg, resolution, min_volume=7.5):

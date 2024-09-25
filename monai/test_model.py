@@ -20,7 +20,7 @@ from monai.networks.nets import AttentionUnet
 import torch
 from monai.inferers import sliding_window_inference
 import torch.nn.functional as F
-from utils.utils import dice_score
+from utils.utils import dice_score, lesion_f1_score, lesion_ppv, lesion_sensitivity
 import argparse
 import yaml
 import torch.multiprocessing
@@ -63,8 +63,11 @@ def main():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # Dict of dice score
+    # Dict of scores
     dice_scores = {}
+    ppv_scores = {}
+    sensitivity_scores = {}
+    f1_scores = {}
 
     # Load the data
     test_files = load_decathlon_datalist(cfg["dataset"], True, args.data_split)
@@ -152,6 +155,9 @@ def main():
             pred_cpu[pred_cpu >= 0.5] = 1
             # Compute the dice score
             dice = dice_score(pred_cpu, batch["label"].cpu())
+            ppv = lesion_ppv(batch["label"].cpu(), pred_cpu)
+            sensitivity = lesion_sensitivity(batch["label"].cpu(), pred_cpu)
+            f1 = lesion_f1_score(batch["label"].cpu(), pred_cpu)
 
             # post-process the prediction
             post_test_out = [test_post_pred(i) for i in decollate_batch(batch)]
@@ -163,7 +169,7 @@ def main():
             
             # Get file name
             file_name = test_files[i]["image"].split("/")[-1].split(".")[0]
-            print(f"Saving {file_name}: dice score = {dice}")
+            print(f"Saving {file_name}: dice score = {dice}, f1 = {f1}")
 
             # Save the prediction
             pred_saver = SaveImage(
@@ -172,8 +178,11 @@ def main():
             # save the prediction
             pred_saver(pred)
 
-            # Save the dice score
+            # Save the scores
             dice_scores[test_files[i]["image"]] = dice
+            ppv_scores[test_files[i]["image"]] = ppv
+            sensitivity_scores[test_files[i]["image"]] = sensitivity
+            f1_scores[test_files[i]["image"]] = f1
 
             test_input.detach()
 
@@ -181,6 +190,15 @@ def main():
     # Save the dice scores
     with open(os.path.join(output_dir, "dice_scores.txt"), "w") as f:
         for key, value in dice_scores.items():
+            f.write(f"{key}: {value}\n")
+    with open(os.path.join(output_dir, "ppv_scores.txt"), "w") as f:
+        for key, value in ppv_scores.items():
+            f.write(f"{key}: {value}\n")
+    with open(os.path.join(output_dir, "sensitivity_scores.txt"), "w") as f:
+        for key, value in sensitivity_scores.items():
+            f.write(f"{key}: {value}\n")
+    with open(os.path.join(output_dir, "f1_scores.txt"), "w") as f:
+        for key, value in f1_scores.items():
             f.write(f"{key}: {value}\n")
 
 
