@@ -118,7 +118,7 @@ def lesion_ppv(truth, prediction):
     # if both are not empty, it's true positive
     else:
         tp, fp, _ = lesion_wise_tp_fp_fn(truth, prediction)
-        # ppv = 1.0
+        ppv = 1.0
 
         # Compute ppv
         denom = tp + fp
