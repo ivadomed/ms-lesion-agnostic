@@ -170,7 +170,29 @@ def main():
     plt.savefig(path_to_outputs + '/sensitivity_scores_contrast.png')
     print(f"Saved the sensitivity plot in {path_to_outputs}")
 
+    # Print the mean dice score per contrast and std
+    print("\nDice score per contrast (mean ± std)")
+    dice_stats = metrics_results.groupby('contrast_count')['dice_score'].agg(['mean', 'std'])
+    for contrast, row in dice_stats.iterrows():
+        print(f"{contrast}: {row['mean']:.4f} ± {row['std']:.4f}")
 
+    # Print the mean ppv score per contrast and std
+    print("\nPPV score per contrast (mean ± std)")
+    ppv_stats = metrics_results.groupby('contrast_count')['ppv_score'].agg(['mean', 'std'])
+    for contrast, row in ppv_stats.iterrows():
+        print(f"{contrast}: {row['mean']:.4f} ± {row['std']:.4f}")
+    
+    # Print the mean f1 score per contrast and std
+    print("\nF1 score per contrast (mean ± std)")
+    f1_stats = metrics_results.groupby('contrast_count')['f1_score'].agg(['mean', 'std'])
+    for contrast, row in f1_stats.iterrows():
+        print(f"{contrast}: {row['mean']:.4f} ± {row['std']:.4f}")
+
+    # Print the mean sensitivity score per contrast and std
+    print("\nSensitivity score per contrast (mean ± std)")
+    sensitivity_stats = metrics_results.groupby('contrast_count')['sensitivity_score'].agg(['mean', 'std'])
+    for contrast, row in sensitivity_stats.iterrows():
+        print(f"{contrast}: {row['mean']:.4f} ± {row['std']:.4f}")
 
     # # plot a violin plot per site
     # plt.figure(figsize=(20, 10))
