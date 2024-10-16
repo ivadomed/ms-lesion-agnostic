@@ -103,16 +103,16 @@ def main():
 
     # Save the metrics
     # sct_deepseg -t seg_sc_ms_lesion_stir_psir
-    with open(os.path.join(output_path, 'dice_score_psir.txt'), 'w') as f:
+    with open(os.path.join(output_path, 'dice_scores.txt'), 'w') as f:
         for key, value in dice_scores_psir.items():
             f.write(f"{key}: {value}\n")
-    with open(os.path.join(output_path, 'ppv_score_psir.txt'), 'w') as f:
+    with open(os.path.join(output_path, 'ppv_scores.txt'), 'w') as f:
         for key, value in ppv_scores_psir.items():
             f.write(f"{key}: {value}\n")
-    with open(os.path.join(output_path, 'f1_score_psir.txt'), 'w') as f:
+    with open(os.path.join(output_path, 'f1_scores.txt'), 'w') as f:
         for key, value in f1_scores_psir.items():
             f.write(f"{key}: {value}\n")
-    with open(os.path.join(output_path, 'sensitivity_score_psir.txt'), 'w') as f:
+    with open(os.path.join(output_path, 'sensitivity_scores.txt'), 'w') as f:
         for key, value in sensitivity_scores_psir.items():
             f.write(f"{key}: {value}\n")
     

@@ -94,16 +94,16 @@ def main():
 
     # Save the metrics
     # sct_deepseg -t seg_ms_lesion_mp2rage
-    with open(os.path.join(output_path, 'dice_score_mp2rage.txt'), 'w') as f:
+    with open(os.path.join(output_path, 'dice_scores.txt'), 'w') as f:
         for key, value in dice_scores_mp2rage.items():
             f.write(f"{key}: {value}\n")
-    with open(os.path.join(output_path, 'ppv_score_mp2rage.txt'), 'w') as f:
+    with open(os.path.join(output_path, 'ppv_scores.txt'), 'w') as f:
         for key, value in ppv_scores_mp2rage.items():
             f.write(f"{key}: {value}\n")
-    with open(os.path.join(output_path, 'f1_score_mp2rage.txt'), 'w') as f:
+    with open(os.path.join(output_path, 'f1_scores.txt'), 'w') as f:
         for key, value in f1_scores_mp2rage.items():
             f.write(f"{key}: {value}\n")
-    with open(os.path.join(output_path, 'sensitivity_score_mp2rage.txt'), 'w') as f:
+    with open(os.path.join(output_path, 'sensitivity_scores.txt'), 'w') as f:
         for key, value in sensitivity_scores_mp2rage.items():
             f.write(f"{key}: {value}\n")
     
