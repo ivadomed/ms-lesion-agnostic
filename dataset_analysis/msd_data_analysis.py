@@ -22,6 +22,7 @@ import json
 import nibabel as nib
 import numpy as np
 from pathlib import Path
+from image import Image
 
 
 def parse_args():
@@ -78,8 +79,8 @@ def main():
     ## Iterate over the images
     resolutions = []
     for image in data:
-        image_nib = nib.load(image['image'])
-        resolution = image_nib.header.get_zooms()[0:3]
+        image_reoriented = Image(image['image']).change_orientation('RPI')
+        resolution = image_reoriented.dim[4:7]
         resolution = [float(res) for res in resolution]
         resolutions.append(resolution)
         
@@ -148,18 +149,7 @@ def main():
         contrast_count_umass[contrast] = list_contrast_umass.count(contrast)
     print("Number of images per contrast in umass: ", contrast_count_umass)
 
-
-
-
-
-
-
-
-
-
-
     return None
-
 
 
 if __name__ == '__main__':
