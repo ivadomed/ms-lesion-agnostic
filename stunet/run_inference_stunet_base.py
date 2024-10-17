@@ -66,12 +66,12 @@ def create_nnunet_from_plans(path_model, device: 'torch.device'):
 
     # We prioritize 'checkpoint_final.pth', but fallback to 'checkpoint_best.pth' if not available
     checkpoints = {os.path.basename(path) for path in glob.glob(os.path.join(path_model, "**", "checkpoint_*.pth"))}
-    for checkpoint_name in ['checkpoint_final.pth', 'checkpoint_best.pth']:
+    for checkpoint_name in ['checkpoint_best.pth', 'checkpoint_final.pth']:
         if checkpoint_name in checkpoints:
             break  # Use the checkpoint that was found
     else:
         raise ValueError(f"Couldn't find 'checkpoint_final.pth' or 'checkpoint_best.pth' in {path_model}")
-
+    
     # instantiate the nnUNetPredictor
     predictor = nnUNetPredictor(
         tile_step_size=tile_step_size,  # changing it from 0.5 to 0.9 makes inference faster
