@@ -1,6 +1,9 @@
 # dataset :  /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-04-17_seed42_lesionOnly.json
 # dataset : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-04-05_seed42_lesionOnly.json
 dataset : /home/plbenveniste/net/ms-lesion-agnostic/msd_data/dataset_2024-06-26_seed42_lesionOnly.json
+# dataset : /home/plbenveniste/net/ms-lesion-agnostic/msd_data/dataset_2024-08-13_seed42_lesionOnly.json
+# dataset : /home/plbenveniste/net/ms-lesion-agnostic/msd_data/dataset_optThresh.json
+# dataset : /home/plbenveniste/net/ms-lesion-agnostic/msd_data/fake.json
 
 pixdim : [0.7, 0.7, 0.7]
 spatial_size : [64, 128, 128]
@@ -9,8 +12,10 @@ attention_unet_strides : [2, 2, 2, 2, 2]
 
 # path_to_model : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/2024-04-21_16:06:04.890513/best_model.pth/best_model.ckpt
 # path_to_model : /home/plbenveniste/net/ms-lesion-agnostic/tta_exp/best_model.pth/best_model.ckpt
-path_to_model : /home/plbenveniste/net/ms-lesion-agnostic/thresholding_optimisation/best_model.pth/best_model.ckpt
+path_to_model : /home/plbenveniste/net/ms-lesion-agnostic/results/2024-07-18_10:46:21.634514/best_model.pth/best_model.ckpt
+# path_to_model : /home/plbenveniste/net/ms-lesion-agnostic/results/2024-09-02_12:14:28.124188/best_model.pth/best_model.ckpt
 
 # output_dir : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/2024-04-21_16:06:04.890513/
 # output_dir : /home/plbenveniste/net/ms-lesion-agnostic/tta_exp
-output_dir : /home/plbenveniste/net/ms-lesion-agnostic/thresholding_optimisation
+output_dir : /home/plbenveniste/net/ms-lesion-agnostic/results/2024-07-18_10:46:21.634514/
+# output_dir : /home/plbenveniste/net/ms-lesion-agnostic/results/2024-09-02_12:14:28.124188/
