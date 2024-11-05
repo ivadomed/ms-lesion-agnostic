@@ -426,7 +426,6 @@ def main():
 
     # Print total number of images
     logger.info(f"Total number of images in the dataset: {params['numTest'] + params['numTraining'] + params['numValidation'] + params['numExternalValidation']}")
-    print(params)
     final_json = json.dumps(params, indent=4, sort_keys=True)
     if not os.path.exists(args.path_out):
         os.makedirs(args.path_out, exist_ok=True)
