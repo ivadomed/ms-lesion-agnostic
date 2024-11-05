@@ -172,9 +172,9 @@ def main():
     logger.info(f"Number of derivatives in ms-nyu: {len(derivatives_nyu)}")
     logger.info(f"Number of derivatives in sct-testing-large: {len(derivatives_sct)}")
 
-    derivatives = derivatives_basel_mp2rage + derivatives_bavaria_unstitched + derivatives_canproco + derivatives_basel_2018 + derivatives_basel_2020 + derivatives_nih + derivatives_nyu + derivatives_sct
+    derivatives = derivatives_basel_mp2rage + derivatives_bavaria_unstitched + derivatives_canproco + derivatives_nih + derivatives_nyu + derivatives_sct
     external_derivatives = derivatives_basel_2018 + derivatives_basel_2020 + derivatives_karo
-    logger.info(f"Total number of derivatives in the root directory: {len(derivatives)}")
+    logger.info(f"Total number of derivatives in the root directory: {len(derivatives)+len(external_derivatives)}")
 
     # create one json file with 60-20-20 train-val-test split
     train_ratio, val_ratio, test_ratio = 0.6, 0.2, 0.2
@@ -217,12 +217,18 @@ def main():
     all_derivatives_list = [train_derivatives_dict, val_derivatives_dict, test_derivatives_dict]
 
     # iterate through the train/val/test splits and add those which have both image and label
+    subjects_basel = []
+    subjects_bavaria = []
+    subjects_canproco = []
+    subjects_nih = []
+    subjects_nyu = []
+    subjects_sct = []
     for derivatives_dict in tqdm(all_derivatives_list, desc="Iterating through train/val/test splits"):
 
         for name, derivs_list in derivatives_dict.items():
 
             temp_list = []
-            for subject_no, derivative in enumerate(derivs_list):
+            for subject_no, derivative in tqdm(enumerate(derivs_list)):
 
                 
                 temp_data_basel = {}
@@ -230,84 +236,129 @@ def main():
                 temp_data_canproco = {}
                 temp_data_nih = {}
                 temp_data_sct = {}
-
-                # # Basel
-                # if 'basel-mp2rage' in str(derivative):
-                #     relative_path = derivative.relative_to(path_basel_mp2rage).parent
-                #     temp_data_basel["label"] = str(derivative)
-                #     temp_data_basel["image"] = str(derivative).replace('_desc-rater3_label-lesion_seg.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
-                #     if os.path.exists(temp_data_basel["label"]) and os.path.exists(temp_data_basel["image"]):
-                #         total_lesion_volume, nb_lesions = count_lesion(temp_data_basel["label"])
-                #         temp_data_basel["total_lesion_volume"] = total_lesion_volume
-                #         temp_data_basel["nb_lesions"] = nb_lesions
-                #         temp_data_basel["site"]='basel-mp2rage'
-                #         temp_data_basel["contrast"] = str(derivative).replace('_desc-rater3_label-lesion_seg.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
-                #         acquisition, resolution, dimension = get_acquisition_resolution_and_dimension(temp_data_basel["image"])
-                #         temp_data_basel["acquisition"] = acquisition
-                #         temp_data_basel["resolution"] = resolution
-                #         temp_data_basel["dimension"] = dimension
-                #         if args.lesion_only and nb_lesions == 0:
-                #             continue
-                #         temp_list.append(temp_data_basel)
+                temp_data_nyu = {}
+                
+                # Basel
+                if 'basel-mp2rage' in str(derivative):
+                    relative_path = derivative.relative_to(path_basel_mp2rage).parent
+                    temp_data_basel["label"] = str(derivative)
+                    temp_data_basel["image"] = str(derivative).replace('_desc-rater3_label-lesion_seg.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    if os.path.exists(temp_data_basel["label"]) and os.path.exists(temp_data_basel["image"]):
+                        total_lesion_volume, nb_lesions = count_lesion(temp_data_basel["label"])
+                        temp_data_basel["total_lesion_volume"] = total_lesion_volume
+                        temp_data_basel["nb_lesions"] = nb_lesions
+                        temp_data_basel["site"]='basel-mp2rage'
+                        temp_data_basel["contrast"] = str(derivative).replace('_desc-rater3_label-lesion_seg.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+                        acquisition, resolution, dimension = get_acquisition_resolution_and_dimension(temp_data_basel["image"])
+                        temp_data_basel["acquisition"] = acquisition
+                        # Convert each value to float64
+                        resolution = [np.float64(i) for i in resolution]
+                        temp_data_basel["resolution"] = resolution
+                        temp_data_basel["dimension"] = dimension
+                        if args.lesion_only and nb_lesions == 0:
+                            continue
+                        temp_list.append(temp_data_basel)
+                        # Get the subject
+                        subject = str(derivative).split('/')[-1].split('_')[0]
+                        subjects_basel.append(subject)
             
 
-                # # Bavaria-quebec
-                # elif 'bavaria-quebec-spine-ms' in str(derivative):
-                #     temp_data_bavaria["label"] = str(derivative)
-                #     temp_data_bavaria["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
-                #     if os.path.exists(temp_data_bavaria["label"]) and os.path.exists(temp_data_bavaria["image"]):
-                #         total_lesion_volume, nb_lesions = count_lesion(temp_data_bavaria["label"])
-                #         temp_data_bavaria["total_lesion_volume"] = total_lesion_volume
-                #         temp_data_bavaria["nb_lesions"] = nb_lesions
-                #         temp_data_bavaria["site"]='bavaria-quebec'
-                #         temp_data_bavaria["contrast"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
-                #         temp_data_bavaria["orientation"] = get_orientation(temp_data_bavaria["image"])
-                #         if args.lesion_only and nb_lesions == 0:
-                #             continue
-                #         temp_list.append(temp_data_bavaria)
+                # Bavaria-quebec
+                elif 'bavaria-quebec-spine-ms' in str(derivative):
+                    temp_data_bavaria["label"] = str(derivative)
+                    temp_data_bavaria["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    if os.path.exists(temp_data_bavaria["label"]) and os.path.exists(temp_data_bavaria["image"]):
+                        total_lesion_volume, nb_lesions = count_lesion(temp_data_bavaria["label"])
+                        temp_data_bavaria["total_lesion_volume"] = total_lesion_volume
+                        temp_data_bavaria["nb_lesions"] = nb_lesions
+                        temp_data_bavaria["site"]='bavaria-quebec-spine-ms'
+                        temp_data_bavaria["contrast"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+                        acquisition, resolution, dimension = get_acquisition_resolution_and_dimension(temp_data_bavaria["image"])
+                        temp_data_bavaria["acquisition"] = acquisition
+                        resolution = [np.float64(i) for i in resolution]
+                        temp_data_bavaria["resolution"] = resolution
+                        temp_data_bavaria["dimension"] = dimension
+                        if args.lesion_only and nb_lesions == 0:
+                            continue
+                        temp_list.append(temp_data_bavaria)
+                        # Get the subject
+                        subject = str(derivative).split('/')[-1].split('_')[0]
+                        subjects_bavaria.append(subject)
                 
-                # # Canproco
-                # elif 'canproco' in str(derivative):
-                #     subject_id = derivative.name.replace('_PSIR_lesion-manual.nii.gz', '')
-                #     subject_id = subject_id.replace('_STIR_lesion-manual.nii.gz', '')
-                #     if subject_id in canproco_exclude_list:
-                #         continue  
-                #     temp_data_canproco["label"] = str(derivative)
-                #     temp_data_canproco["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
-                #     if os.path.exists(temp_data_canproco["label"]) and os.path.exists(temp_data_canproco["image"]):
-                #         total_lesion_volume, nb_lesions = count_lesion(temp_data_canproco["label"])
-                #         temp_data_canproco["total_lesion_volume"] = total_lesion_volume
-                #         temp_data_canproco["nb_lesions"] = nb_lesions
-                #         temp_data_canproco["site"]='canproco'
-                #         temp_data_canproco["contrast"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
-                #         acquisition, resolution, dimension = get_acquisition_resolution_and_dimension(temp_data_canproco["image"])
-                #         temp_data_canproco["acquisition"] = acquisition
-                #         temp_data_canproco["resolution"] = resolution
-                #         temp_data_canproco["dimension"] = dimension
-                #         if args.lesion_only and nb_lesions == 0:
-                #             continue
-                #         temp_list.append(temp_data_canproco)
+                # Canproco
+                elif 'canproco' in str(derivative):
+                    subject_id = derivative.name.replace('_PSIR_lesion-manual.nii.gz', '')
+                    subject_id = subject_id.replace('_STIR_lesion-manual.nii.gz', '')
+                    if subject_id in canproco_exclude_list:
+                        continue  
+                    temp_data_canproco["label"] = str(derivative)
+                    temp_data_canproco["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    if os.path.exists(temp_data_canproco["label"]) and os.path.exists(temp_data_canproco["image"]):
+                        total_lesion_volume, nb_lesions = count_lesion(temp_data_canproco["label"])
+                        temp_data_canproco["total_lesion_volume"] = total_lesion_volume
+                        temp_data_canproco["nb_lesions"] = nb_lesions
+                        temp_data_canproco["site"]='canproco'
+                        temp_data_canproco["contrast"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+                        acquisition, resolution, dimension = get_acquisition_resolution_and_dimension(temp_data_canproco["image"])
+                        temp_data_canproco["acquisition"] = acquisition
+                        resolution = [np.float64(i) for i in resolution]
+                        temp_data_canproco["resolution"] = resolution
+                        temp_data_canproco["dimension"] = dimension
+                        if args.lesion_only and nb_lesions == 0:
+                            continue
+                        temp_list.append(temp_data_canproco)
+                        # Get the subject
+                        subject = str(derivative).split('/')[-1].split('_')[0]
+                        subjects_canproco.append(subject)
 
-                # # nih-ms-mp2rage
-                # elif 'nih-ms-mp2rage' in str(derivative):
-                #     temp_data_nih["label"] = str(derivative)
-                #     temp_data_nih["image"] = str(derivative).replace('_desc-rater1_label-lesion_seg.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
-                #     if os.path.exists(temp_data_nih["label"]) and os.path.exists(temp_data_nih["image"]):
-                #         total_lesion_volume, nb_lesions = count_lesion(temp_data_nih["label"])
-                #         temp_data_nih["total_lesion_volume"] = total_lesion_volume
-                #         temp_data_nih["nb_lesions"] = nb_lesions
-                #         temp_data_nih["site"]='nih-ms-mp2rage'
-                #         temp_data_nih["contrast"] = str(derivative).replace('_desc-rater1_label-lesion_seg.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
-                #         acquisition, resolution, dimension = get_acquisition_resolution_and_dimension(temp_data_nih["image"])
-                #         temp_data_nih["acquisition"] = acquisition
-                #         temp_data_nih["resolution"] = resolution
-                #         temp_data_nih["dimension"] = dimension
-                #         if args.lesion_only and nb_lesions == 0:
-                #             continue
-                #         temp_list.append(temp_data_nih)
+                # nih-ms-mp2rage
+                elif 'nih-ms-mp2rage' in str(derivative):
+                    temp_data_nih["label"] = str(derivative)
+                    temp_data_nih["image"] = str(derivative).replace('_desc-rater1_label-lesion_seg.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    if os.path.exists(temp_data_nih["label"]) and os.path.exists(temp_data_nih["image"]):
+                        total_lesion_volume, nb_lesions = count_lesion(temp_data_nih["label"])
+                        temp_data_nih["total_lesion_volume"] = total_lesion_volume
+                        temp_data_nih["nb_lesions"] = nb_lesions
+                        temp_data_nih["site"]='nih-ms-mp2rage'
+                        temp_data_nih["contrast"] = str(derivative).replace('_desc-rater1_label-lesion_seg.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+                        acquisition, resolution, dimension = get_acquisition_resolution_and_dimension(temp_data_nih["image"])
+                        temp_data_nih["acquisition"] = acquisition
+                        resolution = [np.float64(i) for i in resolution]
+                        temp_data_nih["resolution"] = resolution
+                        temp_data_nih["dimension"] = dimension
+                        if args.lesion_only and nb_lesions == 0:
+                            continue
+                        temp_list.append(temp_data_nih)
+                        # Get the subject
+                        subject = str(derivative).split('/')[-1].split('_')[0]
+                        subjects_nih.append(subject)
+
+
+                # ms-nyu   
+                elif 'ms-nyu' in str(derivative):
+                    temp_data_nyu["label"] = str(derivative)
+                    temp_data_nyu["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    if os.path.exists(temp_data_nyu["label"]) and os.path.exists(temp_data_nyu["image"]):
+                        total_lesion_volume, nb_lesions = count_lesion(temp_data_nyu["label"])
+                        temp_data_nyu["total_lesion_volume"] = total_lesion_volume
+                        temp_data_nyu["nb_lesions"] = nb_lesions
+                        temp_data_nyu["site"]='ms-nyu'
+                        temp_data_nyu["contrast"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+                        acquisition, resolution, dimension = get_acquisition_resolution_and_dimension(temp_data_nyu["image"])
+                        temp_data_nyu["acquisition"] = acquisition
+                        resolution = [np.float64(i) for i in resolution]
+                        temp_data_nyu["resolution"] = resolution
+                        temp_data_nyu["dimension"] = dimension
+                        if args.lesion_only and nb_lesions == 0:
+                            continue
+                        temp_list.append(temp_data_nyu)
+                        # Get the subject
+                        subject = str(derivative).split('/')[-1].split('_')[0]
+                        subjects_nyu.append(subject)
+
 
                 # sct-testing-large
-                if 'sct-testing-large' in str(derivative):
+                elif 'sct-testing-large' in str(derivative):
                     temp_data_sct["label"] = str(derivative)
                     temp_data_sct["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
                     if os.path.exists(temp_data_sct["label"]) and os.path.exists(temp_data_sct["image"]):
@@ -316,37 +367,75 @@ def main():
                         temp_data_sct["nb_lesions"] = nb_lesions
                         # For the site, we use the name of the dataset and the beginning of the subject id
                         ## remove common path between sct-testing-large and the root
-                        site = str(os.path.relpath(derivative, Path(temp_data_sct["image"]))).split('/')[1].replace("sub-","")
-                        print(site)
+                        site = str(os.path.relpath(Path(temp_data_sct["image"]),root)).split('/')[1].replace("sub-","")
                         ## remove the subject number:
                         site=''.join([i for i in site if not i.isdigit()])
-                        print(site)
-                        temp_data_sct["site"]='sct-testing-large'
+                        temp_data_sct["site"]='sct-testing-large--'+site
                         temp_data_sct["contrast"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
-                        # temp_data_sct["orientation"] = get_orientation(temp_data_sct["image"])
+                        acquisition, resolution, dimension = get_acquisition_resolution_and_dimension(temp_data_sct["image"])
+                        temp_data_sct["acquisition"] = acquisition
+                        resolution = [np.float64(i) for i in resolution]
+                        temp_data_sct["resolution"] = resolution
+                        temp_data_sct["dimension"] = dimension
                         if args.lesion_only and nb_lesions == 0:
                             continue
                         temp_list.append(temp_data_sct)
-                    break
-
+                        # Get the subject
+                        subject = str(derivative).split('/')[-1].split('_')[0]
+                        subjects_sct.append(subject)
                         
-    #         params[name] = temp_list
-    #         logger.info(f"Number of images in {name} set: {len(temp_list)}")
-    # params["numTest"] = len(params["test"])
-    # params["numTraining"] = len(params["train"])
-    # params["numValidation"] = len(params["validation"])
-    # # Print total number of images
-    # logger.info(f"Total number of images in the dataset: {params['numTest'] + params['numTraining'] + params['numValidation']}")
+        params[name] = temp_list
+        logger.info(f"Number of images in {name} set: {len(temp_list)}")
+    params["numTest"] = len(params["test"])
+    params["numTraining"] = len(params["train"])
+    params["numValidation"] = len(params["validation"])
+    params["numSubjectsTrainValTest"] = len(set(subjects_basel)) + len(set(subjects_bavaria)) + len(set(subjects_canproco)) + len(set(subjects_nih)) + len(set(subjects_nyu)) + len(set(subjects_sct))
 
-    # final_json = json.dumps(params, indent=4, sort_keys=True)
-    # if not os.path.exists(args.path_out):
-    #     os.makedirs(args.path_out, exist_ok=True)
-    # if args.lesion_only:
-    #     jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}_lesionOnly.json", "w")
-    # else:
-    #     jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}.json", "w")
-    # jsonFile.write(final_json)
-    # jsonFile.close()
+    # Now for the external validation datasets:
+    temp_list = []
+    subjects_external = []
+    for derivative in external_derivatives:
+
+        temp_data = {}
+        temp_data["label"] = str(derivative)
+        temp_data["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+        if os.path.exists(temp_data["label"]) and os.path.exists(temp_data["image"]):
+            total_lesion_volume, nb_lesions = count_lesion(temp_data["label"])
+            temp_data["total_lesion_volume"] = total_lesion_volume
+            temp_data["nb_lesions"] = nb_lesions
+            site = str(os.path.relpath(Path(temp_data["image"]),root)).split('/')[0]
+            temp_data["site"]=site
+            temp_data["contrast"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+            acquisition, resolution, dimension = get_acquisition_resolution_and_dimension(temp_data["image"])
+            temp_data["acquisition"] = acquisition
+            resolution = [np.float64(i) for i in resolution]
+            temp_data["resolution"] = resolution
+            temp_data["dimension"] = dimension
+            if args.lesion_only and nb_lesions == 0:
+                continue
+            temp_list.append(temp_data)
+            # Get the subject
+            subject = str(derivative).split('/')[-1].split('_')[0]
+            subjects_external.append(site+"-"+subject)
+
+    params["externalValidation"] = temp_list
+    params["numExternalValidation"] = len(params["externalValidation"])
+    params["numSubjectsExternalValidation"] = len(set(subjects_external))
+    # Print the number of subjects in the external validation set
+    logger.info(f"Number of subjects in the external validation set: {len(set(subjects_external))}")
+
+    # Print total number of images
+    logger.info(f"Total number of images in the dataset: {params['numTest'] + params['numTraining'] + params['numValidation'] + params['numExternalValidation']}")
+    print(params)
+    final_json = json.dumps(params, indent=4, sort_keys=True)
+    if not os.path.exists(args.path_out):
+        os.makedirs(args.path_out, exist_ok=True)
+    if args.lesion_only:
+        jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}_lesionOnly.json", "w")
+    else:
+        jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}.json", "w")
+    jsonFile.write(final_json)
+    jsonFile.close()
 
     return None
 
