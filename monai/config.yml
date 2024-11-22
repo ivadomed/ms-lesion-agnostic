@@ -1,0 +1,50 @@
+# Description: Configuration file for the UNETR model
+
+# Path to the data json file
+# data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake.json
+# data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake_lesion_sc.json
+# data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake_10_each.json
+# data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/fake_sc.json
+# data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-03-13_seed42_canproco.json
+# data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-04-05_seed42_lesionOnly.json
+# data: /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/data/monai_data/dataset_2024-04-17_seed42_lesionOnly.json
+data: /home/plbenveniste/net/ms-lesion-agnostic/msd_data/dataset_2024-06-26_seed42_lesionOnly.json
+# data: /home/plbenveniste/net/ms-lesion-agnostic/msd_data/dataset_2024-08-13_seed42_lesionOnly.json
+# data: /home/plbenveniste/net/ms-lesion-agnostic/msd_data/fake.json
+
+# Resampling resolution
+# pixdim : [1.0, 1.0, 1.0]
+pixdim : [0.7, 0.7, 0.7]
+# pixdim : [0.5, 0.5, 0.5]
+
+# Spatial size of the input data
+spatial_size : [64, 128, 128] # RL, AP, IS
+batch_size : 4 # smaller batch size lead to better generalization https://arxiv.org/abs/1609.04836 but longer to train
+
+# Augmentation parameters
+DA_probability : 0.2
+
+# Optimizer parameters
+lr : 0.0001
+weight_decay: 0.00001
+early_stopping_patience : 50
+
+# Training parameters
+max_iterations : 250
+eval_num : 2
+
+# Outputs
+# output_path : /home/GRAMES.POLYMTL.CA/p119007/ms_lesion_agnostic/results/
+output_path : /home/plbenveniste/net/ms-lesion-agnostic/results/
+# output_path : /home/plbenveniste/net/ms-lesion-agnostic/results_cropped_head/
+
+# Seed
+seed : 42
+
+# UNET model parameters
+unet_channels : [32, 64, 128, 256, 512, 1024]
+unet_strides : [2, 2, 2, 2, 2, 2, 2]
+
+# AttentionUnet
+attention_unet_channels : [32, 64, 128, 256, 512]
+attention_unet_strides : [2, 2, 2, 2, 2]
