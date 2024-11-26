@@ -72,7 +72,7 @@ def main():
             print(f"Lesions are outside the spinal cord for {derivative}")
             print(f"Check {sc_seg_file} and {derivative}")
             print(f"Check the QC report in {qc_folder}")
-            problematic_files.append(derivative)
+            problematic_files.append(str(derivative))
     # In the QC folder we print the problematic files
     with open(os.path.join(qc_folder, "problematic_files.txt"), "w") as f:
         for file in problematic_files:
