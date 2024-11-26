@@ -1,0 +1,4 @@
+tqdm==4.67.0
+pathlib==1.0.1
+numpy==2.0.2
+nibabel==5.3.2
