@@ -1,0 +1,4 @@
+EXCLUDED:
+- sub-nihReich005_T2star_lesion-manual.nii.gz # Motion artifact
+- sub-vanderbiltSeth003_T2star_lesion-manual.nii.gz # Motion artifact
+- sub-5505_ses-20180903_acq-sagTse_T2w_lesion-manual.nii.gz # Poor segmentation
