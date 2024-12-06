@@ -423,7 +423,7 @@ def main():
     params["numExternalValidation"] = len(params["externalValidation"])
     params["numSubjectsExternalValidation"] = len(set(subjects_external))
     # Print the number of subjects in the external validation set
-    logger.info(f"Number of images in the external validation set: {len(params["externalValidation"])}")
+    logger.info(f"Number of images in the external validation set: {params['numExternalValidation']}")
     logger.info(f"Number of subjects in the external validation set: {params['numSubjectsExternalValidation']}")
 
     # Print total number of images
