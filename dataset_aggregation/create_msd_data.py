@@ -8,12 +8,10 @@ Arguments:
     --lesion-only: Use only masks which contain some lesions
     --seed: Seed for reproducibility
     --canproco-exclude: Path to the file containing the list of subjects to exclude from CanProCo
+    --exclude: Path to the file containing the list of subjects to exclude from the dataset
 
 Example:
-    python 1_create_msd_data.py -pd /path/dataset -po /path/output --lesion-only --seed 42 --canproco-exclude /path/exclude_list.txt
-
-TO DO: 
-    *
+    python 1_create_msd_data.py -pd /path/dataset -po /path/output --lesion-only --seed 42 --canproco-exclude /path/exclude_list.txt --exclude /path/exclude_list.txt
 
 Pierre-Louis Benveniste
 """
@@ -49,6 +47,7 @@ def get_parser():
     parser.add_argument('-pd', '--path-data', required=True, type=str, help='Path to the folder containing the datasets')
     parser.add_argument('-po', '--path-out', type=str, help='Path to the output directory where dataset json is saved')
     parser.add_argument('--canproco-exclude', type=str, help='Path to the file containing the list of subjects to exclude from CanProCo')
+    parser.add_argument('--exclude', type=str, help='Path to the file containing the list of subjects to exclude from the dataset')
     parser.add_argument('--lesion-only', action='store_true', help='Use only masks which contain some lesions')
     parser.add_argument('--seed', default=42, type=int, help="Seed for reproducibility")
 
@@ -145,14 +144,22 @@ def main():
     path_sct_testing = Path(os.path.join(root, "sct-testing-large"))
 
     derivatives_basel_mp2rage = list(path_basel_mp2rage.rglob('*_desc-rater3_label-lesion_seg.nii.gz'))
+    derivatives_basel_mp2rage = [derivative for derivative in derivatives_basel_mp2rage if 'labels-ms-spinal' in str(derivative)]
     derivatives_bavaria_unstitched = list(path_bavaria_unstitched.rglob('*_lesion-manual.nii.gz'))
+    derivatives_bavaria_unstitched = [derivative for derivative in derivatives_bavaria_unstitched if 'labels-ms-spinal' in str(derivative)]
     derivatives_canproco = list(path_canproco.rglob('*_lesion-manual.nii.gz'))
+    derivatives_canproco = [derivative for derivative in derivatives_canproco if 'labels-ms-spinal' in str(derivative)]
     derivatives_basel_2018 = list(path_basel_2018.rglob('*_lesion-manual.nii.gz'))
     derivatives_basel_2020 = list(path_basel_2020.rglob('*_lesion-manual.nii.gz'))
+    # Remove PD files from basel_2020
+    derivatives_basel_2020 = [derivative for derivative in derivatives_basel_2020 if '_PD_' not in str(derivative)]
     derivatives_karo = list(path_karo.rglob('*_lesion-manual.nii.gz'))
     derivatives_nih = list(path_nih.rglob('*_desc-rater1_label-lesion_seg.nii.gz'))
+    derivatives_nih = [derivative for derivative in derivatives_nih if 'labels-ms-spinal' in str(derivative)]
     derivatives_nyu = list(path_nyu.rglob('*_lesion-manual.nii.gz'))
+    derivatives_nyu = [derivative for derivative in derivatives_nyu if 'labels-ms-spinal' in str(derivative)]
     derivatives_sct = list(path_sct_testing.rglob('*_lesion-manual.nii.gz'))
+    derivatives_sct = [derivative for derivative in derivatives_sct if 'labels-ms-spinal' in str(derivative)]
 
     # Path to the file containing the list of subjects to exclude from CanProCo
     if args.canproco_exclude is not None:
@@ -161,20 +168,14 @@ def main():
     # only keep the contrast psir and stir
     canproco_exclude_list = canproco_exclude_list['PSIR'] + canproco_exclude_list['STIR']
 
-    # Print the number of derivatives in each dataset
-    logger.info(f"Number of derivatives in basel-mp2rage: {len(derivatives_basel_mp2rage)}")
-    logger.info(f"Number of derivatives in bavaria-quebec: {len(derivatives_bavaria_unstitched)}")
-    logger.info(f"Number of derivatives in canproco: {len(derivatives_canproco)}")
-    logger.info(f"Number of derivatives in ms-basel-2018: {len(derivatives_basel_2018)}")
-    logger.info(f"Number of derivatives in ms-basel-2020: {len(derivatives_basel_2020)}")
-    logger.info(f"Number of derivatives in ms-karolinska-2020: {len(derivatives_karo)}")
-    logger.info(f"Number of derivatives in nih-ms-mp2rage: {len(derivatives_nih)}")
-    logger.info(f"Number of derivatives in ms-nyu: {len(derivatives_nyu)}")
-    logger.info(f"Number of derivatives in sct-testing-large: {len(derivatives_sct)}")
+    # Path to the file containing the list of subjects to exclude from the datasets
+    if args.exclude is not None:
+         with open(args.exclude, 'r') as file:
+                exclude_list = yaml.load(file, Loader=yaml.FullLoader)
+    exlude_list = exclude_list['EXCLUDED']
 
     derivatives = derivatives_basel_mp2rage + derivatives_bavaria_unstitched + derivatives_canproco + derivatives_nih + derivatives_nyu + derivatives_sct
     external_derivatives = derivatives_basel_2018 + derivatives_basel_2020 + derivatives_karo
-    logger.info(f"Total number of derivatives in the root directory: {len(derivatives)+len(external_derivatives)}")
 
     # create one json file with 60-20-20 train-val-test split
     train_ratio, val_ratio, test_ratio = 0.6, 0.2, 0.2
@@ -186,14 +187,6 @@ def main():
     train_derivatives = sorted(train_derivatives)
     val_derivatives = sorted(val_derivatives)
     test_derivatives = sorted(test_derivatives)
-
-    # logger.info(f"Number of training subjects: {len(train_derivatives)}")
-    # logger.info(f"Number of validation subjects: {len(val_derivatives)}")
-    # logger.info(f"Number of testing subjects: {len(test_derivatives)}")
-
-    # # dump train/val/test splits into a yaml file
-    # with open(f"{args.path_out}/data_split_{str(date.today())}_seed{seed}.yaml", 'w') as file:
-    #     yaml.dump({'train': train_derivatives, 'val': val_derivatives, 'test': test_derivatives}, file, indent=2, sort_keys=True)
 
     # keys to be defined in the dataset_0.json
     params = {}
@@ -230,7 +223,6 @@ def main():
             temp_list = []
             for subject_no, derivative in tqdm(enumerate(derivs_list)):
 
-                
                 temp_data_basel = {}
                 temp_data_bavaria = {}
                 temp_data_canproco = {}
@@ -240,6 +232,8 @@ def main():
                 
                 # Basel
                 if 'basel-mp2rage' in str(derivative):
+                    if str(derivative).split('/')[-1] in exlude_list:
+                        continue
                     relative_path = derivative.relative_to(path_basel_mp2rage).parent
                     temp_data_basel["label"] = str(derivative)
                     temp_data_basel["image"] = str(derivative).replace('_desc-rater3_label-lesion_seg.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
@@ -262,9 +256,10 @@ def main():
                         subject = str(derivative).split('/')[-1].split('_')[0]
                         subjects_basel.append(subject)
             
-
                 # Bavaria-quebec
                 elif 'bavaria-quebec-spine-ms' in str(derivative):
+                    if str(derivative).split('/')[-1] in exlude_list:
+                        continue
                     temp_data_bavaria["label"] = str(derivative)
                     temp_data_bavaria["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
                     if os.path.exists(temp_data_bavaria["label"]) and os.path.exists(temp_data_bavaria["image"]):
@@ -313,6 +308,8 @@ def main():
 
                 # nih-ms-mp2rage
                 elif 'nih-ms-mp2rage' in str(derivative):
+                    if str(derivative).split('/')[-1] in exlude_list:
+                        continue
                     temp_data_nih["label"] = str(derivative)
                     temp_data_nih["image"] = str(derivative).replace('_desc-rater1_label-lesion_seg.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
                     if os.path.exists(temp_data_nih["label"]) and os.path.exists(temp_data_nih["image"]):
@@ -333,9 +330,10 @@ def main():
                         subject = str(derivative).split('/')[-1].split('_')[0]
                         subjects_nih.append(subject)
 
-
                 # ms-nyu   
                 elif 'ms-nyu' in str(derivative):
+                    if str(derivative).split('/')[-1] in exlude_list:
+                        continue
                     temp_data_nyu["label"] = str(derivative)
                     temp_data_nyu["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
                     if os.path.exists(temp_data_nyu["label"]) and os.path.exists(temp_data_nyu["image"]):
@@ -356,9 +354,10 @@ def main():
                         subject = str(derivative).split('/')[-1].split('_')[0]
                         subjects_nyu.append(subject)
 
-
                 # sct-testing-large
                 elif 'sct-testing-large' in str(derivative):
+                    if str(derivative).split('/')[-1] in exlude_list:
+                        continue
                     temp_data_sct["label"] = str(derivative)
                     temp_data_sct["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
                     if os.path.exists(temp_data_sct["label"]) and os.path.exists(temp_data_sct["image"]):
@@ -390,6 +389,8 @@ def main():
     params["numTraining"] = len(params["train"])
     params["numValidation"] = len(params["validation"])
     params["numSubjectsTrainValTest"] = len(set(subjects_basel)) + len(set(subjects_bavaria)) + len(set(subjects_canproco)) + len(set(subjects_nih)) + len(set(subjects_nyu)) + len(set(subjects_sct))
+    # Print the info of numbers
+    logger.info(f"Number of subjects in TrainValTest: {params['numSubjectsTrainValTest']}")
 
     # Now for the external validation datasets:
     temp_list = []
@@ -423,6 +424,7 @@ def main():
     params["numSubjectsExternalValidation"] = len(set(subjects_external))
     # Print the number of subjects in the external validation set
     logger.info(f"Number of images in the external validation set: {len(params["externalValidation"])}")
+    logger.info(f"Number of subjects in the external validation set: {params['numSubjectsExternalValidation']}")
 
     # Print total number of images
     logger.info(f"Total number of images in the dataset: {params['numTest'] + params['numTraining'] + params['numValidation'] + params['numExternalValidation']}")
