@@ -440,12 +440,12 @@ def main():
     final_json = json.dumps(params, indent=4, sort_keys=True)
     if not os.path.exists(args.path_out):
         os.makedirs(args.path_out, exist_ok=True)
-    if args.lesion_only:
-        jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}_lesionOnly.json", "w")
-    if args.all_train:
-        jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}_allTrain.json", "w")
     if args.lesion_only and args.all_train:
         jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}_lesionOnly_allTrain.json", "w")
+    elif args.lesion_only:
+        jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}_lesionOnly.json", "w")
+    elif args.all_train:
+        jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}_allTrain.json", "w")
     else:
         jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}.json", "w")
     jsonFile.write(final_json)
