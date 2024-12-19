@@ -9,6 +9,7 @@ Arguments:
     --seed: Seed for reproducibility
     --canproco-exclude: Path to the file containing the list of subjects to exclude from CanProCo
     --exclude: Path to the file containing the list of subjects to exclude from the dataset
+    --all-train: Use the data to train the model (except for the external test data)
 
 Example:
     python 1_create_msd_data.py -pd /path/dataset -po /path/output --lesion-only --seed 42 --canproco-exclude /path/exclude_list.txt --exclude /path/exclude_list.txt
@@ -50,6 +51,7 @@ def get_parser():
     parser.add_argument('--exclude', type=str, help='Path to the file containing the list of subjects to exclude from the dataset')
     parser.add_argument('--lesion-only', action='store_true', help='Use only masks which contain some lesions')
     parser.add_argument('--seed', default=42, type=int, help="Seed for reproducibility")
+    parser.add_argument('--all-train', action='store_true', help='Use the data to train the model (except for the external test data)')
 
     return parser
 
@@ -172,7 +174,7 @@ def main():
     if args.exclude is not None:
          with open(args.exclude, 'r') as file:
                 exclude_list = yaml.load(file, Loader=yaml.FullLoader)
-    exlude_list = exclude_list['EXCLUDED']
+    exclude_list = exclude_list['EXCLUDED']
 
     derivatives = derivatives_basel_mp2rage + derivatives_bavaria_unstitched + derivatives_canproco + derivatives_nih + derivatives_nyu + derivatives_sct
     external_derivatives = derivatives_basel_2018 + derivatives_basel_2020 + derivatives_karo
@@ -183,6 +185,12 @@ def main():
     # Use the training split to further split into training and validation splits
     train_derivatives, val_derivatives = train_test_split(train_derivatives, test_size=val_ratio / (train_ratio + val_ratio),
                                                     random_state=args.seed, )
+    # If the flag --all-train is set, use all the data for training
+    if args.all_train:
+        train_derivatives = train_derivatives + val_derivatives + test_derivatives
+        val_derivatives = []
+        test_derivatives = []
+    
     # sort the subjects
     train_derivatives = sorted(train_derivatives)
     val_derivatives = sorted(val_derivatives)
@@ -232,11 +240,12 @@ def main():
                 
                 # Basel
                 if 'basel-mp2rage' in str(derivative):
-                    if str(derivative).split('/')[-1] in exlude_list:
+                    if str(derivative).split('/')[-1] in exclude_list:
+                        print("excluded")
                         continue
                     relative_path = derivative.relative_to(path_basel_mp2rage).parent
                     temp_data_basel["label"] = str(derivative)
-                    temp_data_basel["image"] = str(derivative).replace('_desc-rater3_label-lesion_seg.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    temp_data_basel["image"] = str(derivative).replace('_desc-rater3_label-lesion_seg.nii.gz', '.nii.gz').replace('derivatives/labels-ms-spinal-cord-only/', '')
                     if os.path.exists(temp_data_basel["label"]) and os.path.exists(temp_data_basel["image"]):
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_basel["label"])
                         temp_data_basel["total_lesion_volume"] = total_lesion_volume
@@ -258,10 +267,10 @@ def main():
             
                 # Bavaria-quebec
                 elif 'bavaria-quebec-spine-ms' in str(derivative):
-                    if str(derivative).split('/')[-1] in exlude_list:
+                    if str(derivative).split('/')[-1] in exclude_list:
                         continue
                     temp_data_bavaria["label"] = str(derivative)
-                    temp_data_bavaria["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    temp_data_bavaria["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels-ms-spinal-cord-only/', '')
                     if os.path.exists(temp_data_bavaria["label"]) and os.path.exists(temp_data_bavaria["image"]):
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_bavaria["label"])
                         temp_data_bavaria["total_lesion_volume"] = total_lesion_volume
@@ -287,7 +296,7 @@ def main():
                     if subject_id in canproco_exclude_list:
                         continue  
                     temp_data_canproco["label"] = str(derivative)
-                    temp_data_canproco["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    temp_data_canproco["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels-ms-spinal-cord-only/', '')
                     if os.path.exists(temp_data_canproco["label"]) and os.path.exists(temp_data_canproco["image"]):
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_canproco["label"])
                         temp_data_canproco["total_lesion_volume"] = total_lesion_volume
@@ -308,10 +317,10 @@ def main():
 
                 # nih-ms-mp2rage
                 elif 'nih-ms-mp2rage' in str(derivative):
-                    if str(derivative).split('/')[-1] in exlude_list:
+                    if str(derivative).split('/')[-1] in exclude_list:
                         continue
                     temp_data_nih["label"] = str(derivative)
-                    temp_data_nih["image"] = str(derivative).replace('_desc-rater1_label-lesion_seg.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    temp_data_nih["image"] = str(derivative).replace('_desc-rater1_label-lesion_seg.nii.gz', '.nii.gz').replace('derivatives/labels-ms-spinal-cord-only/', '')
                     if os.path.exists(temp_data_nih["label"]) and os.path.exists(temp_data_nih["image"]):
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_nih["label"])
                         temp_data_nih["total_lesion_volume"] = total_lesion_volume
@@ -332,10 +341,10 @@ def main():
 
                 # ms-nyu   
                 elif 'ms-nyu' in str(derivative):
-                    if str(derivative).split('/')[-1] in exlude_list:
+                    if str(derivative).split('/')[-1] in exclude_list:
                         continue
                     temp_data_nyu["label"] = str(derivative)
-                    temp_data_nyu["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    temp_data_nyu["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels-ms-spinal-cord-only/', '')
                     if os.path.exists(temp_data_nyu["label"]) and os.path.exists(temp_data_nyu["image"]):
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_nyu["label"])
                         temp_data_nyu["total_lesion_volume"] = total_lesion_volume
@@ -356,10 +365,10 @@ def main():
 
                 # sct-testing-large
                 elif 'sct-testing-large' in str(derivative):
-                    if str(derivative).split('/')[-1] in exlude_list:
+                    if str(derivative).split('/')[-1] in exclude_list:
                         continue
                     temp_data_sct["label"] = str(derivative)
-                    temp_data_sct["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    temp_data_sct["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels-ms-spinal-cord-only/', '')
                     if os.path.exists(temp_data_sct["label"]) and os.path.exists(temp_data_sct["image"]):
                         total_lesion_volume, nb_lesions = count_lesion(temp_data_sct["label"])
                         temp_data_sct["total_lesion_volume"] = total_lesion_volume
@@ -399,7 +408,7 @@ def main():
 
         temp_data = {}
         temp_data["label"] = str(derivative)
-        temp_data["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+        temp_data["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '').replace('derivatives/labels-ms-spinal-cord-only/', '')
         if os.path.exists(temp_data["label"]) and os.path.exists(temp_data["image"]):
             total_lesion_volume, nb_lesions = count_lesion(temp_data["label"])
             temp_data["total_lesion_volume"] = total_lesion_volume
@@ -433,6 +442,10 @@ def main():
         os.makedirs(args.path_out, exist_ok=True)
     if args.lesion_only:
         jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}_lesionOnly.json", "w")
+    if args.all_train:
+        jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}_allTrain.json", "w")
+    if args.lesion_only and args.all_train:
+        jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}_lesionOnly_allTrain.json", "w")
     else:
         jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}.json", "w")
     jsonFile.write(final_json)
