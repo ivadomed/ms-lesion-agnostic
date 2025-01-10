@@ -48,12 +48,13 @@ def main():
         msd_data = json.load(f)
     
     # Get data
-    data = msd_data['train'] + msd_data['validation'] + msd_data['test']
+    data = msd_data['train'] + msd_data['validation'] + msd_data['test'] + msd_data['externalValidation']
 
     print("Number of images: ", len(data))
     print("Number of images for training: ", (msd_data['numTraining']))
     print("Number of images for validation: ", (msd_data['numValidation']))
     print("Number of images for testing: ", (msd_data['numTest']))
+    print("Number of images for external validation: ", (msd_data['numExternalValidation']))
 
     # Count the number of images per countrast
     contrast_count = {}
@@ -69,17 +70,16 @@ def main():
     print("PSIR are 2D sagital images: count PSIR images:", contrast_count['PSIR'])
     print("STIR are 2D sagital images: count STIR images:", contrast_count['STIR'])
     print("UNIT1 are 3D images: count UNIT1 images:", contrast_count['UNIT1'])
+    # We manually checked and all the T1w are 3D images
     print("T1w are 3D images: count T1w images:", contrast_count['T1w'])
+    # We manually checked and all the MEGRE images are 2D axial images
+    print("MEGRE are 2D axial images: count MEGRE images:", contrast_count['MEGRE'])
 
-    # Now for more complex cases: T1w, T2w and T2star
-    ## For T1w easy: there is only one: 
-    ### After looking at the data, we haev decided to remove it
+    # Now for more complex cases: T2w and T2star
     ## For T2w:
-    # get one example of T2w
     t2w = [image for image in data if image['contrast'] == 'T2w']
     count_t2w_ax = 0
     count_t2w_sag = 0
-
     # for file in t2w files, if ax not in name print file name
     for file in t2w:
         if 'acq-ax' in file['image'].split('/')[-1]:
@@ -101,8 +101,7 @@ def main():
     t2star = [image for image in data if image['contrast'] == 'T2star']
     count_t2star_ax = 0
     count_t2star_sag = 0
-
-    # for file in t2star files, if ax not in name print file name
+    # for file in t2star files, if sag not in name print file name
     for file in t2star:
         if 'acq-sag' in file['image'].split('/')[-1]:
             count_t2star_sag += 1
@@ -110,108 +109,40 @@ def main():
             count_t2star_ax += 1
     print('For T2star, we have only 2D images: ', count_t2star_ax, ' axial images and ', count_t2star_sag, ' sagital images')
 
-    print("Total number of sagital images: ", count_t2star_sag + count_t2w_sag + contrast_count['PSIR'] + contrast_count['STIR'])
-    print("Total number of axial images: ", count_t2star_ax + count_t2w_ax )
+    print("Total number of 2D sagital images: ", count_t2star_sag + count_t2w_sag + contrast_count['PSIR'] + contrast_count['STIR'])
+    print("Total number of 2D axial images: ", count_t2star_ax + count_t2w_ax + contrast_count['MEGRE'])
     print("Total number of 3D images: ", contrast_count['UNIT1'] + contrast_count['T1w'])
 
     # Now we count the number of subjects
     subjects = []
     for image in data:
         sub = image['image'].split('/')[-1].split('_')[0]
-        dataset = image['image'].split('/data/')[1].split('/')[0]
+        dataset = image['site']
         subject = dataset + '/' + sub
         subjects.append(subject)
     
-    print("Number of subjects: ", len(set(subjects)))    
+    print("Number of subjects: ", len(set(subjects)))   
 
-    # # Now we will look at the average resolution of the images
-    # ## Iterate over the images
-    # resolutions = []
-    # for image in tqdm(data):
-    #     image_reoriented = Image(image['image']).change_orientation('RPI')
-    #     resolution = image_reoriented.dim[4:7]
-    #     resolution = [float(res) for res in resolution]
-    #     resolutions.append(resolution)
-        
-    # print("Average resolution: ", np.mean(resolutions, axis=0))
-    # print("Std resolution: ", np.std(resolutions, axis=0))
-    # print("Median resolution: ", np.median(resolutions, axis=0))
-    # print("Minimum pixel dimension: ", np.min(resolutions))
-    # print("Maximum pixel dimension: ", np.max(resolutions))
-
-    print("-------------------------------------")
-
-
-
-    # #############################################################
-    # Now we can look at the external testing dataset ms-basel-2018 and ms-basel-2020
-    path_ms_basel_2018 = os.path.join(dataset_path, 'ms-basel-2018')
-    path_ms_basel_2020 = os.path.join(dataset_path, 'ms-basel-2020')
-
-    # We count all the segmentation files in both using rglob
-    ms_basel_2018 = list(Path(path_ms_basel_2018).rglob("*lesion-manual.nii.gz"))
-    ms_basel_2020 = list(Path(path_ms_basel_2020).rglob("*lesion-manual.nii.gz"))
-
-    list_contrast_ms_basel_2018 = [str(image).split("/")[-1].split('_')[-2] for image in ms_basel_2018]
-
-    print("Number of images in ms-basel-2018: ", len(ms_basel_2018))
-    print("Contrast in ms-basel-2018: ", set(list_contrast_ms_basel_2018))
-    # Print the number of each contrast
-    contrast_count_ms_basel_2018 = {}
-    for contrast in set(list_contrast_ms_basel_2018):
-        contrast_count_ms_basel_2018[contrast] = list_contrast_ms_basel_2018.count(contrast)
-    print("Number of images per contrast in ms-basel-2018: ", contrast_count_ms_basel_2018)
-
-    list_contrast_ms_basel_2020 = [str(image).split("/")[-1].split('_')[-2] for image in ms_basel_2020]
-
-    print("Number of images in ms-basel-2020: ", len(ms_basel_2020))
-    print("Contrast in ms-basel-2020: ", set(list_contrast_ms_basel_2020))
-    # Print the number of each contrast
-    contrast_count_ms_basel_2020 = {}
-    for contrast in set(list_contrast_ms_basel_2020):
-        contrast_count_ms_basel_2020[contrast] = list_contrast_ms_basel_2020.count(contrast)
-    print("Number of images per contrast in ms-basel-2020: ", contrast_count_ms_basel_2020)
-
-    # Now we look at the orientation of the images
-    print("Total number of images:", len(ms_basel_2018) + len(ms_basel_2020))
-    ## The PD and T2w images are 2D sagittal images
-    print("2D sagital images:", contrast_count_ms_basel_2020['PD'] + contrast_count_ms_basel_2018['T2w'])
-    ## The T1w images are 3D images
-    print("3D images:", contrast_count_ms_basel_2018['T1w'])
-    
-
-    # Now we count the number pf subjects
-    ## For ms-basel-2018
-    subjects_ms_basel_2018 = []
-    for image in ms_basel_2018:
-        sub = str(image).split("/")[-1].split('_')[0]
-        subjects_ms_basel_2018.append(sub)
-    print("Number of subjects in ms-basel-2018: ", len(set(subjects_ms_basel_2018)))
-
-    ## For ms-basel-2020
-    subjects_ms_basel_2020 = []
-    for image in ms_basel_2020:
-        sub = str(image).split("/")[-1].split('_')[0]
-        subjects_ms_basel_2020.append(sub)
-    print("Number of subjects in ms-basel-2020: ", len(set(subjects_ms_basel_2020)))
+    # Print the number of sites:
+    print("Number of sites: ", len(set([image['site'] for image in data])))
 
     # Now we will look at the average resolution of the images
-    basel_data = ms_basel_2018 + ms_basel_2020
     ## Iterate over the images
-    resolutions_basel = []
-    for image in basel_data:
-        image_reoriented = Image(str(image)).change_orientation('RPI')
+    resolutions = []
+    for image in tqdm(data):
+        image_reoriented = Image(image['image']).change_orientation('RPI')
         resolution = image_reoriented.dim[4:7]
         resolution = [float(res) for res in resolution]
-        resolutions_basel.append(resolution)
+        resolutions.append(resolution)
         
-    print("Average resolution: ", np.mean(resolutions_basel, axis=0))
-    print("Std resolution: ", np.std(resolutions_basel, axis=0))
-    print("Median resolution: ", np.median(resolutions_basel, axis=0))
-    print("Minimum pixel dimension: ", np.min(resolutions_basel))
-    print("Maximum pixel dimension: ", np.max(resolutions_basel))
+    print("Average resolution: ", np.mean(resolutions, axis=0))
+    print("Std resolution: ", np.std(resolutions, axis=0))
+    print("Median resolution: ", np.median(resolutions, axis=0))
+    print("Minimum pixel dimension: ", np.min(resolutions))
+    print("Maximum pixel dimension: ", np.max(resolutions))
 
     print("-------------------------------------")
+
     # #############################################################
     # Now we can look at the external testing dataset umass*
     path_umass_1 = os.path.join(dataset_path, 'umass-ms-ge-hdxt1.5')
@@ -243,6 +174,12 @@ def main():
     umass_4 = [image for image in umass_4 if 'sub-ms1115_ses-01_acq-ax_ce-gad_T1w' not in str(image)]
     umass_4 = [image for image in umass_4 if 'sub-ms1098_ses-01_acq-ax_ce-gad_T1w' not in str(image)]
     umass_4 = [image for image in umass_4 if 'sub-ms1234_ses-03_acq-ax_ce-gad_T1w' not in str(image)]
+
+    # We don't want PDw images 
+    umass_1 = [image for image in umass_1 if 'PD' not in str(image)]
+    umass_2 = [image for image in umass_2 if 'PD' not in str(image)]
+    umass_3 = [image for image in umass_3 if 'PD' not in str(image)]
+    umass_4 = [image for image in umass_4 if 'PD' not in str(image)]
 
     # Initialize the seed
     seed = np.random.RandomState(42)
@@ -279,6 +216,8 @@ def main():
         subjects_umass.append(subject)
 
     print("Number of subjects in umass: ", len(set(subjects_umass)))
+
+    print("Number of sites in umass: 4")
 
     # Now we look at orientation of the images
     count_umass_ax = 0
@@ -372,6 +311,8 @@ def main():
         subjects_beijing.append(sub)
     print("Number of subjects in beijing: ", len(set(subjects_beijing)))
 
+    print("Number of sites in beijing: 1")
+
     # Now we will look at the average resolution of the images
     ## Iterate over the images
     resolutions_beijing = []
@@ -391,12 +332,13 @@ def main():
     print("-------------------------------------")
     print("-------------------------------------")
 
-    print("Total number of images: ", len(data) + len(ms_basel_2018) + len(ms_basel_2020) + len(umass) + len(beijing))
-    print("Total number of subjects: ", len(set(subjects)) + len(set(subjects_ms_basel_2018)) + len(set(subjects_ms_basel_2020)) + len(set(subjects_umass)) + len(set(subjects_beijing)))
+    print("Total number of images: ", len(data) + len(umass) + len(beijing))
+    print("Total number of subjects: ", len(set(subjects)) + len(set(subjects_umass)) + len(set(subjects_beijing)))
+    print("Total number of sites: ", len(set([image['site'] for image in data])) + 4 + 1)
 
-    print("Total number of sagital images: ", count_t2star_sag + count_t2w_sag + contrast_count['PSIR'] + contrast_count['STIR'] + contrast_count_ms_basel_2020['PD'] + contrast_count_ms_basel_2018['T2w'] +  count_umass_sag + count_beijing_sag)
-    print("Total number of axial images: ", count_t2star_ax + count_t2w_ax + count_umass_ax + count_beijing_ax)
-    print("Total number of 3D images: ", contrast_count['UNIT1'] + contrast_count['T1w'] + contrast_count_ms_basel_2018['T1w'] + count_umass_3d + count_beijing_3d)
+    print("Total number of sagital images: ", count_t2star_sag + count_t2w_sag + contrast_count['PSIR'] + contrast_count['STIR'] +  count_umass_sag + count_beijing_sag)
+    print("Total number of axial images: ", count_t2star_ax + count_t2w_ax + contrast_count['MEGRE'] + count_umass_ax + count_beijing_ax)
+    print("Total number of 3D images: ", contrast_count['UNIT1'] + contrast_count['T1w'] + count_umass_3d + count_beijing_3d)
 
     # Field strength
     field_strength = []
@@ -416,7 +358,8 @@ def main():
         field_strength.append(metadata["MagneticFieldStrength"])
         # if field strength is 1.5 print the image
         if metadata["MagneticFieldStrength"] == 1.5:
-            print(image['image'])
+            ok =1 
+            # print(image['image'])
     print("Field strength for MSD dataset: ", set(field_strength))
 
     return None
