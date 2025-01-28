@@ -109,7 +109,7 @@ def main():
 
     # Create the loss function
     supervised_loss = DiceCELoss(sigmoid=False, smooth_dr=1e-4)
-    consistency_loss = F.cross_entropy()
+    consistency_loss = F.cross_entropy
 
     # Initialize the storage of training results
     train_sup_losses = []
@@ -121,55 +121,76 @@ def main():
 
     # Train the model
     logger.info('Training the model')
-    studentNet.train()
-    TeacherNet.train()
-    epoch_loss = 0
-    step = 0
-    epoch_iterator = tqdm(train_loader, desc="Training (X / X Steps) (loss=X.X)", dynamic_ncols=True)
+    # Iterate over the epochs
+    for epoch in range(13):
+        logger.info(f'Epoch {epoch}')
+        studentNet.train()
+        TeacherNet.train()
+        epoch_sup_loss = 0
+        epoch_cons_loss = 0
+        epoch_total_loss = 0
+        step = 0
+        epoch_iterator = tqdm(train_loader, dynamic_ncols=True)
 
-    for step, batch in enumerate(epoch_iterator):
-        step += 1
-        inputs, labels = (batch["image"].cuda(), batch["label"].cuda())
+        for step, batch in enumerate(epoch_iterator):
+            step += 1
+            inputs, labels = (batch["image"].to(device), batch["label"].to(device))
 
-        # ------------ For the student model ------------
-        logit_map_student = studentNet(inputs)
-        # Get probabilities from logits
-        output_student = F.relu(logit_map_student) / F.relu(logit_map_student).max() if bool(F.relu(logit_map_student).max()) else F.relu(logit_map_student)
-        # Compute the supervised loss
-        supervised_loss = supervised_loss(output_student, labels)
-        train_sup_losses.append(supervised_loss.item())
+            # ------------ For the student model ------------
+            logit_map_student = studentNet(inputs)
+            # Get probabilities from logits
+            output_student = F.relu(logit_map_student) / F.relu(logit_map_student).max() if bool(F.relu(logit_map_student).max()) else F.relu(logit_map_student)
+            # Compute the supervised loss
+            train_sup_loss = supervised_loss(output_student, labels)
+            # Divide the loss by the number of elements in the batch
+            train_sup_loss /= inputs.size(0)
 
-        # ------------ For the teacher model ------------
-        logit_map_teacher = TeacherNet(inputs)
-        # Get probabilities from logits
-        output_teacher = F.relu(logit_map_teacher) / F.relu(logit_map_teacher).max() if bool(F.relu(logit_map_teacher).max()) else F.relu(logit_map_teacher)
-        # Compute the consistency loss
-        consistency_loss = consistency_loss(output_student, output_teacher)
-        train_cons_losses.append(consistency_loss.item())
+            # ------------ For the teacher model ------------
+            logit_map_teacher = TeacherNet(inputs)
+            # Get probabilities from logits
+            output_teacher = F.relu(logit_map_teacher) / F.relu(logit_map_teacher).max() if bool(F.relu(logit_map_teacher).max()) else F.relu(logit_map_teacher)
+            # Compute the consistency loss
+            train_cons_loss = consistency_loss(output_student, output_teacher)
+            # Divide the loss by the number of elements in the batch
+            train_cons_loss /= inputs.size(0)
 
-        # Compute the total loss
-        loss = 0.5*(supervised_loss + consistency_loss)
-        train_total_losses.append(loss.item())
+            # Compute the total loss
+            loss = 0.5*(train_sup_loss + train_cons_loss)
 
-        # Backward pass
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        scheduler.step()
-        optimizer.zero_grad()
+            # Backward pass
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            scheduler.step()
+            optimizer.zero_grad()
+
+            # Add the losses for each step in the epoch
+            epoch_sup_loss += train_sup_loss 
+            epoch_cons_loss += train_cons_loss
+            epoch_total_loss += loss
+
+        # Aggregate the losses for the epoch
+        epoch_sup_loss /= step
+        epoch_cons_loss /= step
+        epoch_total_loss /= step
+
+        # Add the losses for the epoch in the storage
+        train_sup_losses.append(epoch_sup_loss)
+        train_cons_losses.append(epoch_cons_loss)
+        train_total_losses.append(epoch_total_loss)
+    
+        # Report the epoch losses in the logger
+        logger.info(f'(Epoch {epoch}) Supervised loss: {epoch_sup_loss}, Consistency loss: {epoch_cons_loss}, Total loss: {epoch_total_loss}')
 
         # Update the Teacher model weights
         # TODO: update the teacher model weights: refer to this: https://github.com/perone/mean-teacher/blob/79bf9fc61f540491b79d3b3e60a213f798c3ea27/pytorch/main.py#L182
 
-        # Report the losses in the logger
-        logger.info(f'Step {step}/{len(train_loader)}, Supervised loss: {supervised_loss.item()}, Consistency loss: {consistency_loss.item()}, Total loss: {loss.item()}')
-
         # Evaluate the model
-        if step % 10 == 0:
+        if epoch % 10 == 0:
             studentNet.eval()
             TeacherNet.eval()
             with torch.no_grad():
-                inputs, labels = batch["image"], batch["label"]
+                inputs, labels = batch["image"].to(device), batch["label"].to(device)
 
                 # With the student model
                 # NOTE: this calculates the loss on the entire image after sliding window
@@ -199,7 +220,7 @@ def main():
 
                 # If the total loss is the best, report the performances and save the teacher model
                 if val_total_loss == min(val_total_losses):
-                    logger.info(f'Best model found at step {step}')
+                    logger.info(f'Best model found at epoch {epoch}')
                     # torch.save(TeacherNet.state_dict(), os.path.join(output_dir, 'best_model.pth'))
 
 
