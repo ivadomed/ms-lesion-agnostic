@@ -27,6 +27,8 @@ from monai.losses import DiceCELoss
 from tqdm import tqdm
 import torch.nn.functional as F
 from monai.inferers import sliding_window_inference
+import torch.multiprocessing
+torch.multiprocessing.set_sharing_strategy('file_system') # Because of this: https://github.com/Project-MONAI/MONAI/issues/701#issuecomment-663887104
 
 
 def arg_parser():
@@ -60,6 +62,18 @@ def val_transforms(data):
         ]
     )
     return val_transforms(data)
+
+
+def update_teacher_weights(studentNet, TeacherNet, alpha, epoch):
+    """
+    This function updates the weights of the teacher model using the student model.
+    It uses the exponential moving average of the student model weights to update the teacher model weights.
+    """
+    alpha = min(1 - 1 / (epoch + 1), alpha)
+    for teacher_param, student_param in zip(TeacherNet.parameters(), studentNet.parameters()):
+        # teacher_param.data.mul_(alpha).add_(1 - alpha, student_param.data)
+        teacher_param.data.mul_(alpha).add_(student_param.data, alpha=1 - alpha) # Changed because of this: https://github.com/clovaai/AdamP/issues/5
+    
 
 def main():
     # Parse the arguments
@@ -180,10 +194,10 @@ def main():
         train_total_losses.append(epoch_total_loss)
     
         # Report the epoch losses in the logger
-        logger.info(f'(Epoch {epoch}) Supervised loss: {epoch_sup_loss}, Consistency loss: {epoch_cons_loss}, Total loss: {epoch_total_loss}')
+        logger.info(f'Supervised loss: {epoch_sup_loss}, Consistency loss: {epoch_cons_loss}, Total loss: {epoch_total_loss}')
 
         # Update the Teacher model weights
-        # TODO: update the teacher model weights: refer to this: https://github.com/perone/mean-teacher/blob/79bf9fc61f540491b79d3b3e60a213f798c3ea27/pytorch/main.py#L182
+        update_teacher_weights(studentNet, TeacherNet, 0.99, epoch) # based on https://github.com/perone/mean-teacher/blob/79bf9fc61f540491b79d3b3e60a213f798c3ea27/pytorch/main.py#L182
 
         # Evaluate the model
         if epoch % 10 == 0:
