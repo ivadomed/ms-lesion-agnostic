@@ -1,6 +1,7 @@
 """
 This script trains a model to segment MS lesion from MRI images.
 The training is done using a Mean Teacher model, which is a semi-supervised learning method based on consistency training.
+Code was inspired from: https://github.com/yulequan/UA-MT and https://github.com/perone/mean-teacher
 
 Args:
     --msd-data: path to the MSD dataset
