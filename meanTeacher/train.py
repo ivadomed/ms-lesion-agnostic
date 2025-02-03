@@ -31,13 +31,12 @@ from tqdm import tqdm
 import torch.nn.functional as F
 from monai.inferers import sliding_window_inference
 from dynamic_network_architectures.architectures.unet import ResidualEncoderUNet
-from monai.data import decollate_batch
-
-
+import datetime
+import pandas as pd
 import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system') # Because of this: https://github.com/Project-MONAI/MONAI/issues/701#issuecomment-663887104
+import wandb
 
-import numpy as np
 
 def arg_parser():
     parser = argparse.ArgumentParser()
@@ -52,7 +51,7 @@ def train_transforms(data):
             LoadImaged(keys=["image", "label"], reader="NibabelReader"),
             EnsureChannelFirstd(keys=["image", "label"]),
             Orientationd(keys=["image", "label"], axcodes="RPI"),
-            Spacingd(keys=["image", "label"],pixdim=[0.7, 0.7, 0.7],mode=(2, 0)),
+            Spacingd(keys=["image", "label"],pixdim=[0.6770833134651184,0.5,0.5625],mode=(2, 0)),
             ResizeWithPadOrCropd(keys=["image", "label"],spatial_size=[64, 128, 128]),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),   
         ]
@@ -65,7 +64,7 @@ def val_transforms(data):
             LoadImaged(keys=["image", "label"], reader="NibabelReader"),
             EnsureChannelFirstd(keys=["image", "label"]),
             Orientationd(keys=["image", "label"], axcodes="RPI"),
-            Spacingd(keys=["image", "label"],pixdim=[0.7, 0.7, 0.7],mode=(2, 0)),
+            Spacingd(keys=["image", "label"],pixdim=[0.6770833134651184,0.5,0.5625],mode=(2, 0)),
             ResizeWithPadOrCropd(keys=["image", "label"],spatial_size=[64, 128, 128]),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),   
         ]
@@ -97,7 +96,7 @@ def load_pretrained_nnunet_model(nnunet_model):
                                 dropout_op_kwargs=plans["configurations"]["3d_fullres"]["architecture"]["arch_kwargs"]["dropout_op_kwargs"],
                                 nonlin=torch.nn.LeakyReLU, 
                                 nonlin_kwargs=plans["configurations"]["3d_fullres"]["architecture"]["arch_kwargs"]["nonlin_kwargs"],
-                                deep_supervision=True
+                                deep_supervision=False, # set to False to get the output of the last layer
     ) 
     model.load_state_dict(torch.load(os.path.join(nnunet_model, 'model.pth')))
 
@@ -124,6 +123,17 @@ def main():
 
     # Create the output directory
     os.makedirs(output_dir, exist_ok=True)
+    # output dir is inside output dir with the date of the run
+    output_dir = os.path.join(output_dir, 'Run_' + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Set up the logger
+    logger.add(f'{output_dir}/log.txt')
+    logger.info('Starting the training script')
+    # Log the arguments
+    logger.info(f'MSD data: {msd_data}')
+    logger.info(f'Output directory: {output_dir}')
+    logger.info(f'nnUNet model: {nnunet_model}')
 
     # Device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -172,8 +182,6 @@ def main():
                 dropout=0.1,
         ).to(device)
 
-    print(studentNet)
-
     # Create the optimizer
     optimizer = torch.optim.AdamW(studentNet.parameters(), lr=0.0001, weight_decay=0.00001)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=250)
@@ -209,14 +217,9 @@ def main():
 
             # ------------ For the student model ------------
             logit_map_student = studentNet(inputs)
-            # The following is needed because the nnUNet model outputs two classes (background and lesion) but we only need the lesion class
-            if isinstance(logit_map_student, list):
-                # the nnunet model outputs two classes (background and lesion) but we only need the lesion class
-                logit_map_student = logit_map_student[0]
-                # If batch=1, output is of shape 1, 2, 64, 128, 128 and we want 1, 1, 64, 128, 128
-                logit_map_student = logit_map_student[:, 1:batch_size_train, :, :, :]
-                logit_map_student = torch.tensor(logit_map_student)
-                
+            # if the nnunet model is used, we need to remove the empty class
+            if nnunet_model:
+                logit_map_student = logit_map_student[:, 1:2, :, :, :]
             # Get probabilities from logits
             output_student = F.relu(logit_map_student) / F.relu(logit_map_student).max() if bool(F.relu(logit_map_student).max()) else F.relu(logit_map_student)
             # Compute the supervised loss
@@ -226,14 +229,9 @@ def main():
 
             # ------------ For the teacher model ------------
             logit_map_teacher = teacherNet(inputs)
-            # The following is needed because the nnUNet model outputs two classes (background and lesion) but we only need the lesion class
-            if isinstance(logit_map_teacher, list):
-                # the nnunet model outputs two classes (background and lesion) but we only need the lesion class
-                logit_map_teacher = logit_map_teacher[0]
-                # If batch=1, output is of shape 1, 2, 64, 128, 128 and we want 1, 1, 64, 128, 128
-                logit_map_teacher = logit_map_teacher[:, 1:batch_size_train, :, :, :]
-                logit_map_teacher = torch.tensor(logit_map_teacher)
-
+            # if the nnunet model is used, we need to remove the empty class
+            if nnunet_model:
+                logit_map_teacher = logit_map_teacher[:, 1:2, :, :, :]
             # Get probabilities from logits
             output_teacher = F.relu(logit_map_teacher) / F.relu(logit_map_teacher).max() if bool(F.relu(logit_map_teacher).max()) else F.relu(logit_map_teacher)
             # Compute the consistency loss
@@ -246,8 +244,6 @@ def main():
 
             # Backward pass
             optimizer.zero_grad()
-            if nnunet_model:
-                loss.requires_grad = True
             loss.backward()
             optimizer.step()
             scheduler.step()
@@ -272,6 +268,7 @@ def main():
         logger.info(f'Supervised loss: {epoch_sup_loss}, Consistency loss: {epoch_cons_loss}, Total loss: {epoch_total_loss}')
 
         # Update the Teacher model weights
+        logger.info('Updating the teacher model weights')
         update_teacher_weights(studentNet, teacherNet, 0.99, epoch) # based on https://github.com/perone/mean-teacher/blob/79bf9fc61f540491b79d3b3e60a213f798c3ea27/pytorch/main.py#L182
 
         # Evaluate the model
@@ -283,42 +280,12 @@ def main():
 
                 # With the student model
                 # NOTE: this calculates the loss on the entire image after sliding window
-                print("input", inputs.shape)
                 logits_student = studentNet(inputs)
-                # The following is needed because the nnUNet model outputs two classes (background and lesion) but we only need the lesion class
-                if isinstance(logits_student, list):
-                    # the nnunet model outputs two classes (background and lesion) but we only need the lesion class
-                    logits_student = logits_student[0]
-                    # If batch=1, output is of shape 1, 2, 64, 128, 128 and we want 1, 1, 64, 128, 128
-                    logits_student = logits_student[:, 1:batch_size_val, :, :, :]
-                    logits_student = torch.tensor(logits_student)
-
-                # logits_student = sliding_window_inference(inputs, [192, 256, 160], mode="gaussian",
-                #                                 sw_batch_size=1, predictor=studentNet, overlap=0.5,)
-                # logits_student = [post_pred(i) for i in decollate_batch(logits_student[0])]
-                # logits_student = torch.cat(logits_student, dim=0)
-                # # print(logits_student.shape)
-                # # # print(logits_student.shape)
-                # # # The following is needed because the nnUNet model outputs two classes (background and lesion) but we only need the lesion class
-                # # if nnunet_model:
-                # #     # create empty tensor
-                # #     logits_student_copy = []
-                # #     # For each item in logits_student we want to remove the empty class
-                # #     for elem in logits_student:
-                # #         print(elem.shape)
-                # #         elem = elem[:, 1:batch_size_val, :, :, :]
-                # #         elem = torch.tensor(elem)
-                # #         logits_student_copy.append(elem)
-                # #     logits_student = torch.tensor(logits_student_copy)
-                    
-                        
-                #     # print(logits_student)
-                #     # print(logits_student.shape)
-                #     # print(logits_student[0].shape)
-                #     # for i in range(len(logits_student)):
-                #     #     logits_student[i] = logits_student[i][:, 1:batch_size_val, :, :, :]
-                #     #     logits_student[i] = torch.tensor(logits_student[i])
-                
+                logits_student = sliding_window_inference(inputs, [192, 256, 160], mode="gaussian",
+                                                sw_batch_size=1, predictor=studentNet, overlap=0.5,)
+                # the nnunet model outputs two classes (background and lesion) but we only need the lesion class
+                if nnunet_model:
+                    logits_student = logits_student[:, 1:2, :, :, :]
                 # get probabilities from logits
                 outputs_student = F.relu(logits_student) / F.relu(logits_student).max() if bool(F.relu(logits_student).max()) else F.relu(logits_student)
                 # calculate supervised validation loss
@@ -328,18 +295,9 @@ def main():
                 # With the teacher model
                 logits_teacher = sliding_window_inference(inputs, [64, 128, 128], mode="gaussian",
                                                 sw_batch_size=4, predictor=teacherNet, overlap=0.5,)
-                # The following is needed because the nnUNet model outputs two classes (background and lesion) but we only need the lesion class
+                # the nnunet model outputs two classes (background and lesion) but we only need the lesion class
                 if nnunet_model:
-                    # create empty tensor
-                    logits_teacher_copy = []
-                    # # For each item in logits_teacher we want to remove the empty class
-                    # for i in range(len(logits_teacher)):
-                        
-                    # the nnunet model outputs two classes (background and lesion) but we only need the lesion class
-                    logits_teacher = logits_teacher[0]
-                    # If batch=1, output is of shape 1, 2, 64, 128, 128 and we want 1, 1, 64, 128, 128
-                    logits_teacher = logits_teacher[:, 1:batch_size_val, :, :, :]
-                    logits_teacher = torch.tensor(logits_teacher)
+                    logits_teacher = logits_teacher[:, 1:2, :, :, :]
                 # get probabilities from logits
                 outputs_teacher = F.relu(logits_teacher) / F.relu(logits_teacher).max() if bool(F.relu(logits_teacher).max()) else F.relu(logits_teacher)
                 # calculate consistency validation loss
@@ -363,6 +321,25 @@ def main():
             torch.save(teacherNet.state_dict(), os.path.join(output_dir, 'last_teacher_model.pth'))
             torch.save(studentNet.state_dict(), os.path.join(output_dir, 'last_student_model.pth')) 
         
+        # Save the losses in a json file
+        ## Create a df with the train losses
+        train_sup_loss_df = pd.DataFrame({'train_supervised_losses': [float(elem.detach().cpu().numpy()) for elem in train_sup_losses]})
+        train_cons_loss_df = pd.DataFrame({'train_consistency_losses': [float(elem.detach().cpu().numpy()) for elem in train_cons_losses]})
+        train_total_loss_df = pd.DataFrame({'train_total_losses': [float(elem.detach().cpu().numpy()) for elem in train_total_losses]})
+        train_loss_df = pd.concat([train_sup_loss_df, train_cons_loss_df, train_total_loss_df], axis=1)
+        # same for the validation losses
+        val_sup_loss_df = pd.DataFrame({'val_supervised_losses': [elem for elem in val_sup_losses]})
+        val_cons_loss_df = pd.DataFrame({'val_consistency_losses': [elem for elem in val_cons_losses]})
+        val_total_loss_df = pd.DataFrame({'val_total_losses': [elem for elem in val_total_losses]})
+        val_loss_df = pd.concat([val_sup_loss_df, val_cons_loss_df, val_total_loss_df], axis=1)
+
+        ## Save the df in a json file
+        train_loss_df.to_json(os.path.join(output_dir, 'train_losses.json'))
+        val_loss_df.to_json(os.path.join(output_dir, 'val_losses.json'))
+
+        # Add line in logger
+        logger.info('--------------------------------------------------')
+
         # We save the logger in a txt file
         logger.add(f'{output_dir}/log.txt')
 
