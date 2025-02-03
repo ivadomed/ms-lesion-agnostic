@@ -128,6 +128,10 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     # Set up the logger
+    wandb_run = wandb.init(project=f'meanTeacher-ms-lesion-seg', save_code=True, dir=output_dir)
+    wandb_run.config.update(args)
+
+    # Set up the logger
     logger.add(f'{output_dir}/log.txt')
     logger.info('Starting the training script')
     # Log the arguments
@@ -266,13 +270,15 @@ def main():
     
         # Report the epoch losses in the logger
         logger.info(f'Supervised loss: {epoch_sup_loss}, Consistency loss: {epoch_cons_loss}, Total loss: {epoch_total_loss}')
+        # Report the losses in wandb
+        wandb.log({"supervised_loss": epoch_sup_loss, "consistency_loss": epoch_cons_loss, "total_loss": epoch_total_loss})
 
         # Update the Teacher model weights
         logger.info('Updating the teacher model weights')
         update_teacher_weights(studentNet, teacherNet, 0.99, epoch) # based on https://github.com/perone/mean-teacher/blob/79bf9fc61f540491b79d3b3e60a213f798c3ea27/pytorch/main.py#L182
 
         # Evaluate the model
-        if epoch % 10 == 0:
+        if epoch % 2 == 0:
             studentNet.eval()
             teacherNet.eval()
             with torch.no_grad():
@@ -311,6 +317,9 @@ def main():
                 # Report the validation losses in the logger
                 logger.info(f'Validation losses: Supervised loss: {val_sup_loss.item()}, Consistency loss: {val_cons_loss.item()}, Total loss: {val_total_loss.item()}')
 
+                # Report the validation losses in wandb
+                wandb.log({"val_supervised_loss": val_sup_loss.item(), "val_consistency_loss": val_cons_loss.item(), "val_total_loss": val_total_loss.item()})
+
                 # If the total loss is the best, report the performances and save the teacher model
                 if val_total_loss == min(val_total_losses):
                     logger.info(f'Best model found at epoch {epoch}')
@@ -342,6 +351,9 @@ def main():
 
         # We save the logger in a txt file
         logger.add(f'{output_dir}/log.txt')
+    
+    # Finish the wandb run
+    wandb.finish()
 
 
 if __name__ == '__main__':

@@ -6,3 +6,4 @@ monai[all]==1.3.0
 cupy-cuda117==10.6.0
 loguru==0.7.2
 nnunetv2==2.4
+wandb==0.15.12
