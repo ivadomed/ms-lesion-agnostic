@@ -140,11 +140,11 @@ def main():
         resolution = [float(res) for res in resolution]
         resolutions.append(resolution)
         
-    logger.info("Average resolution: ", np.mean(resolutions, axis=0))
-    logger.info("Std resolution: ", np.std(resolutions, axis=0))
-    logger.info("Median resolution: ", np.median(resolutions, axis=0))
-    logger.info("Minimum pixel dimension: ", np.min(resolutions))
-    logger.info("Maximum pixel dimension: ", np.max(resolutions))
+    logger.info("Average resolution (RPI): ", np.mean(resolutions, axis=0))
+    logger.info("Std resolution (RPI): ", np.std(resolutions, axis=0))
+    logger.info("Median resolution (RPI): ", np.median(resolutions, axis=0))
+    logger.info("Minimum pixel dimension (RPI): ", np.min(resolutions))
+    logger.info("Maximum pixel dimension (RPI): ", np.max(resolutions))
 
     logger.info("-------------------------------------")
 
@@ -254,11 +254,11 @@ def main():
         resolution = [float(res) for res in resolution]
         resolutions_umass.append(resolution)
         
-    logger.info("Average resolution: ", np.mean(resolutions_umass, axis=0))
-    logger.info("Std resolution: ", np.std(resolutions_umass, axis=0))
-    logger.info("Median resolution: ", np.median(resolutions_umass, axis=0))
-    logger.info("Minimum pixel dimension: ", np.min(resolutions_umass))
-    logger.info("Maximum pixel dimension: ", np.max(resolutions_umass))
+    logger.info("Average resolution (RPI): ", np.mean(resolutions_umass, axis=0))
+    logger.info("Std resolution (RPI): ", np.std(resolutions_umass, axis=0))
+    logger.info("Median resolution (RPI): ", np.median(resolutions_umass, axis=0))
+    logger.info("Minimum pixel dimension (RPI): ", np.min(resolutions_umass))
+    logger.info("Maximum pixel dimension (RPI): ", np.max(resolutions_umass))
 
     logger.info("-------------------------------------")
 
@@ -328,11 +328,11 @@ def main():
         resolutions_beijing.append(resolution)
 
         
-    logger.info("Average resolution: ", np.mean(resolutions_beijing, axis=0))
-    logger.info("Std resolution: ", np.std(resolutions_beijing, axis=0))
-    logger.info("Median resolution: ", np.median(resolutions_beijing, axis=0))
-    logger.info("Minimum pixel dimension: ", np.min(resolutions_beijing))
-    logger.info("Maximum pixel dimension: ", np.max(resolutions_beijing))
+    logger.info("Average resolution (RPI): ", np.mean(resolutions_beijing, axis=0))
+    logger.info("Std resolution (RPI): ", np.std(resolutions_beijing, axis=0))
+    logger.info("Median resolution (RPI): ", np.median(resolutions_beijing, axis=0))
+    logger.info("Minimum pixel dimension (RPI): ", np.min(resolutions_beijing))
+    logger.info("Maximum pixel dimension (RPI): ", np.max(resolutions_beijing))
 
     logger.info("-------------------------------------")
     logger.info("-------------------------------------")
