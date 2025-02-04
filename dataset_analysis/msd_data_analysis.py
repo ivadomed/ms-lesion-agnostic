@@ -24,6 +24,7 @@ import numpy as np
 from pathlib import Path
 from image import Image
 from tqdm import tqdm
+from loguru import logger
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -50,11 +51,15 @@ def main():
     # Get data
     data = msd_data['train'] + msd_data['validation'] + msd_data['test'] + msd_data['externalValidation']
 
-    print("Number of images: ", len(data))
-    print("Number of images for training: ", (msd_data['numTraining']))
-    print("Number of images for validation: ", (msd_data['numValidation']))
-    print("Number of images for testing: ", (msd_data['numTest']))
-    print("Number of images for external validation: ", (msd_data['numExternalValidation']))
+    # Create the logger file
+    log_file = os.path.join(output_folder, f'{Path(msd_data_path).name.split(".json")[0]}_analysis.txt')
+    logger.add(log_file)
+
+    logger.info("Number of images: ", len(data))
+    logger.info("Number of images for training: ", (msd_data['numTraining']))
+    logger.info("Number of images for validation: ", (msd_data['numValidation']))
+    logger.info("Number of images for testing: ", (msd_data['numTest']))
+    logger.info("Number of images for external validation: ", (msd_data['numExternalValidation']))
 
     # Count the number of images per countrast
     contrast_count = {}
@@ -64,16 +69,16 @@ def main():
             contrast_count[contrast] = 0
         contrast_count[contrast] += 1
     
-    print("Number of images per contrast: ", contrast_count)
+    logger.info("Number of images per contrast: ", contrast_count)
 
     # Now we will look at the orientation of the images: 
-    print("PSIR are 2D sagital images: count PSIR images:", contrast_count['PSIR'])
-    print("STIR are 2D sagital images: count STIR images:", contrast_count['STIR'])
-    print("UNIT1 are 3D images: count UNIT1 images:", contrast_count['UNIT1'])
+    logger.info("PSIR are 2D sagital images: count PSIR images:", contrast_count['PSIR'])
+    logger.info("STIR are 2D sagital images: count STIR images:", contrast_count['STIR'])
+    logger.info("UNIT1 are 3D images: count UNIT1 images:", contrast_count['UNIT1'])
     # We manually checked and all the T1w are 3D images
-    print("T1w are 3D images: count T1w images:", contrast_count['T1w'])
+    logger.info("T1w are 3D images: count T1w images:", contrast_count['T1w'])
     # We manually checked and all the MEGRE images are 2D axial images
-    print("MEGRE are 2D axial images: count MEGRE images:", contrast_count['MEGRE'])
+    logger.info("MEGRE are 2D axial images: count MEGRE images:", contrast_count['MEGRE'])
 
     # Now for more complex cases: T2w and T2star
     ## For T2w:
@@ -93,9 +98,9 @@ def main():
         elif 'uclCiccarelli' in file['image'].split('/')[-1]:
             count_t2w_sag += 1
         else:
-            print(file['image'].split('/')[-1])
+            logger.info(file['image'].split('/')[-1])
     
-    print('For T2w, we have only 2D images: ', count_t2w_ax, ' axial images and ', count_t2w_sag, ' sagital images')
+    logger.info('For T2w, we have only 2D images: ', count_t2w_ax, ' axial images and ', count_t2w_sag, ' sagital images')
             
     ## For T2star:
     t2star = [image for image in data if image['contrast'] == 'T2star']
@@ -107,11 +112,11 @@ def main():
             count_t2star_sag += 1
         else:
             count_t2star_ax += 1
-    print('For T2star, we have only 2D images: ', count_t2star_ax, ' axial images and ', count_t2star_sag, ' sagital images')
+    logger.info('For T2star, we have only 2D images: ', count_t2star_ax, ' axial images and ', count_t2star_sag, ' sagital images')
 
-    print("Total number of 2D sagital images: ", count_t2star_sag + count_t2w_sag + contrast_count['PSIR'] + contrast_count['STIR'])
-    print("Total number of 2D axial images: ", count_t2star_ax + count_t2w_ax + contrast_count['MEGRE'])
-    print("Total number of 3D images: ", contrast_count['UNIT1'] + contrast_count['T1w'])
+    logger.info("Total number of 2D sagital images: ", count_t2star_sag + count_t2w_sag + contrast_count['PSIR'] + contrast_count['STIR'])
+    logger.info("Total number of 2D axial images: ", count_t2star_ax + count_t2w_ax + contrast_count['MEGRE'])
+    logger.info("Total number of 3D images: ", contrast_count['UNIT1'] + contrast_count['T1w'])
 
     # Now we count the number of subjects
     subjects = []
@@ -121,10 +126,10 @@ def main():
         subject = dataset + '/' + sub
         subjects.append(subject)
     
-    print("Number of subjects: ", len(set(subjects)))   
+    logger.info("Number of subjects: ", len(set(subjects)))   
 
     # Print the number of sites:
-    print("Number of sites: ", len(set([image['site'] for image in data])))
+    logger.info("Number of sites: ", len(set([image['site'] for image in data])))
 
     # Now we will look at the average resolution of the images
     ## Iterate over the images
@@ -135,13 +140,13 @@ def main():
         resolution = [float(res) for res in resolution]
         resolutions.append(resolution)
         
-    print("Average resolution: ", np.mean(resolutions, axis=0))
-    print("Std resolution: ", np.std(resolutions, axis=0))
-    print("Median resolution: ", np.median(resolutions, axis=0))
-    print("Minimum pixel dimension: ", np.min(resolutions))
-    print("Maximum pixel dimension: ", np.max(resolutions))
+    logger.info("Average resolution: ", np.mean(resolutions, axis=0))
+    logger.info("Std resolution: ", np.std(resolutions, axis=0))
+    logger.info("Median resolution: ", np.median(resolutions, axis=0))
+    logger.info("Minimum pixel dimension: ", np.min(resolutions))
+    logger.info("Maximum pixel dimension: ", np.max(resolutions))
 
-    print("-------------------------------------")
+    logger.info("-------------------------------------")
 
     # #############################################################
     # Now we can look at the external testing dataset umass*
@@ -199,13 +204,13 @@ def main():
 
     list_contrast_umass = [str(image).split("/")[-1].split('_')[-1].split('.')[0] for image in umass]
 
-    print("Number of images in umass: ", len(umass))
-    print("Contrast in umass: ", set(list_contrast_umass))
+    logger.info("Number of images in umass: ", len(umass))
+    logger.info("Contrast in umass: ", set(list_contrast_umass))
     # Print the number of each contrast
     contrast_count_umass = {}
     for contrast in set(list_contrast_umass):
         contrast_count_umass[contrast] = list_contrast_umass.count(contrast)
-    print("Number of images per contrast in umass: ", contrast_count_umass)
+    logger.info("Number of images per contrast in umass: ", contrast_count_umass)
 
     # Now we count the number of subjects
     subjects_umass = []
@@ -215,9 +220,9 @@ def main():
         subject = dataset + '/' + sub
         subjects_umass.append(subject)
 
-    print("Number of subjects in umass: ", len(set(subjects_umass)))
+    logger.info("Number of subjects in umass: ", len(set(subjects_umass)))
 
-    print("Number of sites in umass: 4")
+    logger.info("Number of sites in umass: 4")
 
     # Now we look at orientation of the images
     count_umass_ax = 0
@@ -236,8 +241,8 @@ def main():
             elif 'sag' in metadata['SeriesDescription'] or 'Sag' in metadata['SeriesDescription'] or 'SAG' in metadata['SeriesDescription']:
                 count_umass_sag += 1
             else:
-                print("Unknown orientation: ", image)
-    print('For umass, we have ', count_umass_ax, ' axial images, ', count_umass_sag, ' sagital images and ', count_umass_3d, ' 3D images')
+                logger.info("Unknown orientation: ", image)
+    logger.info('For umass, we have ', count_umass_ax, ' axial images, ', count_umass_sag, ' sagital images and ', count_umass_3d, ' 3D images')
 
 
     # Now we will look at the average resolution of the images
@@ -249,13 +254,13 @@ def main():
         resolution = [float(res) for res in resolution]
         resolutions_umass.append(resolution)
         
-    print("Average resolution: ", np.mean(resolutions_umass, axis=0))
-    print("Std resolution: ", np.std(resolutions_umass, axis=0))
-    print("Median resolution: ", np.median(resolutions_umass, axis=0))
-    print("Minimum pixel dimension: ", np.min(resolutions_umass))
-    print("Maximum pixel dimension: ", np.max(resolutions_umass))
+    logger.info("Average resolution: ", np.mean(resolutions_umass, axis=0))
+    logger.info("Std resolution: ", np.std(resolutions_umass, axis=0))
+    logger.info("Median resolution: ", np.median(resolutions_umass, axis=0))
+    logger.info("Minimum pixel dimension: ", np.min(resolutions_umass))
+    logger.info("Maximum pixel dimension: ", np.max(resolutions_umass))
 
-    print("-------------------------------------")
+    logger.info("-------------------------------------")
 
     #############################################################
     # Now we can look at the external testing dataset ms-nmo-beijing
@@ -277,13 +282,13 @@ def main():
 
     list_contrast_beijing = [str(image).split("/")[-1].split('_')[-1].split('.')[0] for image in beijing]
 
-    print("Number of images in beijing: ", len(beijing))
-    print("Contrast in beijing: ", set(list_contrast_beijing))
+    logger.info("Number of images in beijing: ", len(beijing))
+    logger.info("Contrast in beijing: ", set(list_contrast_beijing))
     # Print the number of each contrast
     contrast_count_beijing = {}
     for contrast in set(list_contrast_beijing):
         contrast_count_beijing[contrast] = list_contrast_beijing.count(contrast)
-    print("Number of images per contrast in beijing: ", contrast_count_beijing)
+    logger.info("Number of images per contrast in beijing: ", contrast_count_beijing)
 
     # We look at the orientation
     count_beijing_ax = 0
@@ -301,17 +306,17 @@ def main():
         elif 'sag' in metadata['SeriesDescription'] or 'SAG' in metadata['SeriesDescription']:
             count_beijing_sag += 1
         else:
-            print("Unknown orientation: ", image)
-    print('For beijing, we have ', count_beijing_ax, ' axial images, ', count_beijing_sag, ' sagital images and ', count_beijing_3d, ' 3D images')
+            logger.info("Unknown orientation: ", image)
+    logger.info('For beijing, we have ', count_beijing_ax, ' axial images, ', count_beijing_sag, ' sagital images and ', count_beijing_3d, ' 3D images')
 
     # Now we count the number of subjects
     subjects_beijing = []
     for image in beijing:
         sub = str(image).split("/")[-1].split('_')[0]
         subjects_beijing.append(sub)
-    print("Number of subjects in beijing: ", len(set(subjects_beijing)))
+    logger.info("Number of subjects in beijing: ", len(set(subjects_beijing)))
 
-    print("Number of sites in beijing: 1")
+    logger.info("Number of sites in beijing: 1")
 
     # Now we will look at the average resolution of the images
     ## Iterate over the images
@@ -323,22 +328,22 @@ def main():
         resolutions_beijing.append(resolution)
 
         
-    print("Average resolution: ", np.mean(resolutions_beijing, axis=0))
-    print("Std resolution: ", np.std(resolutions_beijing, axis=0))
-    print("Median resolution: ", np.median(resolutions_beijing, axis=0))
-    print("Minimum pixel dimension: ", np.min(resolutions_beijing))
-    print("Maximum pixel dimension: ", np.max(resolutions_beijing))
+    logger.info("Average resolution: ", np.mean(resolutions_beijing, axis=0))
+    logger.info("Std resolution: ", np.std(resolutions_beijing, axis=0))
+    logger.info("Median resolution: ", np.median(resolutions_beijing, axis=0))
+    logger.info("Minimum pixel dimension: ", np.min(resolutions_beijing))
+    logger.info("Maximum pixel dimension: ", np.max(resolutions_beijing))
 
-    print("-------------------------------------")
-    print("-------------------------------------")
+    logger.info("-------------------------------------")
+    logger.info("-------------------------------------")
 
-    print("Total number of images: ", len(data) + len(umass) + len(beijing))
-    print("Total number of subjects: ", len(set(subjects)) + len(set(subjects_umass)) + len(set(subjects_beijing)))
-    print("Total number of sites: ", len(set([image['site'] for image in data])) + 4 + 1)
+    logger.info("Total number of images: ", len(data) + len(umass) + len(beijing))
+    logger.info("Total number of subjects: ", len(set(subjects)) + len(set(subjects_umass)) + len(set(subjects_beijing)))
+    logger.info("Total number of sites: ", len(set([image['site'] for image in data])) + 4 + 1)
 
-    print("Total number of sagital images: ", count_t2star_sag + count_t2w_sag + contrast_count['PSIR'] + contrast_count['STIR'] +  count_umass_sag + count_beijing_sag)
-    print("Total number of axial images: ", count_t2star_ax + count_t2w_ax + contrast_count['MEGRE'] + count_umass_ax + count_beijing_ax)
-    print("Total number of 3D images: ", contrast_count['UNIT1'] + contrast_count['T1w'] + count_umass_3d + count_beijing_3d)
+    logger.info("Total number of sagital images: ", count_t2star_sag + count_t2w_sag + contrast_count['PSIR'] + contrast_count['STIR'] +  count_umass_sag + count_beijing_sag)
+    logger.info("Total number of axial images: ", count_t2star_ax + count_t2w_ax + contrast_count['MEGRE'] + count_umass_ax + count_beijing_ax)
+    logger.info("Total number of 3D images: ", contrast_count['UNIT1'] + contrast_count['T1w'] + count_umass_3d + count_beijing_3d)
 
     # Field strength
     field_strength = []
@@ -359,8 +364,8 @@ def main():
         # if field strength is 1.5 print the image
         if metadata["MagneticFieldStrength"] == 1.5:
             ok =1 
-            # print(image['image'])
-    print("Field strength for MSD dataset: ", set(field_strength))
+            # logger.info(image['image'])
+    logger.info("Field strength for MSD dataset: ", set(field_strength))
 
     return None
 
