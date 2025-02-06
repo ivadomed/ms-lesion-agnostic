@@ -1,3 +1,17 @@
+"""
+This file is used to aggregate the predictions of the folds of the model on the training, test and external test sets.
+
+Input:
+    -path-to-data: Path to the data folder
+
+Output:
+    None
+
+Example:
+    python agg_data_pred.py -path-to-data /path/to/data
+
+Author: Pierre-Louis Benveniste
+"""
 import os
 from pathlib import Path
 import nibabel as nib
