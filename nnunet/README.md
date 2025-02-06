@@ -1,0 +1,46 @@
+# nnUNet model training and evaluation
+
+In this folder we have the scripts needed to convert the data to the nnUNet format, train the models, evaluate them and plot the performances. 
+To do so: 
+
+1. Create the virtual environment and install the required libraries
+```console
+conda install pytorch torchvision pytorch-cuda=12.1 -c pytorch -c nvidia
+pip install -r nnunet/requirements.txt
+pip install --upgrade git+https://github.com/FabianIsensee/hiddenlayer.git
+```
+
+2. Convert the dataset to the nnUNet format:
+```console
+python nnunet/convert_msd_to_nnunet.py --input MSD_PATH -o OUTPUT_PATH --tasknumber XXX
+```
+Or with re-orientation (recommended):
+```console
+python nnunet/convert_msd_to_nnunet_reorient.py --input MSD_PATH -o OUTPUT_PATH --tasknumber XXX
+```
+
+3. Preprocess the data:
+```console
+export nnUNet_raw="PATH_RAW"
+export nnUNet_results="PATH_RESULTS"
+export nnUNet_preprocessed="PATH_PREPROCESSED"
+nnUNetv2_plan_and_preprocess -d XXX --verify_dataset_integrity -c 3d_fullres -pl -pl nnUNetPlannerResEncL
+```
+The flag `-pl nnUNetPlannerResEncL` can be removed if you do not whish to use the ResEnc planer. 
+
+4. Train the model
+```console
+CUDA_VISIBLE_DEVICES=1 nnUNetv2_train XXX 3d_fullres FOLD -p nnUNetResEncUNetLPlans
+```
+Again, the flag `-pl nnUNetPlannerResEncL` can be removed.
+
+5. Perform predictions
+```console
+CUDA_VISIBLE_DEVICES=1 nnUNetv2_predict -i PATH_imagesTs -o OUTPUT_PATH -d XXX -c 3d_fullres -f FOLD -chk checkpoint_best.pth -p nnUNetResEncUNetLPlans
+```
+
+6. Evaluate predictions and plot the results:
+```console
+python nnunet/evaluate_predictions.py -pred-folder PRED_PATH -label-folder PATH_labelsTs  -image-folder PATH_imagesTs -conversion-dict PATH_conversion_dict.json -output-folder PATH_OUTPUT
+python nnunet/plot_performance.py --pred-dir-path PRED_PATH  --data-json-path MSD_PATH --split test
+```
