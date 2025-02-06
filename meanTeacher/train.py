@@ -52,7 +52,7 @@ def train_transforms(data):
             EnsureChannelFirstd(keys=["image", "label"]),
             Orientationd(keys=["image", "label"], axcodes="RPI"),
             Spacingd(keys=["image", "label"],pixdim=[0.6770833134651184,0.5,0.5625],mode=(2, 0)),
-            ResizeWithPadOrCropd(keys=["image", "label"],spatial_size=[64, 128, 128]),
+            ResizeWithPadOrCropd(keys=["image", "label"],spatial_size=[192,256,160]),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),   
         ]
     )
@@ -65,7 +65,7 @@ def val_transforms(data):
             EnsureChannelFirstd(keys=["image", "label"]),
             Orientationd(keys=["image", "label"], axcodes="RPI"),
             Spacingd(keys=["image", "label"],pixdim=[0.6770833134651184,0.5,0.5625],mode=(2, 0)),
-            ResizeWithPadOrCropd(keys=["image", "label"],spatial_size=[64, 128, 128]),
+            ResizeWithPadOrCropd(keys=["image", "label"],spatial_size=[192,256,160]),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),   
         ]
     )
@@ -156,7 +156,7 @@ def main():
     post_pred = Compose([EnsureType()])
 
     # Create the dataloaders
-    batch_size_train = 2
+    batch_size_train = 1
     batch_size_val =1
     train_loader = DataLoader(train_ds, batch_size=batch_size_train, shuffle=True, num_workers=8, pin_memory=True, persistent_workers=True)
     val_loader = DataLoader(val_ds, batch_size=batch_size_val, shuffle=False, num_workers=0, pin_memory=True, persistent_workers=False)
@@ -205,7 +205,7 @@ def main():
     # Train the model
     logger.info('Training the model')
     # Iterate over the epochs
-    for epoch in range(13):
+    for epoch in range(100):
         logger.info(f'Epoch {epoch}')
         studentNet.train()
         teacherNet.train()
@@ -271,7 +271,11 @@ def main():
         # Report the epoch losses in the logger
         logger.info(f'Supervised loss: {epoch_sup_loss}, Consistency loss: {epoch_cons_loss}, Total loss: {epoch_total_loss}')
         # Report the losses in wandb
-        wandb.log({"supervised_loss": epoch_sup_loss, "consistency_loss": epoch_cons_loss, "total_loss": epoch_total_loss})
+        wandb_train_log = {
+            "supervised_loss": float(epoch_sup_loss.detach().cpu()),
+            "consistency_loss": float(epoch_cons_loss.detach().cpu()),
+            "total_loss": float(epoch_total_loss.detach().cpu())}
+        wandb.log(wandb_train_log)
 
         # Update the Teacher model weights
         logger.info('Updating the teacher model weights')
@@ -318,7 +322,11 @@ def main():
                 logger.info(f'Validation losses: Supervised loss: {val_sup_loss.item()}, Consistency loss: {val_cons_loss.item()}, Total loss: {val_total_loss.item()}')
 
                 # Report the validation losses in wandb
-                wandb.log({"val_supervised_loss": val_sup_loss.item(), "val_consistency_loss": val_cons_loss.item(), "val_total_loss": val_total_loss.item()})
+                wandb_val_log = {
+                    "val_supervised_loss": float(val_sup_loss.detach().cpu()),
+                    "val_consistency_loss": float(val_cons_loss.detach().cpu()),
+                    "val_total_loss": float(val_total_loss.detach().cpu())}
+                wandb.log(wandb_val_log)
 
                 # If the total loss is the best, report the performances and save the teacher model
                 if val_total_loss == min(val_total_losses):
