@@ -18,7 +18,7 @@ def get_parser():
     parser = argparse.ArgumentParser(description="Plot the performance of the model")
     parser.add_argument("--pred-dir-path", help="Path to the directory containing the dice_score.txt file", required=True)
     parser.add_argument("--data-json-path", help="Path to the json file containing the data split", required=True)
-    parser.add_argument("--split", help="Data split to use (train, validation, test)", required=True, type=str)
+    # parser.add_argument("--split", help="Data split to use (train, validation, test)", required=True, type=str)
     return parser
 
 
@@ -59,11 +59,14 @@ def main():
     data_json_path = args.data_json_path
     with open(data_json_path, 'r') as f:
         jsondata = json.load(f)
+
+    # Join the train, validation and test data
+    jsondata = jsondata['train'] + jsondata['validation'] + jsondata['test'] + jsondata['externalValidation']
     
     # Iterate over the test files
     for file in test_dice_results['name']:
         # We find the corresponding file in the json file
-        for data in jsondata[args.split]:
+        for data in jsondata:
             if data["image"] == file:
                 # Add the contrat, the site and the resolution to the df
                 test_dice_results.loc[test_dice_results['name'] == file, 'contrast'] = data['contrast']
@@ -71,6 +74,9 @@ def main():
                 # test_dice_results.loc[test_dice_results['name'] == file, 'acquisition'] = data['acquisition']
                 test_dice_results.loc[test_dice_results['name'] == file, 'nb_lesions'] = data['nb_lesions']
                 test_dice_results.loc[test_dice_results['name'] == file, 'total_lesion_volume'] = data['total_lesion_volume']
+    
+    # Replace all the MEGRE contrast by T2star
+    test_dice_results['contrast'] = test_dice_results['contrast'].apply(lambda x: 'T2star' if x == 'MEGRE' else x)
 
     # Count the number of samples per contrast
     contrast_counts = test_dice_results['contrast'].value_counts()
