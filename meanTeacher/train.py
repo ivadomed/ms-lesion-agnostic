@@ -36,6 +36,7 @@ import pandas as pd
 import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system') # Because of this: https://github.com/Project-MONAI/MONAI/issues/701#issuecomment-663887104
 import wandb
+import matplotlib.pyplot as plt
 
 
 def arg_parser():
@@ -112,6 +113,33 @@ def update_teacher_weights(studentNet, teacherNet, alpha, epoch):
     for teacher_param, student_param in zip(teacherNet.parameters(), studentNet.parameters()):
         # teacher_param.data.mul_(alpha).add_(1 - alpha, student_param.data)
         teacher_param.data.mul_(alpha).add_(student_param.data, alpha=1 - alpha) # Changed because of this: https://github.com/clovaai/AdamP/issues/5
+
+
+def plot_slices(image, gt, pred, debug=False):
+    """
+    Plot the image, ground truth and prediction of the mid-sagittal axial slice
+    The orientaion is assumed to RPI
+    """
+
+    # bring everything to numpy 
+    ## added the .float() because of issue : TypeError: Got unsupported ScalarType BFloat16
+    image = image.float().numpy()
+    gt = gt.float().numpy()
+    pred = pred.float().numpy()
+
+
+    mid_sagittal = image.shape[0]//2
+    # plot X slices before and after the mid-sagittal slice in a grid
+    fig, axs = plt.subplots(3, 6, figsize=(10, 6))
+    fig.suptitle('Original Image --> Ground Truth --> Prediction')
+    for i in range(6):
+        axs[0, i].imshow(image[mid_sagittal-3+i,:,:].T, cmap='gray'); axs[0, i].axis('off') 
+        axs[1, i].imshow(gt[mid_sagittal-3+i,:,:].T); axs[1, i].axis('off')
+        axs[2, i].imshow(pred[mid_sagittal-3+i,:,:].T); axs[2, i].axis('off')
+    
+    plt.tight_layout()
+    fig.show()
+    return fig
     
 
 def main():
@@ -231,8 +259,17 @@ def main():
             # Divide the loss by the number of elements in the batch
             train_sup_loss /= inputs.size(0)
 
+            # Plot the input / GT / studentNet pred in wandb
+            fig_student = plot_slices(image=inputs[0].detach().cpu().squeeze(),
+                              gt=labels[0].detach().cpu().squeeze(),
+                              pred=output_student[0].detach().cpu().squeeze()
+                              )
+        
             # ------------ For the teacher model ------------
-            logit_map_teacher = teacherNet(inputs)
+            # We add some noise to the input to the teacher model
+            noise = torch.clamp(torch.randn_like(inputs) * 0.1, -0.2, 0.2)
+            inputs_noisy = inputs + noise
+            logit_map_teacher = teacherNet(inputs_noisy)
             # if the nnunet model is used, we need to remove the empty class
             if nnunet_model:
                 logit_map_teacher = logit_map_teacher[:, 1:2, :, :, :]
@@ -241,7 +278,28 @@ def main():
             # Compute the consistency loss
             train_cons_loss = consistency_loss(output_student, output_teacher)
             # Divide the loss by the number of elements in the batch
-            train_cons_loss /= inputs.size(0)
+            train_cons_loss /= inputs_noisy.size(0)
+
+            # Plot the input / GT / teacherNet pred in wandb
+            fig_teacher = plot_slices(image=inputs_noisy[0].detach().cpu().squeeze(),
+                              gt=labels[0].detach().cpu().squeeze(),
+                              pred=output_teacher[0].detach().cpu().squeeze()
+                              )
+            
+            # Log the images in wandb
+            wandb.log({"StudentNet training images": wandb.Image(fig_student),
+                       "TeacherNet training images": wandb.Image(fig_teacher)})
+            
+            # Save the input vs the noisy input
+            fig_input = plt.figure()
+            plt.imshow(inputs[0].detach().cpu().squeeze()[96, :, :].T, cmap='gray')
+            plt.axis('off')
+            plt.title('Input')
+            fig_noisy_input = plt.figure()
+            plt.imshow(inputs_noisy[0].detach().cpu().squeeze()[96, :, :].T, cmap='gray')
+            plt.axis('off')
+            plt.title('Noisy input')
+            wandb.log({"Input vs Noisy input": [wandb.Image(fig_input), wandb.Image(fig_noisy_input)]})
 
             # Compute the total loss
             loss = 0.5*(train_sup_loss + train_cons_loss)
@@ -253,10 +311,20 @@ def main():
             scheduler.step()
             optimizer.zero_grad()
 
+            # We log the epoch step to wandb
+            wandb_step_log = {
+                "step supervised_loss": float(train_sup_loss.detach().cpu()),
+                "step consistency_loss": float(train_cons_loss.detach().cpu()),
+                "step total_loss": float(loss.detach().cpu())}
+            wandb.log(wandb_step_log)
+
             # Add the losses for each step in the epoch
             epoch_sup_loss += train_sup_loss 
             epoch_cons_loss += train_cons_loss
             epoch_total_loss += loss
+
+            # Clear plt figures
+            plt.close('all')
 
         # Aggregate the losses for the epoch
         epoch_sup_loss /= step
@@ -272,9 +340,9 @@ def main():
         logger.info(f'Supervised loss: {epoch_sup_loss}, Consistency loss: {epoch_cons_loss}, Total loss: {epoch_total_loss}')
         # Report the losses in wandb
         wandb_train_log = {
-            "supervised_loss": float(epoch_sup_loss.detach().cpu()),
-            "consistency_loss": float(epoch_cons_loss.detach().cpu()),
-            "total_loss": float(epoch_total_loss.detach().cpu())}
+            "epoch supervised_loss": float(epoch_sup_loss.detach().cpu()),
+            "epoch consistency_loss": float(epoch_cons_loss.detach().cpu()),
+            "epoch total_loss": float(epoch_total_loss.detach().cpu())}
         wandb.log(wandb_train_log)
 
         # Update the Teacher model weights
@@ -302,8 +370,11 @@ def main():
                 val_sup_loss = supervised_loss(outputs_student, labels)
                 val_sup_losses.append(val_sup_loss.item())
 
-                # With the teacher model
-                logits_teacher = sliding_window_inference(inputs, [64, 128, 128], mode="gaussian",
+                # ------------ For the teacher model ------------
+                # Add some noise to the input
+                noise = torch.clamp(torch.randn_like(inputs) * 0.1, -0.2, 0.2)
+                inputs_noisy = inputs + noise
+                logits_teacher = sliding_window_inference(inputs_noisy, [64, 128, 128], mode="gaussian",
                                                 sw_batch_size=4, predictor=teacherNet, overlap=0.5,)
                 # the nnunet model outputs two classes (background and lesion) but we only need the lesion class
                 if nnunet_model:
