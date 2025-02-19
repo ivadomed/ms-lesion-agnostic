@@ -31,6 +31,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Compute the performances of the three SCT models on the test set')
     parser.add_argument('--msd-data-path', type=str, help='Path to the msd dataset')
     parser.add_argument('--output-path', type=str, help='Path to the output folder')
+    parser.add_argument('--set', type=str, help='MSD data set to use: test or external', default='test')
     args = parser.parse_args()
     return args
 
@@ -46,7 +47,11 @@ def main():
     with open(msd_data_path) as f:
         data = json.load(f)
     
-    data_sub = data['test']
+    # Get the inference set
+    if args.set == 'test':
+        data_sub = data['test']
+    else:
+        data_sub = data['externalValidation']
 
     # Create the output folders
     path_sct_deepseg_mp2rage = os.path.join(output_path, 'sct_deepseg_mp2rage')
