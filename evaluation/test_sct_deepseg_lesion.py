@@ -1,11 +1,12 @@
 """
-This file is used to compute the performances of sct_deepseg_lesion model on the test set.
+This file is used to compute the performances of sct_deepseg_lesion model on the test set or the external validation set.
 The input file is the msd dataset which stores the test set. 
 It outputs the following metrics: Dice score, lesion_ppv, lesion sensitivity, lesion F1 score.
 
 Input: 
     --msd-data-path: path to the msd dataset
     --output-path: path to the output folder
+    --set: test or external
 
 Output for each model:
     - dice_score.csv
@@ -31,6 +32,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Compute the performances of the three SCT models on the test set')
     parser.add_argument('--msd-data-path', type=str, help='Path to the msd dataset')
     parser.add_argument('--output-path', type=str, help='Path to the output folder')
+    parser.add_argument('--set', type=str, help='MSD data set to use: test or external', default='test')
     args = parser.parse_args()
     return args
 
@@ -46,7 +48,11 @@ def main():
     with open(msd_data_path) as f:
         data = json.load(f)
     
-    data_sub = data['test']
+    # Get the inference set
+    if args.set == 'test':
+        data_sub = data['test']
+    else:
+        data_sub = data['externalValidation']
 
     # Create 3 temporary folders to store the output of the models
     # Create the output folders
@@ -72,9 +78,9 @@ def main():
         ############################################
         # Perform the predictions
         ## sct_deepseg_lesion
-        if i['contrast'] == 'T2star':
+        if i['contrast'] == 'T2star' or i['contrast'] == 'MEGRE':
             assert os.system(f"sct_deepseg_lesion -i {i['image']} -c t2s -ofolder {path_sct_deepseg_lesion}") ==0
-        elif i['orientation'] == 'ax':
+        elif i['acquisition'] == 'ax':
             assert os.system(f"sct_deepseg_lesion -i {i['image']} -c t2_ax -ofolder {path_sct_deepseg_lesion}") ==0
         else:
             assert os.system(f"sct_deepseg_lesion -i {i['image']} -c t2 -ofolder {path_sct_deepseg_lesion}") ==0
