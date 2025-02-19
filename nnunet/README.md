@@ -26,17 +26,17 @@ export nnUNet_results="PATH_RESULTS"
 export nnUNet_preprocessed="PATH_PREPROCESSED"
 nnUNetv2_plan_and_preprocess -d XXX --verify_dataset_integrity -c 3d_fullres -pl -pl nnUNetPlannerResEncL
 ```
-The flag `-pl nnUNetPlannerResEncL` can be removed if you do not whish to use the ResEnc planer. 
+The flag `-pl nnUNetPlannerResEncL` can be removed if you do not wish to use the ResEnc planer. 
 
-4. Train the model
+4. Train the model (we used the nnUNetTrainerDiceCELoss_noSmooth_2000epochs trainer for the training)
 ```console
-CUDA_VISIBLE_DEVICES=1 nnUNetv2_train XXX 3d_fullres FOLD -p nnUNetResEncUNetLPlans
+CUDA_VISIBLE_DEVICES=1 nnUNetv2_train XXX 3d_fullres FOLD -p nnUNetResEncUNetLPlans -tr-tr nnUNetTrainerDiceCELoss_noSmooth_2000epochs
 ```
 Again, the flag `-pl nnUNetPlannerResEncL` can be removed.
 
 5. Perform predictions
 ```console
-CUDA_VISIBLE_DEVICES=1 nnUNetv2_predict -i PATH_imagesTs -o OUTPUT_PATH -d XXX -c 3d_fullres -f FOLD -chk checkpoint_best.pth -p nnUNetResEncUNetLPlans
+CUDA_VISIBLE_DEVICES=1 nnUNetv2_predict -i PATH_imagesTs -o OUTPUT_PATH -d XXX -c 3d_fullres -f FOLD -chk checkpoint_best.pth -p nnUNetResEncUNetLPlans -tr nnUNetTrainerDiceCELoss_noSmooth_2000epochs
 ```
 
 6. Evaluate predictions and plot the results:
