@@ -64,6 +64,11 @@ def main():
     logger.info(f"Number of images for testing: {(msd_data['numTest'])}")
     logger.info(f"Number of images for external validation: {(msd_data['numExternalValidation'])}")
 
+    # In the dataset replace all the MEGRE contrasts by T2star
+    for image in data:
+        if image['contrast'] == 'MEGRE':
+            image['contrast'] = 'T2star'
+
     # Count the number of images per countrast
     contrast_count = {}
     for image in data:
@@ -80,8 +85,6 @@ def main():
     logger.info(f"UNIT1 are 3D images: count UNIT1 images: {contrast_count['UNIT1']}")
     # We manually checked and all the T1w are 3D images
     logger.info(f"T1w are 3D images: count T1w images: {contrast_count['T1w']}")
-    # We manually checked and all the MEGRE images are 2D axial images
-    logger.info(f"MEGRE are 2D axial images: count MEGRE images: {contrast_count['MEGRE']}")
 
     # Now for more complex cases: T2w and T2star
     ## For T2w:
@@ -118,7 +121,7 @@ def main():
     logger.info(f'For T2star, we have only 2D images: {count_t2star_ax} axial images and {count_t2star_sag} sagital images')
 
     logger.info(f"Total number of 2D sagital images: {count_t2star_sag + count_t2w_sag + contrast_count['PSIR'] + contrast_count['STIR']}")
-    logger.info(f"Total number of 2D axial images: {count_t2star_ax + count_t2w_ax + contrast_count['MEGRE']}")
+    logger.info(f"Total number of 2D axial images: {count_t2star_ax + count_t2w_ax}")
     logger.info(f"Total number of 3D images: {contrast_count['UNIT1'] + contrast_count['T1w']}")
 
     # Now we count the number of subjects
@@ -345,7 +348,7 @@ def main():
     logger.info(f"Total number of sites: {len(set([image['site'] for image in data])) + 4 + 1}")
 
     logger.info(f"Total number of sagital images: {count_t2star_sag + count_t2w_sag + contrast_count['PSIR'] + contrast_count['STIR'] +  count_umass_sag + count_beijing_sag}")
-    logger.info(f"Total number of axial images: {count_t2star_ax + count_t2w_ax + contrast_count['MEGRE'] + count_umass_ax + count_beijing_ax}")
+    logger.info(f"Total number of axial images: {count_t2star_ax + count_t2w_ax + count_umass_ax + count_beijing_ax}")
     logger.info(f"Total number of 3D images: {contrast_count['UNIT1'] + contrast_count['T1w'] + count_umass_3d + count_beijing_3d}")
 
     # Field strength
