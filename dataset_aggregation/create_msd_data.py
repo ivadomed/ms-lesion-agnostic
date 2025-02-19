@@ -1,6 +1,5 @@
 """
 This file creates the MSD-style JSON datalist to train an nnunet model using monai. 
-The datasets used are CanProCo, Bavaria-quebec, basel and sct-testing-large.
 
 Arguments:
     -pd, --path-data: Path to the data set directory
