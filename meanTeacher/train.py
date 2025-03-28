@@ -37,6 +37,7 @@ import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system') # Because of this: https://github.com/Project-MONAI/MONAI/issues/701#issuecomment-663887104
 import wandb
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def arg_parser():
@@ -44,6 +45,8 @@ def arg_parser():
     parser.add_argument('--msd-data', type=str, default='data/MSD', help='path to the MSD dataset')
     parser.add_argument('--output-dir', type=str, default='output', help='path to the output directory')
     parser.add_argument('--nnunet-model', type=str, help='path to the pretrained nnUNet model (the architecture is a ResEnc model)')
+    parser.add_argument('--consistency', type=float,  default=0.1, help='consistency')
+    parser.add_argument('--consistency_rampup', type=float,  default=40.0, help='consistency_rampup')
     return parser.parse_args()
 
 def train_transforms(data):
@@ -113,6 +116,21 @@ def update_teacher_weights(studentNet, teacherNet, alpha, epoch):
     for teacher_param, student_param in zip(teacherNet.parameters(), studentNet.parameters()):
         # teacher_param.data.mul_(alpha).add_(1 - alpha, student_param.data)
         teacher_param.data.mul_(alpha).add_(student_param.data, alpha=1 - alpha) # Changed because of this: https://github.com/clovaai/AdamP/issues/5
+
+
+def sigmoid_rampup(current, rampup_length):
+    """Exponential rampup from https://arxiv.org/abs/1610.02242 used for updating the consistency weight"""
+    if rampup_length == 0:
+        return 1.0
+    else:
+        current = np.clip(current, 0.0, rampup_length)
+        phase = 1.0 - current / rampup_length
+        return float(np.exp(-5.0 * phase * phase))
+
+
+def get_current_consistency_weight(epoch, consistency, consistency_rampup):
+    # Consistency ramp-up from https://arxiv.org/abs/1610.02242
+    return consistency * sigmoid_rampup(epoch, consistency_rampup)
 
 
 def plot_slices(image, gt, pred, debug=False):
@@ -276,7 +294,10 @@ def main():
             # Get probabilities from logits
             output_teacher = F.relu(logit_map_teacher) / F.relu(logit_map_teacher).max() if bool(F.relu(logit_map_teacher).max()) else F.relu(logit_map_teacher)
             # Compute the consistency loss
-            train_cons_loss = consistency_loss(output_student, output_teacher)
+            consistency_weight = get_current_consistency_weight(epoch, args.consistency, args.consistency_rampup)
+            logger.info(f'Consistency weight: {consistency_weight}')
+            train_cons_loss = consistency_weight * consistency_loss(output_student, output_teacher)
+            logger.info(f'Consistency loss: {train_cons_loss}')
             # Divide the loss by the number of elements in the batch
             train_cons_loss /= inputs_noisy.size(0)
 
@@ -382,7 +403,8 @@ def main():
                 # get probabilities from logits
                 outputs_teacher = F.relu(logits_teacher) / F.relu(logits_teacher).max() if bool(F.relu(logits_teacher).max()) else F.relu(logits_teacher)
                 # calculate consistency validation loss
-                val_cons_loss = consistency_loss(outputs_student, outputs_teacher)
+                consistency_weight = get_current_consistency_weight(epoch, args.consistency, args.consistency_rampup)
+                val_cons_loss = consistency_weight * consistency_loss(outputs_student, outputs_teacher)
                 val_cons_losses.append(val_cons_loss.item())
 
                 # calculate total validation loss
