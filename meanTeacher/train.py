@@ -47,6 +47,8 @@ def arg_parser():
     parser.add_argument('--nnunet-model', type=str, help='path to the pretrained nnUNet model (the architecture is a ResEnc model)')
     parser.add_argument('--consistency', type=float,  default=0.1, help='consistency')
     parser.add_argument('--consistency_rampup', type=float,  default=40.0, help='consistency_rampup')
+    parser.add_argument('--batch-size-train', type=int, default=1, help='batch size for training')
+    parser.add_argument('--batch-size-val', type=int, default=1, help='batch size for validation')
     return parser.parse_args()
 
 def train_transforms(data):
@@ -202,10 +204,8 @@ def main():
     post_pred = Compose([EnsureType()])
 
     # Create the dataloaders
-    batch_size_train = 1
-    batch_size_val =1
-    train_loader = DataLoader(train_ds, batch_size=batch_size_train, shuffle=True, num_workers=8, pin_memory=True, persistent_workers=True)
-    val_loader = DataLoader(val_ds, batch_size=batch_size_val, shuffle=False, num_workers=0, pin_memory=True, persistent_workers=False)
+    train_loader = DataLoader(train_ds, batch_size=args.batch_size_train, shuffle=True, num_workers=8, pin_memory=True, persistent_workers=True)
+    val_loader = DataLoader(val_ds, batch_size=args.batch_size_val, shuffle=False, num_workers=0, pin_memory=True, persistent_workers=False)
 
     # Create the models
     ## If the nnUNet model is provided, we use it:
