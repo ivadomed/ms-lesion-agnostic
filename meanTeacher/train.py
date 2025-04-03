@@ -38,6 +38,8 @@ torch.multiprocessing.set_sharing_strategy('file_system') # Because of this: htt
 import wandb
 import matplotlib.pyplot as plt
 import numpy as np
+import torch.backends.cudnn as cudnn
+import random
 
 
 def arg_parser():
@@ -49,6 +51,8 @@ def arg_parser():
     parser.add_argument('--consistency_rampup', type=float,  default=40.0, help='consistency_rampup')
     parser.add_argument('--batch-size-train', type=int, default=1, help='batch size for training')
     parser.add_argument('--batch-size-val', type=int, default=1, help='batch size for validation')
+    parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
+    parser.add_argument('--seed', type=int, default=42, help='random seed')
     return parser.parse_args()
 
 def train_transforms(data):
@@ -160,7 +164,7 @@ def plot_slices(image, gt, pred, debug=False):
     plt.tight_layout()
     fig.show()
     return fig
-    
+
 
 def main():
     # Parse the arguments
@@ -168,6 +172,13 @@ def main():
     msd_data = args.msd_data
     output_dir = args.output_dir
     nnunet_model = args.nnunet_model
+
+    # Optimize the code for reproducibility 
+    cudnn.benchmark = False
+    cudnn.deterministic = True
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
 
     # Create the output directory
     os.makedirs(output_dir, exist_ok=True)
@@ -204,8 +215,10 @@ def main():
     post_pred = Compose([EnsureType()])
 
     # Create the dataloaders
-    train_loader = DataLoader(train_ds, batch_size=args.batch_size_train, shuffle=True, num_workers=8, pin_memory=True, persistent_workers=True)
-    val_loader = DataLoader(val_ds, batch_size=args.batch_size_val, shuffle=False, num_workers=0, pin_memory=True, persistent_workers=False)
+    def worker_init_fn(worker_id):
+        random.seed(args.seed + worker_id)
+    train_loader = DataLoader(train_ds, batch_size=args.batch_size_train, shuffle=True, num_workers=8, pin_memory=True, worker_init_fn=worker_init_fn, persistent_workers=True)
+    val_loader = DataLoader(val_ds, batch_size=args.batch_size_val, shuffle=False, num_workers=0, pin_memory=True, persistent_workers=False, worker_init_fn=worker_init_fn)
 
     # Create the models
     ## If the nnUNet model is provided, we use it:
@@ -231,9 +244,14 @@ def main():
                 strides=[2, 2, 2, 2, 2],
                 dropout=0.1,
         ).to(device)
+        # We detach the teacher model from the graph to save memory and because we don't need to compute the gradients
+        ## This was a good fix as it frees up some memory
+        for param in teacherNet.parameters():
+            param.detach_()
 
     # Create the optimizer
     optimizer = torch.optim.AdamW(studentNet.parameters(), lr=0.0001, weight_decay=0.00001)
+    # optimizer = torch.optim.SGD(studentNet.parameters(), lr=args.lr,momentum=0.9, weight_decay=0.0001)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=250)
 
     # Create the loss function
@@ -249,13 +267,15 @@ def main():
     val_cons_losses = []
     val_total_losses = []
 
+    # We train the model
+    studentNet.train()
+    teacherNet.train()
+
     # Train the model
     logger.info('Training the model')
     # Iterate over the epochs
     for epoch in range(100):
         logger.info(f'Epoch {epoch}')
-        studentNet.train()
-        teacherNet.train()
         epoch_sup_loss = 0
         epoch_cons_loss = 0
         epoch_total_loss = 0
