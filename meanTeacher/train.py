@@ -244,6 +244,7 @@ def main():
     train_sup_losses = []
     train_cons_losses = []
     train_total_losses = []
+    train_cons_weights = []
     val_sup_losses = []
     val_cons_losses = []
     val_total_losses = []
@@ -258,6 +259,7 @@ def main():
         epoch_sup_loss = 0
         epoch_cons_loss = 0
         epoch_total_loss = 0
+        epoch_cons_weight = 0
         step = 0
         epoch_iterator = tqdm(train_loader, dynamic_ncols=True)
 
@@ -295,9 +297,7 @@ def main():
             output_teacher = F.relu(logit_map_teacher) / F.relu(logit_map_teacher).max() if bool(F.relu(logit_map_teacher).max()) else F.relu(logit_map_teacher)
             # Compute the consistency loss
             consistency_weight = get_current_consistency_weight(epoch, args.consistency, args.consistency_rampup)
-            logger.info(f'Consistency weight: {consistency_weight}')
             train_cons_loss = consistency_weight * consistency_loss(output_student, output_teacher)
-            logger.info(f'Consistency loss: {train_cons_loss}')
             # Divide the loss by the number of elements in the batch
             train_cons_loss /= inputs_noisy.size(0)
 
@@ -336,13 +336,15 @@ def main():
             wandb_step_log = {
                 "step supervised_loss": float(train_sup_loss.detach().cpu()),
                 "step consistency_loss": float(train_cons_loss.detach().cpu()),
-                "step total_loss": float(loss.detach().cpu())}
+                "step total_loss": float(loss.detach().cpu()),
+                "step consistency_weight": float(consistency_weight)}
             wandb.log(wandb_step_log)
 
             # Add the losses for each step in the epoch
             epoch_sup_loss += train_sup_loss 
             epoch_cons_loss += train_cons_loss
             epoch_total_loss += loss
+            epoch_cons_weight += consistency_weight
 
             # Clear plt figures
             plt.close('all')
@@ -351,19 +353,23 @@ def main():
         epoch_sup_loss /= step
         epoch_cons_loss /= step
         epoch_total_loss /= step
+        epoch_cons_weight /= step
 
         # Add the losses for the epoch in the storage
         train_sup_losses.append(epoch_sup_loss)
         train_cons_losses.append(epoch_cons_loss)
         train_total_losses.append(epoch_total_loss)
+        train_cons_weights.append(epoch_cons_weight)
     
         # Report the epoch losses in the logger
-        logger.info(f'Supervised loss: {epoch_sup_loss}, Consistency loss: {epoch_cons_loss}, Total loss: {epoch_total_loss}')
+        logger.info(f'Supervised loss: {epoch_sup_loss}, Consistency loss: {epoch_cons_loss}, Total loss: {epoch_total_loss}, Consistency weight: {epoch_cons_weight}')
         # Report the losses in wandb
         wandb_train_log = {
             "epoch supervised_loss": float(epoch_sup_loss.detach().cpu()),
             "epoch consistency_loss": float(epoch_cons_loss.detach().cpu()),
-            "epoch total_loss": float(epoch_total_loss.detach().cpu())}
+            "epoch total_loss": float(epoch_total_loss.detach().cpu()),
+            "epoch consistency_weight": float(epoch_cons_weight)}
+            
         wandb.log(wandb_train_log)
 
         # Update the Teacher model weights
