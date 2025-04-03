@@ -53,6 +53,8 @@ def arg_parser():
     parser.add_argument('--batch-size-val', type=int, default=1, help='batch size for validation')
     parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
+    parser.add_argument('--ema_decay', type=float, default=0.99, help='ema decay')
+    parser.add_argument('--max-iterations', type=int, default=200, help='max iterations')
     return parser.parse_args()
 
 def train_transforms(data):
@@ -166,6 +168,37 @@ def plot_slices(image, gt, pred, debug=False):
     return fig
 
 
+def Dice(score, target):
+    target = target.float()
+    smooth = 1e-5
+    intersect = torch.sum(score * target)
+    y_sum = torch.sum(target * target)
+    z_sum = torch.sum(score * score)
+    dice = (2 * intersect + smooth) / (z_sum + y_sum + smooth)
+    loss = 1 - dice
+    return dice, loss
+
+
+def softmax_mse_loss(input_logits, target_logits, sigmoid=False):
+    """Takes softmax on both sides and returns MSE loss
+
+    Note:
+    - Returns the sum over all examples. Divide by the batch size afterwards
+      if you want the mean.
+    - Sends gradients to inputs but not the targets.
+    """
+    assert input_logits.size() == target_logits.size()
+    if sigmoid:
+        input_softmax = torch.sigmoid(input_logits)
+        target_softmax = torch.sigmoid(target_logits)
+    else:
+        input_softmax = F.softmax(input_logits, dim=1)
+        target_softmax = F.softmax(target_logits, dim=1)
+
+    mse_loss = F.mse_loss(input_softmax, target_softmax, size_average=False)
+    return mse_loss
+
+
 def main():
     # Parse the arguments
     args = arg_parser()
@@ -227,6 +260,9 @@ def main():
         studentNet = studentNet.to(device)
         teacherNet = load_pretrained_nnunet_model(nnunet_model)
         teacherNet = teacherNet.to(device)
+        # We detach the teacher model from the graph to save memory and because we don't need to compute the gradients
+        for param in teacherNet.parameters():
+            param.detach_()
     else:
         studentNet = AttentionUnet(
                 spatial_dims=3,
@@ -256,7 +292,9 @@ def main():
 
     # Create the loss function
     supervised_loss = DiceCELoss(sigmoid=False, smooth_dr=1e-4)
-    consistency_loss = F.cross_entropy
+    # CE_loss = torch.nn.CrossEntropyLoss()
+    # dice, dice_loss = Dice
+    consistency_loss = softmax_mse_loss
 
     # Initialize the storage of training results
     train_sup_losses = []
@@ -273,8 +311,9 @@ def main():
 
     # Train the model
     logger.info('Training the model')
+    iter_num = 0
     # Iterate over the epochs
-    for epoch in range(100):
+    for epoch in range(args.max_iterations):
         logger.info(f'Epoch {epoch}')
         epoch_sup_loss = 0
         epoch_cons_loss = 0
@@ -294,9 +333,10 @@ def main():
                 logit_map_student = logit_map_student[:, 1:2, :, :, :]
             # Get probabilities from logits
             output_student = F.relu(logit_map_student) / F.relu(logit_map_student).max() if bool(F.relu(logit_map_student).max()) else F.relu(logit_map_student)
+            # output_student_soft = torch.softmax(logit_map_student, dim=1) # tried to use softmax as it deals better with uncertainty
             # Compute the supervised loss
             train_sup_loss = supervised_loss(output_student, labels)
-            # Divide the loss by the number of elements in the batch
+            # # Divide the loss by the number of elements in the batch
             train_sup_loss /= inputs.size(0)
 
             # Plot the input / GT / studentNet pred in wandb
@@ -309,15 +349,17 @@ def main():
             # We add some noise to the input to the teacher model
             noise = torch.clamp(torch.randn_like(inputs) * 0.1, -0.2, 0.2)
             inputs_noisy = inputs + noise
-            logit_map_teacher = teacherNet(inputs_noisy)
-            # if the nnunet model is used, we need to remove the empty class
-            if nnunet_model:
-                logit_map_teacher = logit_map_teacher[:, 1:2, :, :, :]
-            # Get probabilities from logits
-            output_teacher = F.relu(logit_map_teacher) / F.relu(logit_map_teacher).max() if bool(F.relu(logit_map_teacher).max()) else F.relu(logit_map_teacher)
+            with torch.no_grad():
+                logit_map_teacher = teacherNet(inputs_noisy)
+                # if the nnunet model is used, we need to remove the empty class
+                if nnunet_model:
+                    logit_map_teacher = logit_map_teacher[:, 1:2, :, :, :]
+                # Get probabilities from logits
+                output_teacher = F.relu(logit_map_teacher) / F.relu(logit_map_teacher).max() if bool(F.relu(logit_map_teacher).max()) else F.relu(logit_map_teacher)
+                # output_teacher_soft = torch.softmax(logit_map_teacher, dim=1)
             # Compute the consistency loss
-            consistency_weight = get_current_consistency_weight(epoch, args.consistency, args.consistency_rampup)
-            train_cons_loss = consistency_weight * consistency_loss(output_student, output_teacher)
+            consistency_weight = get_current_consistency_weight(iter_num//150, args.consistency, args.consistency_rampup)
+            train_cons_loss = consistency_weight * consistency_loss(logit_map_student, logit_map_teacher) # [batch_size, 1, 192, 256, 160]
             # Divide the loss by the number of elements in the batch
             train_cons_loss /= inputs_noisy.size(0)
 
@@ -347,10 +389,20 @@ def main():
 
             # Backward pass
             optimizer.zero_grad()
-            loss.backward()
+            loss.sum().backward()
             optimizer.step()
             scheduler.step()
-            optimizer.zero_grad()
+            
+            # Update the teacher model weights
+            # logger.info('Updating the teacher model weights')
+            update_teacher_weights(studentNet, teacherNet, args.ema_decay, iter_num) # based on https://github.com/perone/mean-teacher/blob/79bf9fc61f540491b79d3b3e60a213f798c3ea27/pytorch/main.py#L182
+
+            # lr_ = args.lr * (1.0 - iter_num / args.max_iterations) ** 0.9
+            # for param_group in optimizer.param_groups:
+            #     param_group['lr'] = lr_
+
+            # Skip to next iter
+            iter_num += 1
 
             # We log the epoch step to wandb
             wandb_step_log = {
@@ -393,8 +445,8 @@ def main():
         wandb.log(wandb_train_log)
 
         # Update the Teacher model weights
-        logger.info('Updating the teacher model weights')
-        update_teacher_weights(studentNet, teacherNet, 0.99, epoch) # based on https://github.com/perone/mean-teacher/blob/79bf9fc61f540491b79d3b3e60a213f798c3ea27/pytorch/main.py#L182
+        # logger.info('Updating the teacher model weights')
+        # update_teacher_weights(studentNet, teacherNet, 0.99, epoch) # based on https://github.com/perone/mean-teacher/blob/79bf9fc61f540491b79d3b3e60a213f798c3ea27/pytorch/main.py#L182
 
         # Evaluate the model
         if epoch % 2 == 0:
