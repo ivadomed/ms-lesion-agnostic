@@ -52,6 +52,7 @@ def get_parser():
     parser.add_argument('--lesion-only', action='store_true', help='Use only masks which contain some lesions')
     parser.add_argument('--seed', default=42, type=int, help="Seed for reproducibility")
     parser.add_argument('--all-train', action='store_true', help='Use the data to train the model (except for the external test data)')
+    parser.add_argument('--list-contrast-distribution', action='store_true', help='Print the distribution of contrasts in the dataset and exit')
 
     return parser
 
@@ -117,6 +118,37 @@ def get_acquisition_resolution_and_dimension(image_path):
     return acquisition, resolution, dimension
 
 
+def print_dataset_contrasts_distribution(derivatives, dataset_name):
+    """
+    This function takes a list of derivatives and prints the distribution of contrasts in the dataset.
+    Input:
+        derivatives : list : List of derivatives
+    Returns:
+        None
+    """
+    # Get the contrasts
+    contrasts = []
+    for derivative in derivatives:
+        if 'basel-mp2rage' in str(derivative):
+            contrast = str(derivative).replace('_desc-rater3_label-lesion_seg.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+            contrasts.append(contrast)
+        elif 'nih-ms-mp2rage' in str(derivative):
+            contrast = str(derivative).replace('_desc-rater1_label-lesion_seg.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+            contrasts.append(contrast)
+        else:
+            contrast = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+            contrasts.append(contrast)        
+        
+    # Get the unique contrasts
+    unique_contrasts = set(contrasts)
+    # Print the distribution
+    logger.info(f"Distribution of contrasts in {dataset_name}:")
+    for contrast in unique_contrasts:
+        count = contrasts.count(contrast)
+        logger.info(f"{contrast}: {count}")
+    return None
+
+
 def main():
     """
     This is the main function of the script.
@@ -175,6 +207,22 @@ def main():
          with open(args.exclude, 'r') as file:
                 exclude_list = yaml.load(file, Loader=yaml.FullLoader)
     exclude_list = exclude_list['EXCLUDED']
+
+    # Print the distribution of contrasts in the datasets
+    print_dataset_contrasts_distribution(derivatives_basel_mp2rage, "Basel MP2RAGE")
+    print_dataset_contrasts_distribution(derivatives_bavaria_unstitched, "Bavaria Quebec")
+    print_dataset_contrasts_distribution(derivatives_canproco, "CanProCo")
+    print_dataset_contrasts_distribution(derivatives_basel_2018, "Basel 2018")
+    print_dataset_contrasts_distribution(derivatives_basel_2020, "Basel 2020")
+    logger.info(f"We decided not to include the PD images because of the quality of the manual segmentations.")
+    print_dataset_contrasts_distribution(derivatives_karo, "Karolinska")
+    print_dataset_contrasts_distribution(derivatives_nih, "NIH")
+    print_dataset_contrasts_distribution(derivatives_nyu, "NYU")
+    print_dataset_contrasts_distribution(derivatives_sct, "SCT Testing")
+
+    if args.list_contrast_distribution:
+        # We print the distribution of contrasts in the datasets and exit
+        return None
 
     # The splitting should be done on the subjects and not on the images. It should also be done per site.
     ## To do so, we build a df of the subjects and then split it
