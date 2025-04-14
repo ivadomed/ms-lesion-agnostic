@@ -309,6 +309,8 @@ def main():
     params["seed"] = args.seed
     params["reference"] = "NeuroPoly"
     params["tensorImageSize"] = "3D"
+    # Add the contrasts counts in the params
+    params["contrasts"] = contrast_counts
 
     train_derivatives_dict = {"train": train_derivatives}
     val_derivatives_dict = {"validation": val_derivatives}
