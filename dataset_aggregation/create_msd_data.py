@@ -146,7 +146,32 @@ def print_dataset_contrasts_distribution(derivatives, dataset_name):
     for contrast in unique_contrasts:
         count = contrasts.count(contrast)
         logger.info(f"{contrast}: {count}")
-    return None
+    return contrasts
+
+
+def split_dataset(derivatives, test_size=0.1, random_state=42):
+    """
+    This function takes a list of derivatives and splits it into train, validation and test sets based on the subjects.
+
+    Input:
+        derivatives : list : List of derivatives
+        test_size : float : Size of the test set
+        random_state : int : Random state for reproducibility
+
+    Returns:
+        train : list : List of training derivatives
+        val : list : List of validation derivatives
+        test : list : List of test derivatives
+    """
+    df_derivatives = pd.DataFrame(derivatives, columns=['derivative'])
+    df_derivatives['subject'] = df_derivatives['derivative'].apply(lambda x: x.name.split('_')[0])
+    df_derivatives_subjects = df_derivatives['subject'].unique() 
+    df_derivatives_subjects_train, df_derivatives_subjects_test = train_test_split(df_derivatives_subjects, test_size=test_size, random_state=random_state)
+    df_derivatives_subjects_train, df_derivatives_subjects_val = train_test_split(df_derivatives_subjects_train, test_size=test_size, random_state=random_state)
+    train = df_derivatives[df_derivatives['subject'].isin(df_derivatives_subjects_train)]["derivative"].tolist()
+    val = df_derivatives[df_derivatives['subject'].isin(df_derivatives_subjects_val)]["derivative"].tolist()
+    test = df_derivatives[df_derivatives['subject'].isin(df_derivatives_subjects_test)]["derivative"].tolist()
+    return train, val, test
 
 
 def main():
@@ -165,6 +190,8 @@ def main():
 
     root = args.path_data
     seed = args.seed
+
+    test_size = 0.1
 
     # Get all subjects
     path_basel_mp2rage = Path(os.path.join(root, "basel-mp2rage"))
@@ -209,16 +236,31 @@ def main():
     exclude_list = exclude_list['EXCLUDED']
 
     # Print the distribution of contrasts in the datasets
-    print_dataset_contrasts_distribution(derivatives_basel_mp2rage, "Basel MP2RAGE")
-    print_dataset_contrasts_distribution(derivatives_bavaria_unstitched, "Bavaria Quebec")
-    print_dataset_contrasts_distribution(derivatives_canproco, "CanProCo")
-    print_dataset_contrasts_distribution(derivatives_basel_2018, "Basel 2018")
-    print_dataset_contrasts_distribution(derivatives_basel_2020, "Basel 2020")
+    contrasts_basel_mp2rage = print_dataset_contrasts_distribution(derivatives_basel_mp2rage, "Basel MP2RAGE")
+    contrasts_bavaria = print_dataset_contrasts_distribution(derivatives_bavaria_unstitched, "Bavaria Quebec")
+    contrasts_canproco = print_dataset_contrasts_distribution(derivatives_canproco, "CanProCo")
+    contrasts_basel_2018 = print_dataset_contrasts_distribution(derivatives_basel_2018, "Basel 2018")
+    contrasts_basel_2020 = print_dataset_contrasts_distribution(derivatives_basel_2020, "Basel 2020")
     logger.info(f"We decided not to include the PD images because of the quality of the manual segmentations.")
-    print_dataset_contrasts_distribution(derivatives_karo, "Karolinska")
-    print_dataset_contrasts_distribution(derivatives_nih, "NIH")
-    print_dataset_contrasts_distribution(derivatives_nyu, "NYU")
-    print_dataset_contrasts_distribution(derivatives_sct, "SCT Testing")
+    contrasts_karo = print_dataset_contrasts_distribution(derivatives_karo, "Karolinska")
+    contrasts_nih = print_dataset_contrasts_distribution(derivatives_nih, "NIH")
+    contrasts_nyu = print_dataset_contrasts_distribution(derivatives_nyu, "NYU")
+    contrasts_sct = print_dataset_contrasts_distribution(derivatives_sct, "SCT Testing")
+
+    all_contrasts = contrasts_basel_mp2rage + contrasts_bavaria + contrasts_canproco + contrasts_basel_2018 + contrasts_basel_2020 + contrasts_karo + contrasts_nih + contrasts_nyu + contrasts_sct
+    # Change MEGRE TO T2star in the list
+    all_contrasts = [contrast.replace('MEGRE', 'T2star') for contrast in all_contrasts]
+    # create a dictionnary which stores the counts for each contrast
+    contrast_counts = {}
+    for contrast in all_contrasts:
+        if contrast in contrast_counts:
+            contrast_counts[contrast] += 1
+        else:
+            contrast_counts[contrast] = 1
+    # Print the counts
+    logger.info(f"Distribution of contrasts in the dataset:")
+    for contrast, count in contrast_counts.items():
+        logger.info(f"{contrast}: {count}")
 
     if args.list_contrast_distribution:
         # We print the distribution of contrasts in the datasets and exit
@@ -226,67 +268,20 @@ def main():
 
     # The splitting should be done on the subjects and not on the images. It should also be done per site.
     ## To do so, we build a df of the subjects and then split it
-
-    df_basel_mp2rage = pd.DataFrame(derivatives_basel_mp2rage, columns=['derivative'])
-    df_basel_mp2rage['subject'] = df_basel_mp2rage['derivative'].apply(lambda x: x.name.split('_')[0])
-    df_basel_mp2rage_subjects = df_basel_mp2rage['subject'].unique() 
-    df_basel_mp2rage_subjects_train, df_basel_mp2rage_subjects_test = train_test_split(df_basel_mp2rage_subjects, test_size=0.1, random_state=args.seed)
-    df_basel_mp2rage_subjects_train, df_basel_mp2rage_subjects_val = train_test_split(df_basel_mp2rage_subjects_train, test_size=0.1, random_state=args.seed)
-    basel_mp2rage_train = df_basel_mp2rage[df_basel_mp2rage['subject'].isin(df_basel_mp2rage_subjects_train)]["derivative"].tolist()
-    basel_mp2rage_val = df_basel_mp2rage[df_basel_mp2rage['subject'].isin(df_basel_mp2rage_subjects_val)]["derivative"].tolist()
-    basel_mp2rage_test = df_basel_mp2rage[df_basel_mp2rage['subject'].isin(df_basel_mp2rage_subjects_test)]["derivative"].tolist()
-
-    df_bavaria_unstitched = pd.DataFrame(derivatives_bavaria_unstitched, columns=['derivative'])
-    df_bavaria_unstitched['subject'] = df_bavaria_unstitched['derivative'].apply(lambda x: x.name.split('_')[0])
-    df_bavaria_unstitched_subjects = df_bavaria_unstitched['subject'].unique()
-    df_bavaria_unstitched_subjects_train, df_bavaria_unstitched_subjects_test = train_test_split(df_bavaria_unstitched_subjects, test_size=0.1, random_state=args.seed)
-    df_bavaria_unstitched_subjects_train, df_bavaria_unstitched_subjects_val = train_test_split(df_bavaria_unstitched_subjects_train, test_size=0.1, random_state=args.seed)
-    bavaria_unstitched_train = df_bavaria_unstitched[df_bavaria_unstitched['subject'].isin(df_bavaria_unstitched_subjects_train)]["derivative"].tolist()
-    bavaria_unstitched_val = df_bavaria_unstitched[df_bavaria_unstitched['subject'].isin(df_bavaria_unstitched_subjects_val)]["derivative"].tolist()
-    bavaria_unstitched_test = df_bavaria_unstitched[df_bavaria_unstitched['subject'].isin(df_bavaria_unstitched_subjects_test)]["derivative"].tolist()
-
-    df_canproco = pd.DataFrame(derivatives_canproco, columns=['derivative'])
-    df_canproco['subject'] = df_canproco['derivative'].apply(lambda x: x.name.split('_')[0])
-    df_canproco_subjects = df_canproco['subject'].unique()
-    df_canproco_subjects_train, df_canproco_subjects_test = train_test_split(df_canproco_subjects, test_size=0.1, random_state=args.seed)
-    df_canproco_subjects_train, df_canproco_subjects_val = train_test_split(df_canproco_subjects_train, test_size=0.1, random_state=args.seed)
-    canproco_train = df_canproco[df_canproco['subject'].isin(df_canproco_subjects_train)]["derivative"].tolist()
-    canproco_val = df_canproco[df_canproco['subject'].isin(df_canproco_subjects_val)]["derivative"].tolist()
-    canproco_test = df_canproco[df_canproco['subject'].isin(df_canproco_subjects_test)]["derivative"].tolist()
-
-    df_nih = pd.DataFrame(derivatives_nih, columns=['derivative'])
-    df_nih['subject'] = df_nih['derivative'].apply(lambda x: x.name.split('_')[0])
-    df_nih_subjects = df_nih['subject'].unique()
-    df_nih_subjects_train, df_nih_subjects_test = train_test_split(df_nih_subjects, test_size=0.1, random_state=args.seed)
-    df_nih_subjects_train, df_nih_subjects_val = train_test_split(df_nih_subjects_train, test_size=0.1, random_state=args.seed)
-    nih_train = df_nih[df_nih['subject'].isin(df_nih_subjects_train)]["derivative"].tolist()
-    nih_val = df_nih[df_nih['subject'].isin(df_nih_subjects_val)]["derivative"].tolist()
-    nih_test = df_nih[df_nih['subject'].isin(df_nih_subjects_test)]["derivative"].tolist()
-
-    df_nyu = pd.DataFrame(derivatives_nyu, columns=['derivative'])
-    df_nyu['subject'] = df_nyu['derivative'].apply(lambda x: x.name.split('_')[0])
-    df_nyu_subjects = df_nyu['subject'].unique()
-    df_nyu_subjects_train, df_nyu_subjects_test = train_test_split(df_nyu_subjects, test_size=0.1, random_state=args.seed)
-    df_nyu_subjects_train, df_nyu_subjects_val = train_test_split(df_nyu_subjects_train, test_size=0.1, random_state=args.seed)
-    nyu_train = df_nyu[df_nyu['subject'].isin(df_nyu_subjects_train)]["derivative"].tolist()
-    nyu_val = df_nyu[df_nyu['subject'].isin(df_nyu_subjects_val)]["derivative"].tolist()
-    nyu_test = df_nyu[df_nyu['subject'].isin(df_nyu_subjects_test)]["derivative"].tolist()
-    
-    df_sct = pd.DataFrame(derivatives_sct, columns=['derivative'])
-    df_sct['subject'] = df_sct['derivative'].apply(lambda x: x.name.split('_')[0])
-    df_sct_subjects = df_sct['subject'].unique()
-    df_sct_subjects_train, df_sct_subjects_test = train_test_split(df_sct_subjects, test_size=0.1, random_state=args.seed)
-    df_sct_subjects_train, df_sct_subjects_val = train_test_split(df_sct_subjects_train, test_size=0.1, random_state=args.seed)
-    sct_train = df_sct[df_sct['subject'].isin(df_sct_subjects_train)]["derivative"].tolist()
-    sct_val = df_sct[df_sct['subject'].isin(df_sct_subjects_val)]["derivative"].tolist()
-    sct_test = df_sct[df_sct['subject'].isin(df_sct_subjects_test)]["derivative"].tolist()
+    basel_mp2rage_train, basel_mp2rage_val, basel_mp2rage_test = split_dataset(derivatives_basel_mp2rage, test_size=test_size, random_state=args.seed)
+    bavaria_unstitched_train, bavaria_unstitched_val, bavaria_unstitched_test = split_dataset(derivatives_bavaria_unstitched, test_size=test_size, random_state=args.seed)
+    canproco_train, canproco_val, canproco_test = split_dataset(derivatives_canproco, test_size=test_size, random_state=args.seed)
+    basel_2018_train, basel_2018_val, basel_2018_test = split_dataset(derivatives_basel_2018, test_size=test_size, random_state=args.seed)
+    nih_train, nih_val, nih_test = split_dataset(derivatives_nih, test_size=test_size, random_state=args.seed)
+    nyu_train, nyu_val, nyu_test = split_dataset(derivatives_nyu, test_size=test_size, random_state=args.seed)
+    sct_train, sct_val, sct_test = split_dataset(derivatives_sct, test_size=test_size, random_state=args.seed)
 
     # Gather the splittings
-    train_derivatives = basel_mp2rage_train + bavaria_unstitched_train + canproco_train + nih_train + nyu_train + sct_train
-    val_derivatives = basel_mp2rage_val + bavaria_unstitched_val + canproco_val + nih_val + nyu_val + sct_val
-    test_derivatives = basel_mp2rage_test + bavaria_unstitched_test + canproco_test + nih_test + nyu_test + sct_test
+    train_derivatives = basel_mp2rage_train + bavaria_unstitched_train + canproco_train + basel_2018_train + nih_train + nyu_train + sct_train
+    val_derivatives = basel_mp2rage_val + bavaria_unstitched_val + canproco_val + basel_2018_val + nih_val + nyu_val + sct_val
+    test_derivatives = basel_mp2rage_test + bavaria_unstitched_test + canproco_test + basel_2018_test + nih_test + nyu_test + sct_test
     # As for the external datasets, we don't split them
-    external_derivatives = derivatives_basel_2018 + derivatives_basel_2020 + derivatives_karo
+    external_derivatives = derivatives_karo
 
     # If the flag --all-train is set, use all the data for training
     if args.all_train:
