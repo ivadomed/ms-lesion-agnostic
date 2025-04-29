@@ -60,9 +60,9 @@ model_checkpoint="checkpoint_final.pth"
 ## Echo the command to be run
 echo ""
 echo "Preprocessing the nnUNet_raw data"
-echo "nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -f $fold  -pl $planner --verify_dataset_integrity"
+echo "nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner --verify_dataset_integrity"
 ## Run the command
-nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -f $fold  -pl $planner --verify_dataset_integrity
+nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner --verify_dataset_integrity
 
 # Model training:
 echo ""
