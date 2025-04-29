@@ -1,219 +1,86 @@
 #!/bin/bash
-# This script is used for training contrast-agnostic v3.0 and also provides the option to extend the 
-# contrast-agnostic spinal cord segmentation model with new datasets. It achieves the following:
-# 1. Clones the datasets from NeuroPoly's git-annex server. 
-# 2. Creates datalists (i.e. json files with image/label pairs) based on pre-defined or random dataset splits 
-# 3. Converts the json files for each dataset into one aggregated dataset in the nnUNet format
-# 4. Runs nnUNet preprocessing and training based on the defined configurations (2D/3D).
+#SBATCH --account=aip-jcohen
+#SBATCH --job-name=job1     # set a more descriptive job-name 
+#SBATCH --nodes=1
+#SBATCH --gpus-per-node=h100:4
+#SBATCH --cpus-per-task=12
+#SBATCH --mem=80G
+#SBATCH --time=1-00:00:00   # DD-HH:MM:SS
+#SBATCH --output=/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job1/%x_%A_v2.out
+#SBATCH --error=/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job1/%x_%A_v2.err
+#SBATCH --mail-user=pierrelouis.benveniste03@gmail.com     # whenever the job starts/fails/completes, an email will be sent 
+#SBATCH --mail-type=ALL
 
+# Echo time and hostname into log
+echo "Date:     $(date)"
+echo "Hostname: $(hostname)"
 
-# Define (full) path to the contrast-agnostic repository
-PATH_REPO="/home/GRAMES.POLYMTL.CA/u114716/contrast-agnostic/contrast-agnostic-softseg-spinalcord"
+# load the required modules
+echo "Loading modules ..."
+module load python/3.10.13 cuda/12.2    # TODO: might differ depending on the python and cuda version you have
 
+# activate environment
+echo "Activating environment ..."
+source /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job1/.venv_job1/bin/activate        # TODO: update to match the name of your environment
 
-# ====================================
-# VARIABLES FOR DATASET CREATION
-# ====================================
+#!/bin/bash
+# This script is used for training a ms-lesion-agnostic model
 
-# Set seed for reproducibility. Note seed=50 was used train the contrast-agnostic model 
-# If you're using a different seed, note that you cannot use the predefined random dataset splits (more info below)
-SEED=50
+# Definr paths used:
+PATH_NNUNET_RAW_FOLDER="/home/p/plb/links/projects/aip-jcohen/plb/nnUNet_experiments/nnUNet_raw"
+# PATH_NNUNET_RAW_FOLDER="/home/plbenveniste/net/ms-lesion-agnostic/compute_canada_prep/nnUNet_raw"
+PATH_MSD_DATA="/home/p/plb/links/projects/aip-jcohen/plb/msd_data/dataset_2025-04-15_seed42.json"
+PATH_OUTPUT="/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job1"
+# PATH_OUTPUT="/home/plbenveniste/net/ms-lesion-agnostic/compute_canada_prep/results"
+PATH_CODE="/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job1/ms-lesion-agnostic"
 
-# List of datasets to train on
-# NOTE 1: the following datasets were used for training the contrast-agnostic v3.0 model
-# https://github.com/sct-pipeline/contrast-agnostic-softseg-spinalcord/releases/tag/v3.0
-# NOTE 2: training on praxis acute SCI data requires special access to spineimage.ca. Because this is different from
-# the usual downloading from git-annex, this script does not support downloading praxis data. To train contrast-agnostic model 
-# download the dataset manually and store it in PATH_DATA_BASE (see below)
+# Create the nnUNet_preprocessed and nnUNet_results folders
+mkdir -p $PATH_OUTPUT/nnUNet_preprocessed
+mkdir -p $PATH_OUTPUT/nnUNet_results
 
-DATASETS=("data-multi-subject" "basel-mp2rage" "canproco" \
-            "lumbar-epfl" "lumbar-vanderbilt" "dcm-brno" "dcm-zurich" "dcm-zurich-lesions" "dcm-zurich-lesions-20231115" \
-            "sci-paris" "sci-zurich" "sci-colorado" "sct-testing-large" \
-            "site_006" "site_007"
-            )
-DATASETS=("site_006")
+# Export nnUNet paths
+export nnUNet_raw=${PATH_NNUNET_RAW_FOLDER}
+export nnUNet_preprocessed=${PATH_OUTPUT}/nnUNet_preprocessed
+export nnUNet_results=${PATH_OUTPUT}/nnUNet_results
 
-# Path to the folder where the datasets will be downloaded
-# PATH_DATA_BASE="/home/GRAMES.POLYMTL.CA/u114716/datasets"
-PATH_DATA_BASE="/scratch/naga/contrast_agnostic/datasets"
+echo "nnUNet_raw: $nnUNet_raw"
+echo "nnUNet_preprocessed: $nnUNet_preprocessed"    
+echo "nnUNet_results: $nnUNet_results"
 
-# Path to the output folder where the dataset in MSD-style format will be saved as json files with image/label pairs
-# and other dataset-related statistics. To keep track of the experiments, date is also appended as a prefix or suffix
-# Example: 20250211_v31contrastAgnostic
-folder_name=$(date +"%Y%m%d")-temp
-PATH_OUT_DATALISTS="/scratch/naga/contrast_agnostic/datalists/${folder_name}"
+# Define dataset values
+dataset_number=902
+configurations="3d_fullres"
+fold=0
+planner="nnUNetPlannerResEncL"
+plans="nnUNetResEncUNetLPlans"
+trainer="nnUNetTrainerDiceCELoss_2000epochs"
+model_checkpoint="checkpoint_final.pth"
 
-# Path to yml file containing subjects to include. These subjects are curated to be of good quality after visual QC'ing
-# Always include this file, when reproducing and also when adding new datasets
-PATH_INCLUDE_SUBJECTS=${PATH_REPO}/subjects_to_include.yml
+# First we preprocess the nnUNet_raw data
+## Echo the command to be run
+echo ""
+echo "Preprocessing the nnUNet_raw data"
+echo "nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -f $fold  -pl $planner --verify_dataset_integrity"
+## Run the command
+nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -f $fold   -pl $planner --verify_dataset_integrity
 
+# Model training:
+nnUNetv2_train -d $dataset_number -c $configurations -f $fold -p $plans -tr $trainer
 
-# ====================================
-# VARIABLES FOR NNUNET TRAINING
-# ====================================
+# Model inference:
+## On the test set
+nnUNetv2_predict -i ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/imagesTs/ -o ${PATH_OUTPUT}/predictions_fold_0_test_set -d ${dataset_number} -c ${configurations} -f ${fold} -chk ${model_checkpoint} -p ${plans} -tr ${trainer} --save_probabilities
+## ON the train set
+nnUNetv2_predict -i ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/imagesTr/ -o ${PATH_OUTPUT}/predictions_fold_0_train_set -d ${dataset_number} -c ${configurations} -f ${fold} -chk ${model_checkpoint} -p ${plans} -tr ${trainer} --save_probabilities
 
-# Path to store the converted dataset (ideally the ${nnUNet_raw} folder once nnUNet is installed)
-PATH_NNUNET_RAW="/home/GRAMES.POLYMTL.CA/u114716/nnunet-v2/nnUNet_raw"
+# Model evaluation:
+## On the test set
+python $PATH_CODE/nnunet/evaluate_predictions.py -pred-folder ${PATH_OUTPUT}/predictions_fold_0_test_set -label-folder ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/labelsTs  ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/imagesTs/ -conversion-dict ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/conversion_dict.json -output-folder ${PATH_OUTPUT}/predictions_fold_0_test_set
+## On the train set
+python $PATH_CODE/nnunet/evaluate_predictions.py -pred-folder ${PATH_OUTPUT}/predictions_fold_0_train_set -label-folder ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/labelsTr  ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/imagesTr/ -conversion-dict ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/conversion_dict.json -output-folder ${PATH_OUTPUT}/predictions_fold_0_train_set
 
-# Path to the nnUNet results folder (ideally ${nnUNet_results})
-PATH_NNUNET_RESULTS="/home/GRAMES.POLYMTL.CA/u114716/nnunet-v2/nnUNet_results"
-
-# Name and number/id of the dataset to be referenced by nnunet
-DATASET_NAME="TempContrastAgnostic"
-DATASET_NUMBER=999          # this refers to the `-d` argument when training nnunet models
-
-# Name of the nnUNet trainer variant 
-# NOTE: contrast-agnostic v3.0 model used the default trainer defined below
-# NNUNET_TRAINER="nnUNetTrainer"
-NNUNET_TRAINER="nnUNetTrainer_5epochs"
-
-# Name of the plans file. Recommended to keep the default one below unless you want to train
-# other models given in nnunet's model suite
-NNUNET_PLANS_FILE="nnUNetPlans"
-
-# Type/Kernel of the model. for 2D training, use "2d"; for 3D training, use "3d_fullres"
-# configurations=("2d" "3d_fullres")                        
-configurations=("3d_fullres")
-
-# Number of cross-validation folds to run the model on. nnUNet by default allows training on 5 folds
-# folds=(0 1 2 3 4)
-folds=(0)
-
-# GPU ID to use for training the model
-cuda_visible_devices=2
-
-
-# ====================================
-# DOWNLOADING DATASETS AND CREATING DATALISTS
-# ====================================
-
-for dataset in ${DATASETS[@]}; do
-
-    if [[ ${dataset} == site_* ]]; then
-        echo "-----------------------------------"
-        echo "Encountered possibly a PRAXIS dataset, checking if it is already downloaded ..."
-        echo "-----------------------------------"
-        if [[ ! -d "${PATH_DATA_BASE}/${dataset}" ]]; then
-            echo "No dataset found in ${PATH_DATA_BASE}/${dataset}, please download the praxis dataset manually"
-            exit
-        else
-            echo "Dataset found at ${PATH_DATA_BASE}/${dataset}, moving on to datalist creation ..."
-        fi
-    else
-        echo "-----------------------------------"
-        echo "Cloning ${dataset} dataset from git-annex ..."
-        echo "-----------------------------------"
-        python ${PATH_REPO}/nnUnet/01_clone_dataset.py \
-            --ofolder ${PATH_DATA_BASE} \
-            --dataset ${dataset} 
-    
-    fi
-
-    echo "-----------------------------------"
-    echo "Downloading data from git-annex and creating datalist for ${dataset} ..."
-    echo "-----------------------------------"
-    
-    python ${PATH_REPO}/nnUnet/02_create_msd_data.py \
-        --seed ${SEED} \
-        --path-data ${PATH_DATA_BASE}/${dataset} \
-        --path-out ${PATH_OUT_DATALISTS} \
-        --include ${PATH_INCLUDE_SUBJECTS} \
-        --use-predefined-splits \
-        --path-datasplits ${PATH_REPO}/datasplits
-
-done
-
-echo "-----------------------------------"
-echo "Done! Datalists created and stored in ${PATH_OUT_DATALISTS}"
-echo "-----------------------------------"
-
-
-# ====================================
-# CREATING DATATSET IN NNUNET FORMAT
-# ====================================
-
-# NOTE: Run the command below only when all datalists are created. 
-# nnUNet has a numbering system for its datasets that requires all images to be converted once
-# rather than greedy conversion (i.e. creating a datalist and immediately converting to nnunet format)
-echo "-----------------------------------"
-echo "Converting the datalists to nnUNetv2-specific format ..."
-echo "-----------------------------------"
-
-# NOTE: When using all the datasets, this commands takes a while (8-10 hours) because of the conversion
-# to RPI and ensuring the alignment of images and labels. While this is already using multiprocessing, 
-# depending on sct commands is what is takes a long time (e.g. sct_register_multimodal). 
-# But, the good part is, once this is done, there is no way nnUNet will throw an error regarding 
-# image/label header mismatch. 
-
-python ${PATH_REPO}/nnUnet/03_convert_msd_to_nnunet_reorient.py \
-    --input ${PATH_OUT_DATALISTS} \
-    --output ${PATH_NNUNET_RAW} \
-    --taskname ${DATASET_NAME} \
-    --tasknumber ${DATASET_NUMBER} \
-    --workers 8
-
-echo "-----------------------------------"
-echo "Done! Converted datasets can be found in ${PATH_NNUNET_RAW}/${DATASET_NAME}."
-echo "-----------------------------------"
-
-
-# ====================================
-# NNUNET PREPROCESSING
-# ====================================
-
-# NOTE: For large datasets, preprocessing takes a lot of time, hence we run a separate loop over the 
-# configurations so that once it's done, this part can be commented out and jump to training directly
-for configuration in ${configurations[@]}; do
-
-    echo "-----------------------------------"
-    echo "Verifying dataset integrity and running preprocessing for ${configuration} configuration ..."
-    echo "-----------------------------------"
-    nnUNetv2_plan_and_preprocess -d ${DATASET_NUMBER} --verify_dataset_integrity -c ${configuration}
-
-done
-
-echo "-----------------------------------"
-echo "Preprocessing completed. Starting training ..."
-echo "-----------------------------------"
-
-
-# ====================================
-# NNUNET TRAINING
-# ====================================
-
-for configuration in ${configurations[@]}; do
-
-    for fold in ${folds[@]}; do
-
-        echo "-------------------------------------------"
-        echo "Training on Fold $fold, Configuration $configuration ..."
-        echo "-------------------------------------------"
-
-        # Get the start time
-        start=$(date +%s)
-
-        # training
-        CUDA_VISIBLE_DEVICES=${cuda_visible_devices} nnUNetv2_train ${DATASET_NUMBER} \
-                                $configuration $fold -tr ${NNUNET_TRAINER} -p ${NNUNET_PLANS_FILE}
-
-        echo ""
-        echo "-------------------------------------------"
-        echo "Training completed for Fold $fold, Configuration $configuration"
-        echo "-------------------------------------------"
-
-        # Get the end time
-        end=`date +%s`
-        runtime=$((end-start))
-        echo
-        echo "~~~"
-        echo "Ran on:      `uname -nsr`"
-        echo "Duration:    $(($runtime / 3600))hrs $((($runtime / 60) % 60))min $(($runtime % 60))sec"
-        echo "~~~"
-    done
-
-done
-
-echo "-------------------------------------------"
-echo "Training on all folds completed."
-echo "Model can be found in ${PATH_NNUNET_RESULTS}/${DATASET_NAME}"
-echo "-------------------------------------------"
+# Plot the results
+## On the test set
+python $PATH_CODE/nnunet/plot_performance.py --pred-dir-path ${PATH_OUTPUT}/predictions_fold_0_test_set --data-json-path ${PATH_MSD_DATA}
+## On the train set
+python $PATH_CODE/nnunet/plot_performance.py --pred-dir-path ${PATH_OUTPUT}/predictions_fold_0_train_set --data-json-path ${PATH_MSD_DATA}
