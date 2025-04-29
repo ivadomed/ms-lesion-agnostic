@@ -27,7 +27,7 @@ source /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job1/.venv_j
 # This script is used for training a ms-lesion-agnostic model
 
 # Definr paths used:
-PATH_RAW_DATA="/home/p/plb/links/projects/aip-jcohen/plb/nnUNet_experiments/nnUNet_raw/Dataset902_msLesionAgnostic"
+PATH_NNUNET_RAW_FOLDER="/home/p/plb/links/projects/aip-jcohen/plb/nnUNet_experiments/nnUNet_raw"
 # PATH_NNUNET_RAW_FOLDER="/home/plbenveniste/net/ms-lesion-agnostic/compute_canada_prep/nnUNet_raw"
 PATH_MSD_DATA="/home/p/plb/links/projects/aip-jcohen/plb/msd_data/dataset_2025-04-15_seed42.json"
 PATH_OUTPUT="/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job1"
