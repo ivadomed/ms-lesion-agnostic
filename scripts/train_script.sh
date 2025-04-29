@@ -62,24 +62,32 @@ echo ""
 echo "Preprocessing the nnUNet_raw data"
 echo "nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -f $fold  -pl $planner --verify_dataset_integrity"
 ## Run the command
-nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -f $fold   -pl $planner --verify_dataset_integrity
+nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -f $fold  -pl $planner --verify_dataset_integrity
 
 # Model training:
+echo ""
+echo "Training the model"
 nnUNetv2_train -d $dataset_number -c $configurations -f $fold -p $plans -tr $trainer
 
 # Model inference:
+echo ""
+echo "Model inference"
 ## On the test set
 nnUNetv2_predict -i ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/imagesTs/ -o ${PATH_OUTPUT}/predictions_fold_0_test_set -d ${dataset_number} -c ${configurations} -f ${fold} -chk ${model_checkpoint} -p ${plans} -tr ${trainer} --save_probabilities
 ## ON the train set
 nnUNetv2_predict -i ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/imagesTr/ -o ${PATH_OUTPUT}/predictions_fold_0_train_set -d ${dataset_number} -c ${configurations} -f ${fold} -chk ${model_checkpoint} -p ${plans} -tr ${trainer} --save_probabilities
 
 # Model evaluation:
+echo ""
+echo "Model evaluation"
 ## On the test set
 python $PATH_CODE/nnunet/evaluate_predictions.py -pred-folder ${PATH_OUTPUT}/predictions_fold_0_test_set -label-folder ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/labelsTs  ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/imagesTs/ -conversion-dict ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/conversion_dict.json -output-folder ${PATH_OUTPUT}/predictions_fold_0_test_set
 ## On the train set
 python $PATH_CODE/nnunet/evaluate_predictions.py -pred-folder ${PATH_OUTPUT}/predictions_fold_0_train_set -label-folder ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/labelsTr  ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/imagesTr/ -conversion-dict ${nnUNet_raw}/Dataset${902}_msLesionAgnostic/conversion_dict.json -output-folder ${PATH_OUTPUT}/predictions_fold_0_train_set
 
 # Plot the results
+echo ""
+echo "Plotting the results"
 ## On the test set
 python $PATH_CODE/nnunet/plot_performance.py --pred-dir-path ${PATH_OUTPUT}/predictions_fold_0_test_set --data-json-path ${PATH_MSD_DATA}
 ## On the train set
