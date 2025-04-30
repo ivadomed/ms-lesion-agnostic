@@ -8,7 +8,7 @@ source .venv_job1/bin/activate
 # Installing libraries required
 
 ```console
-pip install torch torchvision torchaudio
+pip3 install torch torchvision torchaudio
 ```
 
 # In my fork of nnUNet

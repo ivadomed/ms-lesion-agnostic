@@ -67,7 +67,7 @@ nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner 
 # Model training:
 echo ""
 echo "Training the model"
-nnUNetv2_train -d $dataset_number -c $configurations -f $fold -p $plans -tr $trainer
+nnUNetv2_train $dataset_number $configurations $fold -p $plans -tr $trainer
 
 # Model inference:
 echo ""
