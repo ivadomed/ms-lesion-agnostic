@@ -17,10 +17,6 @@ job_name="job3"
 echo "Date:     $(date)"
 echo "Hostname: $(hostname)"
 
-# load the required modules
-echo "Loading modules ..."
-module load python/3.10.13 cuda/12.6    # TODO: might differ depending on the python and cuda version you have
-
 # activate environment
 echo "Activating environment ..."
 source /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/$job_name/.venv_$job_name/bin/activate        # TODO: update to match the name of your environment
@@ -58,12 +54,9 @@ echo ""
 echo "Preprocessing the nnUNet_raw data"
 echo "nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner --verify_dataset_integrity"
 ## Run the command
-# nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner --verify_dataset_integrity
+nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner --verify_dataset_integrity
 
 # Model training:
 echo ""
 echo "Training the model"
-CUDA_VISIBLE_DEVICES=0 nnUNetv2_train  $dataset_number  $configurations  0 -p $plans -tr $trainer &
-CUDA_VISIBLE_DEVICES=1 nnUNetv2_train  $dataset_number  $configurations  1 -p $plans -tr $trainer &
-CUDA_VISIBLE_DEVICES=2 nnUNetv2_train  $dataset_number  $configurations  2 -p $plans -tr $trainer & 
-CUDA_VISIBLE_DEVICES=3 nnUNetv2_train  $dataset_number  $configurations  3 -p $plans -tr $trainer &
+CUDA_VISIBLE_DEVICES=0 nnUNetv2_train  $dataset_number  $configurations  0 -p $plans -tr $trainer 

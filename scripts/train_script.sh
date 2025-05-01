@@ -15,16 +15,9 @@
 echo "Date:     $(date)"
 echo "Hostname: $(hostname)"
 
-# load the required modules
-echo "Loading modules ..."
-module load python/3.10.13 cuda/12.2    # TODO: might differ depending on the python and cuda version you have
-
 # activate environment
 echo "Activating environment ..."
 source /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job1/.venv_job1/bin/activate        # TODO: update to match the name of your environment
-
-#!/bin/bash
-# This script is used for training a ms-lesion-agnostic model
 
 # Definr paths used:
 PATH_NNUNET_RAW_FOLDER="/home/p/plb/links/projects/aip-jcohen/plb/nnUNet_experiments/nnUNet_raw"

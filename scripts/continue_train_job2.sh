@@ -1,17 +1,17 @@
 #!/bin/bash
 #SBATCH --account=aip-jcohen
-#SBATCH --job-name=job1     # set a more descriptive job-name 
+#SBATCH --job-name=job2     # set a more descriptive job-name 
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=h100:4
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=80G
 #SBATCH --time=1-00:00:00   # DD-HH:MM:SS
-#SBATCH --output=/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job1/%x_%A_v2.out
-#SBATCH --error=/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job1/%x_%A_v2.err
+#SBATCH --output=/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job2/%x_%A_v2.out
+#SBATCH --error=/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job2/%x_%A_v2.err
 #SBATCH --mail-user=pierrelouis.benveniste03@gmail.com     # whenever the job starts/fails/completes, an email will be sent 
 #SBATCH --mail-type=ALL
 
-job_name="job1"
+job_name="job2"
 
 # Echo time and hostname into log
 echo "Date:     $(date)"
@@ -45,18 +45,10 @@ configurations="3d_fullres"
 fold=0
 planner="nnUNetPlannerResEncL"
 plans="nnUNetResEncUNetLPlans"
-trainer="nnUNetTrainerDiceCELoss_2000epochs"
-model_checkpoint="checkpoint_final.pth"
+trainer="nnUNetTrainerDiceCELoss_noSmooth_2000epochs"
+model_checkpoint="checkpoint_final.pth" 
 
-# First we preprocess the nnUNet_raw data
-## Echo the command to be run
+# Continue training the model:
 echo ""
-echo "Preprocessing the nnUNet_raw data"
-echo "nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner --verify_dataset_integrity"
-## Run the command
-nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner --verify_dataset_integrity
-
-# Model training:
-echo ""
-echo "Training the model"
-CUDA_VISIBLE_DEVICES=0 nnUNetv2_train  $dataset_number  $configurations 0 -p $plans -tr $trainer
+echo "Continue training the model"
+CUDA_VISIBLE_DEVICES=0 nnUNetv2_train  $dataset_number  $configurations  0 -p $plans -tr $trainer --c

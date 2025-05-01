@@ -48,15 +48,6 @@ plans="nnUNetResEncUNetLPlans"
 trainer="nnUNetTrainerDiceCELoss_2000epochs"
 model_checkpoint="checkpoint_final.pth"
 
-# First we preprocess the nnUNet_raw data
-## Echo the command to be run
-echo ""
-echo "Preprocessing the nnUNet_raw data"
-echo "nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner --verify_dataset_integrity"
-## Run the command
-nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner --verify_dataset_integrity
-
-# Model training:
-echo ""
-echo "Training the model"
-CUDA_VISIBLE_DEVICES=0 nnUNetv2_train  $dataset_number  $configurations 0 -p $plans -tr $trainer
+# Continue model training:
+echo "Continuing training the model"
+CUDA_VISIBLE_DEVICES=0 nnUNetv2_train  $dataset_number  $configurations 0 -p $plans -tr $trainer --c
