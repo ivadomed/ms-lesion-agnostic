@@ -1,6 +1,6 @@
 # Creation of the virtual environment
 
-console```
+```console
 python3 -m venv .venv_job1
 source .venv_job1/bin/activate
 ```
