@@ -50,16 +50,16 @@ model_checkpoint="checkpoint_final.pth"
 
 # First we preprocess the nnUNet_raw data
 ## Echo the command to be run
-echo ""
-echo "Preprocessing the nnUNet_raw data"
-echo "nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner --verify_dataset_integrity"
+# echo ""
+# echo "Preprocessing the nnUNet_raw data"
+# echo "nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner --verify_dataset_integrity"
 ## Run the command
-nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner --verify_dataset_integrity
+# nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner --verify_dataset_integrity
 
 # Before training, we need to add the probabilities to the nnUNet_preprocessed data
-echo ""
-echo "Adding the probabilities to the nnUNet_preprocessed data"
-python /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/$job_name/nnUNet/add_contrast_probability_to_preprocessed_dataset.py -c $PATH_NNUNET_RAW_FOLDER/Dataset902_msLesionAgnostic/conversion_dict.json -d $nnUNet_preprocessed/Dataset902_msLesionAgnostic/dataset.json
+# echo ""
+# echo "Adding the probabilities to the nnUNet_preprocessed data"
+# python /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/$job_name/nnUNet/add_contrast_probability_to_preprocessed_dataset.py -c $PATH_NNUNET_RAW_FOLDER/Dataset902_msLesionAgnostic/conversion_dict.json -d $nnUNet_preprocessed/Dataset902_msLesionAgnostic/dataset.json
 
 # Model training:
 echo ""

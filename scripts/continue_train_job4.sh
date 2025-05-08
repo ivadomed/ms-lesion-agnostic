@@ -1,6 +1,6 @@
 #!/bin/bash
 
-job_name="job3"
+job_name="job4"
 
 # Echo time and hostname into log
 echo "Date:     $(date)"
@@ -34,10 +34,10 @@ configurations="3d_fullres"
 fold=0
 planner="nnUNetPlannerResEncL"
 plans="nnUNetResEncUNetLPlans"
-trainer="nnUNetTrainerDAExt_DiceCELoss_noSmooth_2000epochs"
+trainer="nnUNetTrainerDiceCELoss_noSmooth_unbalancedSampling_2000epochs"
 model_checkpoint="checkpoint_final.pth"
 
-# Continue training the model:
+# Model training:
 echo ""
-echo "Continue training the model"
-CUDA_VISIBLE_DEVICES=0 nnUNetv2_train  $dataset_number  $configurations  0 -p $plans -tr $trainer --c
+echo "Training the model"
+CUDA_VISIBLE_DEVICES=1 nnUNetv2_train  $dataset_number  $configurations 0 -p $plans -tr $trainer --c
