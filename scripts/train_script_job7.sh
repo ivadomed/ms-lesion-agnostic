@@ -57,4 +57,4 @@ nnUNetv2_preprocess -d $dataset_number -plans_name $plans
 # Model training:
 echo ""
 echo "Training the model"
-CUDA_VISIBLE_DEVICES=0 nnUNetv2_train  $dataset_number  $configurations 0 -p $plans -tr $trainer -pretrained_weights $pretrained_model_path
+CUDA_VISIBLE_DEVICES=1 nnUNetv2_train  $dataset_number  $configurations 0 -p $plans -tr $trainer -pretrained_weights $pretrained_model_path

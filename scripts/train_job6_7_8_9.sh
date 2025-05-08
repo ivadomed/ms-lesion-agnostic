@@ -12,13 +12,15 @@
 #SBATCH --mail-type=ALL
 
 # Launch job6
-bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job6/train_script_job6.sh
+bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job6/train_script_job6.sh | tee /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job6/logfile_$(date '+%Y-%m-%d-%H-%M-%S').txt &
 
 # Launch job7
-bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job7/train_script_job7.sh
+bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job7/train_script_job7.sh  | tee /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job7/logfile_$(date '+%Y-%m-%d-%H-%M-%S').txt &
 
 # Launch job8
-bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job8/train_script_job8.sh
+bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job8/train_script_job8.sh  | tee /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job8/logfile_$(date '+%Y-%m-%d-%H-%M-%S').txt &
 
 # Launch job9
-bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job9/train_script_job9.sh
+bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job9/train_script_job9.sh  | tee /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job9/logfile_$(date '+%Y-%m-%d-%H-%M-%S').txt &
+
+wait

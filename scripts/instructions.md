@@ -61,3 +61,7 @@ export nnUNet_results="/home/p/plb/links/scratch/ms-lesion-agnostic/model_traini
 ```console
 scp train_script.sh  plb@tamia.alliancecan.ca:~/links/scratch/ms-lesion-agnostic/model_trainings/job1/
 ```
+To do everything at once: 
+```console
+python3 -m venv .venv_job1 && source .venv_job1/bin/activate && pip3 install torch torchvision torchaudio && cd nnUNet && pip install -e . && pip install triton
+```

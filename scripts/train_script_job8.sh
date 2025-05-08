@@ -62,4 +62,4 @@ python /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/$job_name/nn
 # Model training:
 echo ""
 echo "Training the model"
-CUDA_VISIBLE_DEVICES=0 nnUNetv2_train  $dataset_number  $configurations 0 -p $plans -tr $trainer -pretrained_weights $pretrained_model_path
+CUDA_VISIBLE_DEVICES=2 nnUNetv2_train  $dataset_number  $configurations 0 -p $plans -tr $trainer -pretrained_weights $pretrained_model_path

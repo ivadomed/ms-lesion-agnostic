@@ -12,10 +12,12 @@
 #SBATCH --mail-type=ALL
 
 # Launch job3
-bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job3/continue_train_job3.sh
+bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job3/continue_train_job3.sh | tee /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job3/logfile_$(date '+%Y-%m-%d-%H-%M-%S').txt  & 
 
 # Launch job4
-bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job4/continue_train_job4.sh
+bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job4/continue_train_job4.sh | tee /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job4/logfile_$(date '+%Y-%m-%d-%H-%M-%S').txt &
 
 # Launch job5
-bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job5/continue_train_job5.sh
+bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job5/continue_train_job5.sh | tee /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job5/logfile_$(date '+%Y-%m-%d-%H-%M-%S').txt &
+
+wait
