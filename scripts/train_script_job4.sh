@@ -1,6 +1,6 @@
 #!/bin/bash
 
-job_name="job4"
+job_folder="job3"
 
 # Echo time and hostname into log
 echo "Date:     $(date)"
@@ -8,12 +8,12 @@ echo "Hostname: $(hostname)"
 
 # activate environment
 echo "Activating environment ..."
-source /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/$job_name/.venv_$job_name/bin/activate        # TODO: update to match the name of your environment
+source /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/$job_folder/.venv_$job_folder/bin/activate        # TODO: update to match the name of your environment
 
 # Definr paths used:
 PATH_NNUNET_RAW_FOLDER="/home/p/plb/links/projects/aip-jcohen/plb/nnUNet_experiments/nnUNet_raw"
 PATH_MSD_DATA="/home/p/plb/links/projects/aip-jcohen/plb/msd_data/dataset_2025-04-15_seed42.json"
-PATH_OUTPUT="/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/"$job_name
+PATH_OUTPUT="/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/"$job_folder
 
 # Create the nnUNet_preprocessed and nnUNet_results folders
 mkdir -p $PATH_OUTPUT/nnUNet_preprocessed
@@ -36,19 +36,6 @@ planner="nnUNetPlannerResEncL"
 plans="nnUNetResEncUNetLPlans"
 trainer="nnUNetTrainerDiceCELoss_noSmooth_unbalancedSampling_2000epochs"
 model_checkpoint="checkpoint_final.pth"
-
-# First we preprocess the nnUNet_raw data
-## Echo the command to be run
-# echo ""
-# echo "Preprocessing the nnUNet_raw data"
-# echo "nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner --verify_dataset_integrity"
-## Run the command
-# nnUNetv2_plan_and_preprocess -d $dataset_number -c $configurations -pl $planner --verify_dataset_integrity
-
-# Before training, we need to add the probabilities to the nnUNet_preprocessed data
-# echo ""
-# echo "Adding the probabilities to the nnUNet_preprocessed data"
-# python /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/$job_name/nnUNet/add_contrast_probability_to_preprocessed_dataset.py -c $PATH_NNUNET_RAW_FOLDER/Dataset902_msLesionAgnostic/conversion_dict.json -d $nnUNet_preprocessed/Dataset902_msLesionAgnostic/dataset.json
 
 # Model training:
 echo ""
