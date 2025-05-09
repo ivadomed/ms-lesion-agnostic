@@ -60,4 +60,7 @@ cp /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/$job_folder/$pla
 # Then we preprocess the data with the new plans file
 echo ""
 echo "Preprocessing the nnUNet_raw data with the new plans file"
-nnUNetv2_preprocess -d $dataset_number -plans_name $plans 
+nnUNetv2_preprocess -d $dataset_number -plans_name $plans
+
+# We add the probabilities
+python /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/$job_folder/nnUNet/add_contrast_probability_to_preprocessed_dataset.py -c $PATH_NNUNET_RAW_FOLDER/Dataset902_msLesionAgnostic/conversion_dict.json -d $nnUNet_preprocessed/Dataset902_msLesionAgnostic/dataset.json
