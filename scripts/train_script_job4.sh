@@ -1,15 +1,4 @@
 #!/bin/bash
-#SBATCH --account=aip-jcohen
-#SBATCH --job-name=job4     # set a more descriptive job-name 
-#SBATCH --nodes=1
-#SBATCH --gpus-per-node=h100:4
-#SBATCH --cpus-per-task=12
-#SBATCH --mem=80G
-#SBATCH --time=1-00:00:00   # DD-HH:MM:SS
-#SBATCH --output=/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job4/%x_%A_v2.out
-#SBATCH --error=/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job4/%x_%A_v2.err
-#SBATCH --mail-user=pierrelouis.benveniste03@gmail.com     # whenever the job starts/fails/completes, an email will be sent 
-#SBATCH --mail-type=ALL
 
 job_name="job4"
 
@@ -64,4 +53,4 @@ model_checkpoint="checkpoint_final.pth"
 # Model training:
 echo ""
 echo "Training the model"
-CUDA_VISIBLE_DEVICES=0 nnUNetv2_train  $dataset_number  $configurations 0 -p $plans -tr $trainer
+CUDA_VISIBLE_DEVICES=1 nnUNetv2_train  $dataset_number  $configurations 0 -p $plans -tr $trainer
