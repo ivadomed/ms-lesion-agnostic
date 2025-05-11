@@ -1,6 +1,6 @@
 #!/bin/bash
 
-job_name="job4"
+job_folder="job3"
 
 # Echo time and hostname into log
 echo "Date:     $(date)"
@@ -8,12 +8,12 @@ echo "Hostname: $(hostname)"
 
 # activate environment
 echo "Activating environment ..."
-source /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/$job_name/.venv_$job_name/bin/activate        # TODO: update to match the name of your environment
+source /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/$job_folder/.venv_$job_folder/bin/activate        # TODO: update to match the name of your environment
 
 # Definr paths used:
 PATH_NNUNET_RAW_FOLDER="/home/p/plb/links/projects/aip-jcohen/plb/nnUNet_experiments/nnUNet_raw"
 PATH_MSD_DATA="/home/p/plb/links/projects/aip-jcohen/plb/msd_data/dataset_2025-04-15_seed42.json"
-PATH_OUTPUT="/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/"$job_name
+PATH_OUTPUT="/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/"$job_folder
 
 # Create the nnUNet_preprocessed and nnUNet_results folders
 mkdir -p $PATH_OUTPUT/nnUNet_preprocessed
