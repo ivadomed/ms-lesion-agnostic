@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=h100:4
 #SBATCH --cpus-per-task=48
-#SBATCH --mem=160G
+#SBATCH --mem=300G
 #SBATCH --time=1-00:00:00   # DD-HH:MM:SS
 #SBATCH --output=/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job11x12x13x14x15/%x_%A_v2.out
 #SBATCH --error=/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job11x12x13x14x15/%x_%A_v2.err
