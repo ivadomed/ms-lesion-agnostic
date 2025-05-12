@@ -65,3 +65,8 @@ To do everything at once:
 ```console
 python3 -m venv .venv_job1 && source .venv_job1/bin/activate && pip3 install torch torchvision torchaudio && cd nnUNet && pip install -e . && pip install triton
 ```
+To inspect GPU or CPU usage
+```console
+srun --jobid 123456 --pty watch -n 5 nvidia-smi
+srun --jobid 123456 --pty htop -u plb
+```

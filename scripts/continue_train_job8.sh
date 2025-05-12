@@ -36,4 +36,4 @@ pretrained_model_path="/home/p/plb/links/scratch/ms-lesion-agnostic/model_traini
 # Model training:
 echo ""
 echo "Training the model"
-CUDA_VISIBLE_DEVICES=2 nnUNetv2_train  $dataset_number  $configurations 0 -p $plans -tr $trainer -pretrained_weights $pretrained_model_path --c
+CUDA_VISIBLE_DEVICES=2 nnUNetv2_train  $dataset_number  $configurations 0 -p $plans -tr $trainer --c

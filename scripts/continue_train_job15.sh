@@ -1,6 +1,6 @@
 #!/bin/bash
 
-job_folder="job6x7x8x9x10"
+job_folder="job11x12x13x14x15"
 
 # Echo time and hostname into log
 echo "Date:     $(date)"
@@ -29,9 +29,8 @@ dataset_number=902
 configurations="3d_fullres"
 fold=0
 planner="nnUNetPlannerResEncL"
-plans="nnUNetResEncUNetL1x1x1_Model1_Plans"
-trainer="nnUNetTrainerDAExt_DiceCELoss_noSmooth_2000epochs"
-pretrained_model_path="/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/$job_folder/pretrained_model/Dataset617_nativect/MultiTalent_trainer_4000ep__nnUNetResEncUNetL1x1x1_Plans_bs24__3d_fullres/fold_all/checkpoint_final.pth"
+plans="nnUNetResEncUNetL1x1x1_Model2_Plans"
+trainer="nnUNetTrainerDiceCELoss_noSmooth_2000epochs_fromScratch"
 
 # Model training:
 echo ""

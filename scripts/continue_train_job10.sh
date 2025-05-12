@@ -30,10 +30,9 @@ configurations="3d_fullres"
 fold=0
 planner="nnUNetPlannerResEncL"
 plans="nnUNetResEncUNetL1x1x1_Model1_Plans"
-trainer="nnUNetTrainerDAExt_DiceCELoss_noSmooth_2000epochs"
-pretrained_model_path="/home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/$job_folder/pretrained_model/Dataset617_nativect/MultiTalent_trainer_4000ep__nnUNetResEncUNetL1x1x1_Plans_bs24__3d_fullres/fold_all/checkpoint_final.pth"
+trainer="nnUNetTrainerDiceCELoss_noSmooth_2000epochs_fromScratch"
 
 # Model training:
 echo ""
 echo "Training the model"
-CUDA_VISIBLE_DEVICES=1 nnUNetv2_train  $dataset_number  $configurations 0 -p $plans -tr $trainer --c
+CUDA_VISIBLE_DEVICES=0 nnUNetv2_train  $dataset_number  $configurations 0 -p $plans -tr $trainer --c
