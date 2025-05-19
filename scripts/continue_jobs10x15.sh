@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --account=aip-jcohen
-#SBATCH --job-name=job10x15     # set a more descriptive job-name 
+#SBATCH --job-name=job15     # set a more descriptive job-name 
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=h100:4
 #SBATCH --cpus-per-task=48
@@ -12,6 +12,10 @@
 #SBATCH --mail-type=ALL
 
 # Launch jobs
-parallel --verbose --jobs 2 ::: \
-  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/scripts/continue_train_job10.sh 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job6x7x8x9x10/logfile_job10_\$ts.txt)" \
+# parallel --verbose --jobs 2 ::: \
+#   "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/scripts/continue_train_job10.sh 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job6x7x8x9x10/logfile_job10_\$ts.txt)" \
+#   "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/scripts/continue_train_job15.sh 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job11x12x13x14x15/logfile_job15_\$ts.txt)"
+
+
+parallel --verbose --jobs 1 ::: \
   "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); bash /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/scripts/continue_train_job15.sh 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/model_trainings/job11x12x13x14x15/logfile_job15_\$ts.txt)"
