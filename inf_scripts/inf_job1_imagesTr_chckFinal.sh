@@ -30,4 +30,4 @@ model_checkpoint="checkpoint_final.pth"
 echo "Running inference on imagesTr with chck_final"
 
 CUDA_VISIBLE_DEVICES=0 nnUNetv2_predict -i $PATH_INPUT_DATASET/imagesTr -o $PATH_JOB/imagesTr_pred_chckFinal_fold0 \
-    -d 902 -p $plans -tr $trainer -c $configurations -f $fold -chk checkpoint_final.pth
+    -d 902 -p $plans -tr $trainer -c $configurations -f $fold -chk checkpoint_final.pth  --continue_prediction

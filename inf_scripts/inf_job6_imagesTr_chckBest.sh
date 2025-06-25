@@ -33,4 +33,4 @@ output_folder="imagesTr_pred_chckBest_fold0"
 echo "Running inference on imagesTr with chck_best"
 
 CUDA_VISIBLE_DEVICES=2 nnUNetv2_predict -i $PATH_INPUT_DATASET/$image_folder -o $PATH_JOB/$output_folder \
-    -d 902 -p $plans -tr $trainer -c $configurations -f $fold -chk $model_checkpoint
+    -d 902 -p $plans -tr $trainer -c $configurations -f $fold -chk $model_checkpoint --continue_prediction
