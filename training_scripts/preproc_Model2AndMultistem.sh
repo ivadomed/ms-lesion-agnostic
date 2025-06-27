@@ -12,5 +12,5 @@
 
 # Launch jobs
 parallel --verbose --jobs 2 ::: \
-  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); bash /home/p/plb/links/projects/aip-jcohen/plb/final_trainings/training_scripts/preproc_jobMultistem.sh 2>&1 | tee /home/p/plb/links/projects/aip-jcohen/plb/final_trainings/logfile_preprocModel2_\$ts.txt)" \
-  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); bash /home/p/plb/links/projects/aip-jcohen/plb/final_trainings/training_scripts/preproc_jobModel2.sh 2>&1 | tee /home/p/plb/links/projects/aip-jcohen/plb/final_trainings/logfile_preprocMultistem_\$ts.txt)" \
+  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); bash /home/p/plb/links/projects/aip-jcohen/plb/final_trainings/ms-lesion-agnostic/training_scripts/preproc_jobMultistem.sh 2>&1 | tee /home/p/plb/links/projects/aip-jcohen/plb/final_trainings/logfile_preprocModel2_\$ts.txt)" \
+  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); bash /home/p/plb/links/projects/aip-jcohen/plb/final_trainings/ms-lesion-agnostic/training_scripts/preproc_jobModel2.sh 2>&1 | tee /home/p/plb/links/projects/aip-jcohen/plb/final_trainings/logfile_preprocMultistem_\$ts.txt)" \
