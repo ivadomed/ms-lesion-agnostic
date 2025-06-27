@@ -70,3 +70,7 @@ To inspect GPU or CPU usage
 srun --jobid 123456 --pty watch -n 5 nvidia-smi
 srun --jobid 123456 --pty htop -u plb
 ```
+To display storage use on scratch and project:
+```console
+diskusage_report
+```
