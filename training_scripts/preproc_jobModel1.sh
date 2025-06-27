@@ -27,7 +27,7 @@ mkdir -p $PATH_NNUNET_PREPROCESSED_FOLDER
 
 # Export nnUNet paths
 export nnUNet_raw=${PATH_NNUNET_RAW_FOLDER}
-export nnUNet_preprocessed=${PATH_OUTPUT}/nnUNet_preprocessed
+export nnUNet_preprocessed=${PATH_NNUNET_PREPROCESSED_FOLDER}
 
 echo "nnUNet_raw: $nnUNet_raw"
 echo "nnUNet_preprocessed: $nnUNet_preprocessed"    
