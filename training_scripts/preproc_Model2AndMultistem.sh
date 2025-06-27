@@ -2,7 +2,7 @@
 #SBATCH --account=aip-jcohen
 #SBATCH --job-name=preprocModel2Multistem     # set a more descriptive job-name 
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=12
+#SBATCH --cpus-per-task=48
 #SBATCH --time=1-00:00:00   # DD-HH:MM:SS
 #SBATCH --output=/home/p/plb/links/projects/aip-jcohen/plb/final_trainings/%x_%A_v2.out
 #SBATCH --error=/home/p/plb/links/projects/aip-jcohen/plb/final_trainings/%x_%A_v2.err
