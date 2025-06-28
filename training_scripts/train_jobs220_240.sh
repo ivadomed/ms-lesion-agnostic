@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --account=aip-jcohen
-#SBATCH --job-name=job200to230     # set a more descriptive job-name 
+#SBATCH --job-name=job220to240     # set a more descriptive job-name 
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=h100:4
 #SBATCH --cpus-per-task=48
