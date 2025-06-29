@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --account=aip-jcohen
-#SBATCH --job-name=job220to240     # set a more descriptive job-name 
+#SBATCH --job-name=job230to240     # set a more descriptive job-name 
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=h100:4
 #SBATCH --cpus-per-task=48
@@ -45,16 +45,12 @@ trainer_job240="nnUNetTrainerDiceCELoss_noSmooth_4000epochs_fromScratch"
 pretrained_model2="/home/p/plb/links/projects/aip-jcohen/plb/final_trainings/pretrained_models/Dataset617_nativect/MultiTalent_trainer_4000ep__nnUNetResEncUNetL1x1x1_Plans_znorm_bs24__3d_fullres/fold_all/checkpoint_final.pth"
 
 # Launch jobs
-parallel --verbose --jobs 12 ::: \
-  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=0 nnUNetv2_train $dataset_number  $configurations 2 -p $plans_model2 -tr $trainer_job220 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job220_fold2_\$ts.txt)" \
-  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=0 nnUNetv2_train $dataset_number  $configurations 3 -p $plans_model2 -tr $trainer_job220 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job220_fold3_\$ts.txt)" \
-  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=0 nnUNetv2_train $dataset_number  $configurations 4 -p $plans_model2 -tr $trainer_job230 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job220_fold4_\$ts.txt)" \
-  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=1 nnUNetv2_train $dataset_number  $configurations 0 -p $plans_model2 -tr $trainer_job230 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job230_fold0_\$ts.txt)" \
-  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=1 nnUNetv2_train $dataset_number  $configurations 1 -p $plans_model2 -tr $trainer_job230 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job230_fold1_\$ts.txt)" \
-  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=1 nnUNetv2_train $dataset_number  $configurations 2 -p $plans_model2 -tr $trainer_job230 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job230_fold2_\$ts.txt)" \
-  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=2 nnUNetv2_train $dataset_number  $configurations 3 -p $plans_model2 -tr $trainer_job230 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job230_fold3_\$ts.txt)" \
-  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=2 nnUNetv2_train $dataset_number  $configurations 4 -p $plans_model2 -tr $trainer_job230 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job230_fold4_\$ts.txt)" \
+parallel --verbose --jobs 8 ::: \
+  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=0 nnUNetv2_train $dataset_number  $configurations 1 -p $plans_model2 -tr $trainer_job230 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job230_fold1_\$ts.txt)" \
+  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=0 nnUNetv2_train $dataset_number  $configurations 2 -p $plans_model2 -tr $trainer_job230 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job230_fold2_\$ts.txt)" \
+  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=1 nnUNetv2_train $dataset_number  $configurations 3 -p $plans_model2 -tr $trainer_job230 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job230_fold3_\$ts.txt)" \
+  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=1 nnUNetv2_train $dataset_number  $configurations 4 -p $plans_model2 -tr $trainer_job230 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job230_fold4_\$ts.txt)" \
   "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=2 nnUNetv2_train $dataset_number  $configurations 0 -p $plans_model2 -tr $trainer_job240 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job240_fold0_\$ts.txt)" \
-  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=3 nnUNetv2_train $dataset_number  $configurations 1 -p $plans_model2 -tr $trainer_job240 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job240_fold1_\$ts.txt)" \
+  "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=2 nnUNetv2_train $dataset_number  $configurations 1 -p $plans_model2 -tr $trainer_job240 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job240_fold1_\$ts.txt)" \
   "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=3 nnUNetv2_train $dataset_number  $configurations 2 -p $plans_model2 -tr $trainer_job240 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job240_fold2_\$ts.txt)" \
   "(ts=\$(date '+%Y-%m-%d-%H-%M-%S');  CUDA_VISIBLE_DEVICES=3 nnUNetv2_train $dataset_number  $configurations 3 -p $plans_model2 -tr $trainer_job240 -pretrained_weights $pretrained_model2 2>&1 | tee /home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/logfile_job240_fold3_\$ts.txt)" \
