@@ -39,7 +39,7 @@ configurations="3d_fullres"
 
 # For model multistem:
 plans_model_multistem="nnUNetResEncUNetL1x1x1_Multistem_Plans"
-trainer_job280="nnUNetTrainerDiceCELoss_noSmooth_unbalancedSampling_4000epochs"
+trainer_job280="nnUNetTrainerDiceCELoss_noSmooth_unbalancedSampling_4000epochs_stem351_5"
 stemID_280="351_5"
 pretrained_model_multistem="/home/p/plb/links/projects/aip-jcohen/plb/final_trainings/pretrained_models/Dataset619_nativemultistem/MultiTalent_trainer_multistems_4000ep__nnUNetResEncUNetL1x1x1_Plans_znorm_bs24__3d_fullres/fold_all/checkpoint_final.pth"
 
