@@ -61,8 +61,8 @@ def main():
             # Then we just copy the file to the output directory
              assert os.system(f"cp {str(input_file)} {output_dir}")==0
         else:
-            # Build a temp folder
-            temp_dir = Path(output_dir) / "temp"
+            # Build a temp folder 
+            temp_dir = Path(output_dir) / f"temp_{input_file.stem.split('_')[-2]}"
             os.makedirs(temp_dir, exist_ok=True)
             os.system(f"run-smore --in-fpath {str(input_file)} --out-dir {temp_dir}")
             # Then we copy the result to the output directory
