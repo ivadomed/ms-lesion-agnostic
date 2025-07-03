@@ -22,7 +22,6 @@ import argparse
 import os
 from pathlib import Path
 from tqdm import tqdm
-import subprocess
 import nibabel as nib
 
 
@@ -71,42 +70,6 @@ def main():
             assert os.system(f"cp {str(temp_files[0])} {str(Path(output_dir) / temp_files[0].name.replace('_smore4', ''))}") == 0
             # Remove the temp directory
             assert os.system(f"rm -rf {temp_dir}") == 0
-
-        # # We want to catch this error from the SMORE code:  image is "isotropic" and cannot be run through SMORE
-        # result = subprocess.run(
-        #         ["run-smore", "--in-fpath", str(input_file), "--out-dir", str(temp_dir)],
-        #         check=True,
-        #         capture_output=True,
-        #         text=True
-        # )
-        # # Check if "isotropic" and cannot be run through SMORE is in the captured text
-        # if 'image is "isotropic" and cannot be run through SMORE' in result.stderr:
-        #     print(f"SMORE failed for file {str(input_file).split('/')[-1]} because it was isotropic. Just copying the original file to the output directory.")
-        #     assert os.system(f"cp {str(input_file)} {output_dir}")==0
-        # else:
-        #     print(result.stderr)
-
-        # except subprocess.CalledProcessError as e:
-        #     stderr = e.stderr.strip()
-        #     print("fail")
-        #     if "isotropic" in stderr.lower():
-        #         print(f"Skipping {input_file}: isotropic image not supported by SMORE.")
-        #     else:
-        #         print(f"Error processing {input_file}:\n{stderr}")
-
-
-
-
-        # # If SMORE crashed then temp folder will be empty
-        # temp_files = list(temp_dir.rglob("*.nii.gz"))
-        # if len(temp_files) == 0:
-        #     print(f"SMORE failed for file {input_file} because it was isotropic. Just copying the original file to the output directory.")
-        #     assert os.system(f"cp {str(input_file)} {output_dir}")==0
-        #     continue
-        # else: 
-        #     assert os.system(f"cp {str(temp_files[0])} {str(Path(output_dir) / temp_files[0].name.replace('_smore4', ''))}") == 0
-        # # Remove the temp directory
-        # assert os.system(f"rm -rf {temp_dir}")==0
 
     return None
 
