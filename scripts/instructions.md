@@ -51,6 +51,12 @@ We can test scripts before launching them, using salloc.
 salloc --time=1:0:0 --mem-per-cpu=40G --ntasks=1 --account=aip-jcohen  --gpus-per-node=h100:4
 ```
 
+Or on CPU (if `cpubase_bycore_b3` is free:) you have to select the partition, otherwise it doesn't work:
+
+```console
+salloc --time=1:0:0 --mem-per-cpu=40G --ntasks=1 --account=aip-jcohen --partition=cpubase_bycore_b3
+```
+
 # Other:
 Here are some usefull commands:
 ```console
