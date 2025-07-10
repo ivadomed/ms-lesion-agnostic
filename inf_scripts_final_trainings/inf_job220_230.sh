@@ -35,6 +35,10 @@ PATH_OUT="/home/p/plb/links/scratch/ms-lesion-agnostic/final_trainings/predictio
 
 echo "nnUNet_results: $nnUNet_results"
 
+# Make directories for outputs
+mkdir -p $PATH_OUT/job220
+mkdir -p $PATH_OUT/job230
+
 # Common variables
 dataset_number=902
 configurations="3d_fullres"

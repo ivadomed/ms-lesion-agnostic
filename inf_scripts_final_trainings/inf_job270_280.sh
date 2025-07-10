@@ -54,7 +54,7 @@ trainer_job280="nnUNetTrainerDiceCELoss_noSmooth_unbalancedSampling_4000epochs_s
 echo "Running inference on imagesTr with chck_best"
 
 # Launch jobs
-parallel --verbose --jobs 20 ::: \
+parallel --verbose --jobs 40 ::: \
     "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); CUDA_VISIBLE_DEVICES=0 nnUNetv2_predict -i $PATH_IMAGESTR -o $PATH_OUT/job270/imagesTr_fold0 \
     -d 902 -p $plans_model_multistem -tr $trainer_job270 -c $configurations -f 0 -chk $model_checkpoint  --continue_prediction 2>&1 | tee \
     $PATH_OUT/job270/logfile_inf_job270_imagesTr_fold0_\$ts.txt)" \
