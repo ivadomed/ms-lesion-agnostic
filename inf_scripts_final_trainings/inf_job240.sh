@@ -68,7 +68,6 @@ parallel --verbose --jobs 10 ::: \
     "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); CUDA_VISIBLE_DEVICES=2 nnUNetv2_predict -i $PATH_IMAGESTR -o $PATH_OUT/job240/imagesTr_fold4 \
     -d 902 -p $plans_model2 -tr $trainer_job240 -c $configurations -f 4 -chk $model_checkpoint  --continue_prediction 2>&1 | tee \
     $PATH_OUT/job240/logfile_inf_job240_imagesTr_fold4_\$ts.txt)" \
-
     "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); CUDA_VISIBLE_DEVICES=0 nnUNetv2_predict -i $PATH_IMAGESTS -o $PATH_OUT/job240/imagesTs_fold0 \
     -d 902 -p $plans_model2 -tr $trainer_job240 -c $configurations -f 0 -chk $model_checkpoint  --continue_prediction 2>&1 | tee \
     $PATH_OUT/job240/logfile_inf_job240_imagesTs_fold0_\$ts.txt)" \

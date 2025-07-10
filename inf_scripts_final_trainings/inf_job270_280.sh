@@ -70,7 +70,6 @@ parallel --verbose --jobs 40 ::: \
     "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); CUDA_VISIBLE_DEVICES=2 nnUNetv2_predict -i $PATH_IMAGESTR -o $PATH_OUT/job270/imagesTr_fold4 \
     -d 902 -p $plans_model_multistem -tr $trainer_job270 -c $configurations -f 4 -chk $model_checkpoint  --continue_prediction 2>&1 | tee \
     $PATH_OUT/job270/logfile_inf_job270_imagesTr_fold4_\$ts.txt)" \
-
     "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); CUDA_VISIBLE_DEVICES=0 nnUNetv2_predict -i $PATH_IMAGESTS -o $PATH_OUT/job270/imagesTs_fold0 \
     -d 902 -p $plans_model_multistem -tr $trainer_job270 -c $configurations -f 0 -chk $model_checkpoint  --continue_prediction 2>&1 | tee \
     $PATH_OUT/job270/logfile_inf_job270_imagesTs_fold0_\$ts.txt)" \
@@ -86,7 +85,6 @@ parallel --verbose --jobs 40 ::: \
     "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); CUDA_VISIBLE_DEVICES=2 nnUNetv2_predict -i $PATH_IMAGESTS -o $PATH_OUT/job270/imagesTs_fold4 \
     -d 902 -p $plans_model_multistem -tr $trainer_job270 -c $configurations -f 4 -chk $model_checkpoint  --continue_prediction 2>&1 | tee \
     $PATH_OUT/job270/logfile_inf_job270_imagesTs_fold4_\$ts.txt)" \
-
     "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); CUDA_VISIBLE_DEVICES=2 nnUNetv2_predict -i $PATH_IMAGESTR -o $PATH_OUT/job280/imagesTr_fold0 \
     -d 902 -p $plans_model_multistem -tr $trainer_job280 -c $configurations -f 0 -chk $model_checkpoint  --continue_prediction 2>&1 | tee \
     $PATH_OUT/job280/logfile_inf_job280_imagesTr_fold0_\$ts.txt)" \
@@ -102,7 +100,6 @@ parallel --verbose --jobs 40 ::: \
     "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); CUDA_VISIBLE_DEVICES=1 nnUNetv2_predict -i $PATH_IMAGESTR -o $PATH_OUT/job280/imagesTr_fold4 \
     -d 902 -p $plans_model_multistem -tr $trainer_job280 -c $configurations -f 4 -chk $model_checkpoint  --continue_prediction 2>&1 | tee \
     $PATH_OUT/job280/logfile_inf_job280_imagesTr_fold4_\$ts.txt)" \
-
     "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); CUDA_VISIBLE_DEVICES=2 nnUNetv2_predict -i $PATH_IMAGESTS -o $PATH_OUT/job280/imagesTs_fold0 \
     -d 902 -p $plans_model_multistem -tr $trainer_job280 -c $configurations -f 0 -chk $model_checkpoint  --continue_prediction 2>&1 | tee \
     $PATH_OUT/job280/logfile_inf_job280_imagesTs_fold0_\$ts.txt)" \
@@ -118,4 +115,3 @@ parallel --verbose --jobs 40 ::: \
     "(ts=\$(date '+%Y-%m-%d-%H-%M-%S'); CUDA_VISIBLE_DEVICES=1 nnUNetv2_predict -i $PATH_IMAGESTS -o $PATH_OUT/job280/imagesTs_fold4 \
     -d 902 -p $plans_model_multistem -tr $trainer_job280 -c $configurations -f 4 -chk $model_checkpoint  --continue_prediction 2>&1 | tee \
     $PATH_OUT/job280/logfile_inf_job280_imagesTs_fold4_\$ts.txt)" \
-
