@@ -14,7 +14,7 @@ Author: Pierre-Louis Benveniste
 """
 import json
 import os
-from image import Image, get_dimension
+from image import Image
 import argparse
 from pathlib import Path
 from tqdm import tqdm
@@ -67,7 +67,7 @@ def main():
     list_files_with_removed_lesions = []
 
     # iterate over the images
-    for pred in list_pred:
+    for pred in tqdm(list_pred):
         # We get the corresponding sc_seg_mask
         pred_index = list_images_nnunet.index(Path(pred).name) # In practice it corresponds to the index of the iteration
         # Get the corresponding spinal cord segmentation mask
@@ -91,7 +91,11 @@ def main():
         if not np.array_equal(data_pred, data_pred_masked):
             list_files_with_removed_lesions.append(masked_lesion_pred)
 
-        break
+    # Save the list of files where some lesions were removed to a txt file
+    with open(os.path.join(output_folder, "files_with_removed_lesions.txt"), "w") as f:
+        for file in list_files_with_removed_lesions:
+            f.write(f"{file}\n")
+    
     return None
 
 
