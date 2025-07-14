@@ -18,6 +18,7 @@ Author: Pierre-Louis Benveniste
 import argparse
 import os
 from pathlib import Path
+from tqdm import tqdm
 
 
 def parse_args():
@@ -40,7 +41,7 @@ def main():
     # Create the output folder if it does not exist
     os.makedirs(output_folder, exist_ok=True)
 
-    for binary_seg in list_binary_segs:
+    for binary_seg in tqdm(list_binary_segs):
         # Get the corresponding soft segmentation file
         soft_seg = os.path.join(soft_seg_folder, Path(binary_seg).name)
 
