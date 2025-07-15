@@ -64,7 +64,10 @@ def main():
 
         # Average the predictions
         avg_file = os.path.join(output_avg, Path(file_fold0).name)
+        ## Add the files together
         assert os.system(f"sct_maths -i {file_fold0} -add {file_fold1} {file_fold2} {file_fold3} {file_fold4} -o {avg_file} -type float64") == 0
+        ## Divide by the number of folds
+        assert os.system(f"sct_maths -i {avg_file} -div 5 -o {avg_file} -type float64") == 0
         # Binarize the averaged predictions
         bin_file = os.path.join(output_bin, Path(file_fold0).name)
         assert os.system(f"sct_maths -i {avg_file} -bin {thresh} -o {bin_file}") == 0
