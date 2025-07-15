@@ -14,7 +14,7 @@ Author: Pierre-Louis Benveniste
 """
 import json
 import os
-from image import Image
+from image import Image, get_orientation
 import argparse
 from pathlib import Path
 from tqdm import tqdm
@@ -68,6 +68,8 @@ def main():
 
     # iterate over the images
     for pred in tqdm(list_pred):
+        # Load the prediction
+        pred_image = Image(str(pred))
         # We get the corresponding sc_seg_mask
         pred_index = list_images_nnunet.index(Path(pred).name) # In practice it corresponds to the index of the iteration
         # Get the corresponding spinal cord segmentation mask
@@ -79,14 +81,14 @@ def main():
         temp_folder = Path(output_folder) / "temp"
         temp_folder.mkdir(parents=True, exist_ok=True)
         # Change the orientation of the sc_seg_mask_dilated to match the pred
-        orientation_pred = Image(pred).get_orientation()
+        orientation_pred = get_orientation(pred_image)
         assert os.system(f"sct_image -i {sc_seg_mask_dilated_file} -setorient {orientation_pred} -o {temp_folder}/sc_seg_dilated.nii.gz") == 0
         # We remove the lesions outside of the spinal cord
         masked_lesion_pred = os.path.join(output_folder, Path(pred).name)
         assert os.system(f"sct_maths -i {pred} -mul {temp_folder}/sc_seg_dilated.nii.gz -o {masked_lesion_pred}")==0     
 
         # Now we want to store the files where some lesions were removed (meaning where data are different)
-        data_pred = Image(pred).data
+        data_pred = pred_image.data
         data_pred_masked = Image(masked_lesion_pred).data
         if not np.array_equal(data_pred, data_pred_masked):
             list_files_with_removed_lesions.append(masked_lesion_pred)
