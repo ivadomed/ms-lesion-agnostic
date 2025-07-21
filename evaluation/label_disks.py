@@ -21,6 +21,7 @@ import argparse
 from pathlib import Path
 from tqdm import tqdm
 import shutil
+import time
 
 
 def parse_args():
@@ -49,6 +50,9 @@ def main():
     # Only keep the files between the two index values
     files_to_segment = [f for f in files_to_segment if int(f.stem.split("_")[-2]) >= args.min_idx and int(f.stem.split("_")[-2]) <= args.max_idx]
 
+    # Initialize list of failed inferences
+    failed_inferences = []
+
     # Iterate over the files and label disks
     for file in tqdm(files_to_segment):
         # Build a temp folder for the current file
@@ -56,14 +60,25 @@ def main():
         os.makedirs(temp_folder, exist_ok=True)
         # Run totalspineseg
         output_file = os.path.join(temp_folder, "temp.nii.gz")
-        assert os.system(f"sct_deepseg totalspineseg -i {str(file)} -o {output_file}") == 0, "SCT segmentation failed"
-        # Then we copy only the file that we want which is called ..._levels.nii.gz
-        sct_output = str(output_file).replace(".nii.gz", "_step1_levels.nii.gz")
-        final_output = os.path.join(output_folder, Path(file).name)
-        shutil.copy(sct_output, final_output)
+        # If the segmentation fails, we add the subject to the list of failed segmentations
+        output_code = os.system(f"sct_deepseg totalspineseg -i {str(file)} -o {output_file}")
+        # If fails
+        if output_code!=0:
+            failed_inferences.append(Path(file))
+        # If doesn't fail then we copy the results
+        else:
+            # Then we copy only the file that we want which is called ..._levels.nii.gz
+            sct_output = str(output_file).replace(".nii.gz", "_step1_levels.nii.gz")
+            final_output = os.path.join(output_folder, Path(file).name)
+            shutil.copy(sct_output, final_output)
         # Remove temp folder
-        
-
+        assert os.system(f"rm -rf {temp_folder}")==0
+    # Save a txt file in the output folder with the failed inferences 
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    output_path_failed_inf = os.path.join(output_folder, f"failed_inferences_{timestamp}.txt")
+    with open(output_path_failed_inf, "w") as f:
+        for item in failed_inferences:
+            f.write(str(item) + "\n")
 
     print("Done with the segmentations")
 
