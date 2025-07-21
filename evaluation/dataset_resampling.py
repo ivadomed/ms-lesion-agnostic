@@ -48,7 +48,7 @@ def main():
             output_folder_factor = os.path.join(output_folder, f"images_{factor}")
             output_folder_label_factor = os.path.join(output_folder, f"labels_{factor}")
             os.makedirs(output_folder_factor, exist_ok=True)
-            os.makedirs(output_folder_factor, exist_ok=True)
+            os.makedirs(output_folder_label_factor, exist_ok=True)
             # We resample the image with SCT
             output_file_path = os.path.join(output_folder_factor, Path(file).name)
             assert os.system(f"sct_resample -i {str(file)} -o {output_file_path} -f {factor}")==0, f"Error resampling {file} with factor {factor}"
