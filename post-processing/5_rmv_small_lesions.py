@@ -77,10 +77,10 @@ def main():
                     lesion_sizes.append(np.sum(individual_instances[i-1])*voxel_size)
                 # If the lesion is smaller than the minimum volume, we remove it
                 if np.sum(individual_instances[i-1]*voxel_size) < min_volume:
-                    mask_data = mask_data * (1 - individual_instances[i-1])
+                    pred_image_data = pred_image_data * (1 - individual_instances[i-1])
             ### Save the modified T2w lesion mask
             modified_mask_path = os.path.join(output_folder_volume, Path(pred).name)
-            nib.save(nib.Nifti1Image(mask_data, nib.load(str(pred)).affine), modified_mask_path)
+            nib.save(nib.Nifti1Image(pred_image_data, nib.load(str(pred)).affine), modified_mask_path)
 
     # Save the lesion sizes in the main output_folder
     with open(os.path.join(output_folder, "lesion_sizes.txt"), "w") as f:
