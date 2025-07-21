@@ -5,6 +5,8 @@ The idea is to use the labeled disks to evaluate the performance of the model on
 Input:
     --input-path: path to the input folder containing the nnunet format dataset
     --output-path: path to the output folder where the labeled disks will be saved
+    --min-idx: the minimum value of the index of the file
+    --max-idx: the max value of the index of the file
 
 Output: 
     None
@@ -25,6 +27,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Label disks on the nnunet format dataset')
     parser.add_argument('--input-path', type=str, help='Path to the input folder containing the nnunet format dataset')
     parser.add_argument('--output-path', type=str, help='Path to the output folder where the labeled disks will be saved')
+    parser.add_argument('--min-idx', type=int, help='the minimum value of the index of the file')
+    parser.add_argument('--max-idx', type=int, help='the maximum value of the index of the file')
     args = parser.parse_args()
     return args
 
@@ -42,10 +46,13 @@ def main():
     # Get the files to segment
     files_to_segment = sorted(list(input_folder.rglob("*.nii.gz")))
 
+    # Only keep the files between the two index values
+    files_to_segment = [f for f in files_to_segment if int(f.stem.split("_")[-2]) >= args.min_idx and int(f.stem.split("_")[-2]) <= args.max_idx]
+
     # Iterate over the files and label disks
     for file in tqdm(files_to_segment):
         # Build a temp folder for the current file
-        temp_folder = os.path.join(output_folder, f"{Path(file).name}_temp")
+        temp_folder = os.path.join(output_folder, f"{Path(file).name.replace('.nii.gz','')}_temp")
         os.makedirs(temp_folder, exist_ok=True)
         # Run totalspineseg
         output_file = os.path.join(temp_folder, "temp.nii.gz")
@@ -54,6 +61,9 @@ def main():
         sct_output = str(output_file).replace(".nii.gz", "_step1_levels.nii.gz")
         final_output = os.path.join(output_folder, Path(file).name)
         shutil.copy(sct_output, final_output)
+        # Remove temp folder
+        
+
 
     print("Done with the segmentations")
 
