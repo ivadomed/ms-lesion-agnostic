@@ -18,10 +18,8 @@ Author: Pierre-Louis Benveniste
 import argparse
 import os
 import json
-import nibabel as nib
 import numpy as np
 from pathlib import Path
-from image import Image
 from tqdm import tqdm
 from loguru import logger
 import pandas as pd
@@ -203,6 +201,10 @@ def main():
     # Log the DataFrame
     logger.info("DataFrame with the number of images per site, contrast, acquisition and orientation:")
     logger.info(df_grouped.to_string(index=False))
+
+    # Also saver the DataFrame to a csv file
+    csv_file = os.path.join(output_folder, 'csv_file.csv')
+    df_grouped.to_csv(csv_file, index=False)
 
     return None
 
