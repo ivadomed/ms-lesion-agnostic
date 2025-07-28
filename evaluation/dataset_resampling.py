@@ -47,6 +47,10 @@ def main():
             os.makedirs(output_folder_factor, exist_ok=True)
             # We resample the image with SCT
             output_file_path = os.path.join(output_folder_factor, Path(file).name)
+            # If output file already exists, skip
+            if os.path.exists(output_file_path):
+                print(f"Output file {output_file_path} already exists. Skipping resampling for {file} with factor {factor}.")
+                continue
             assert os.system(f"sct_resample -i {str(file)} -o {output_file_path} -f {factor}")==0, f"Error resampling {file} with factor {factor}"
             # Then we export the resampled image to float32 to limit the size
             assert os.system(f"sct_image -i {output_file_path} -o {output_file_path} -type float32")==0, f"Error converting {output_file_path} to float32"
