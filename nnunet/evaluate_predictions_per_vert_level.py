@@ -79,7 +79,11 @@ def main():
         image = os.path.join(image_folder, pred.name).replace(".nii.gz", "_0000.nii.gz")
 
         # Get the corresponding vertebral levels
-        levels = os.path.join(levels_folder, pred.name).replace(".nii.gz", "_labels-disc.nii.gz")
+        levels = os.path.join(levels_folder, Path(image).name)
+        # If the levels file doesn't exist, skip this prediction
+        if not os.path.exists(levels):
+            print(f"Levels file does not exist, skipping prediction {pred.name}")
+            continue
 
         # Load the predictions and the label
         pred_data = nib.load(str(pred)).get_fdata()
@@ -117,25 +121,38 @@ def main():
             level_mask_next = levels_data == (level + 1)
             ### Get corresponding coordinates
             level_coords = np.where(level_mask)
-            bottom_voxel = int(level_coords[1]) # Might have to correct the 1 if the orientation is not AIL
+            bottom_voxel = int(level_coords[2]) # Because images are in RPI
             level_next_coords = np.where(level_mask_next)
-            top_voxel = int(level_next_coords[1]) # Might have to correct the 1 if the orientation is not AIL
+            top_voxel = int(level_next_coords[2]) # Because images are in RPI
 
             # Crop the predictions and the ground truth
-            pred_patch_data = pred_data[:, top_voxel:bottom_voxel, :]
-            label_patch_data = label_data[:, top_voxel:bottom_voxel, :]
 
+            pred_patch_data = pred_data[:, :, top_voxel:bottom_voxel]
+            label_patch_data = label_data[:, :, top_voxel:bottom_voxel]
+
+            # Compute the scores for each chunk
             dice = dice_score(pred_patch_data, label_patch_data)
             ppv = lesion_ppv(label_patch_data, pred_patch_data)
             f1 = lesion_f1_score(label_patch_data, pred_patch_data)
             sensitivity = lesion_sensitivity(label_patch_data, pred_patch_data)
+
+            # Initialize each subdictionary:
+            level_key = f"{int(level)}_to_{int(level + 1)}"
+            if level_key not in dice_scores:
+                dice_scores[level_key] = {}
+            if level_key not in ppv_scores:
+                ppv_scores[level_key] = {}
+            if level_key not in f1_scores:
+                f1_scores[level_key] = {}
+            if level_key not in sensitivity_scores:
+                sensitivity_scores[level_key] = {}
+            
             # Save the scores for this level
-            level_key = f"{level}_to_{level + 1}"
             dice_scores[level_key][image_name] = dice
             ppv_scores[level_key][image_name] = ppv
             f1_scores[level_key][image_name] = f1
             sensitivity_scores[level_key][image_name] = sensitivity
-
+        
     # Save the results
     with open(os.path.join(output_folder, "dice_scores.txt"), "w") as f:
         for key, value in global_dice_scores.items():
