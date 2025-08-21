@@ -388,7 +388,8 @@ def main():
         "Dice score": round(mean_dice,4).astype(str) + " ± " + round(df_long_dice.groupby('level_start')['dice'].std(),4).astype(str),
         "Precision (PPV)": round(mean_ppv,4).astype(str) + " ± " + round(df_long_ppv.groupby('level_start')['ppv'].std(),4).astype(str),
         "Sensitivity": round(mean_sens,4).astype(str) + " ± " + round(df_long_sens.groupby('level_start')['sensitivity'].std(),4).astype(str),
-        "F1 Score": round(mean_f1,4).astype(str) + " ± " + round(df_long_f1.groupby('level_start')['f1'].std(),4).astype(str)
+        "F1 Score": round(mean_f1,4).astype(str) + " ± " + round(df_long_f1.groupby('level_start')['f1'].std(),4).astype(str),
+        "Proportion of presence": round(proportions,4).astype(str) + " ± " + round(df_long_f1.groupby('level_start')['f1'].std(),4).astype(str)
     })
     # Save the table in csv file
     summary_table.to_csv(os.path.join(path_to_outputs, 'summary_table.csv'), sep='\t')
