@@ -112,13 +112,13 @@ def main():
         # Now we evaluate the predictions for each vertebral level (except 0)
         vert_levels = np.unique(levels_data)
 
-        for level in vert_levels:
+        for i, level in enumerate(vert_levels):
             if level == 0 or level == max(vert_levels):
                 continue
             # For this test case, the orientation is AIL
             ## Get levels coordinates
             level_mask = levels_data == level
-            level_mask_next = levels_data == (level + 1)
+            level_mask_next = levels_data == vert_levels[i + 1]
             ### Get corresponding coordinates
             level_coords = np.where(level_mask)
             bottom_voxel = int(level_coords[2]) # Because images are in RPI
@@ -126,7 +126,6 @@ def main():
             top_voxel = int(level_next_coords[2]) # Because images are in RPI
 
             # Crop the predictions and the ground truth
-
             pred_patch_data = pred_data[:, :, top_voxel:bottom_voxel]
             label_patch_data = label_data[:, :, top_voxel:bottom_voxel]
 
@@ -137,21 +136,24 @@ def main():
             sensitivity = lesion_sensitivity(label_patch_data, pred_patch_data)
 
             # Initialize each subdictionary:
-            level_key = f"{int(level)}_to_{int(level + 1)}"
-            if level_key not in dice_scores:
-                dice_scores[level_key] = {}
-            if level_key not in ppv_scores:
-                ppv_scores[level_key] = {}
-            if level_key not in f1_scores:
-                f1_scores[level_key] = {}
-            if level_key not in sensitivity_scores:
-                sensitivity_scores[level_key] = {}
+            for j in range(int(level), int(vert_levels[i + 1])):
+                level_key = f"{j}_to_{j+1}"
+                if level_key not in dice_scores:
+                    dice_scores[level_key] = {}
+                if level_key not in ppv_scores:
+                    ppv_scores[level_key] = {}
+                if level_key not in f1_scores:
+                    f1_scores[level_key] = {}
+                if level_key not in sensitivity_scores:
+                    sensitivity_scores[level_key] = {}
             
-            # Save the scores for this level
-            dice_scores[level_key][image_name] = dice
-            ppv_scores[level_key][image_name] = ppv
-            f1_scores[level_key][image_name] = f1
-            sensitivity_scores[level_key][image_name] = sensitivity
+                # Save the scores for this level
+                ## In the case where a vert levels is missing, the same values is set for each intermediate section
+                ## i.e. if dice=90% for 2-4 then dice=90% for 2-3 and dice=90% for 3-4
+                dice_scores[level_key][image_name] = dice
+                ppv_scores[level_key][image_name] = ppv
+                f1_scores[level_key][image_name] = f1
+                sensitivity_scores[level_key][image_name] = sensitivity
         
     # Save the results
     with open(os.path.join(output_folder, "dice_scores.txt"), "w") as f:
