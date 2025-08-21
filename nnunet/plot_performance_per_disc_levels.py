@@ -183,22 +183,22 @@ def main():
     bar_positions = [l + 0.5 for l in levels]
     bars = ax1.bar(bar_positions, mean_dice, width=0.9, color="skyblue", alpha=0.7, label="Mean Dice score")
     ax1.set_ylabel("Mean Dice score", color="blue")
-    ax1.set_xlabel("Vertebral level")
+    ax1.set_xlabel("Disc level")
     ax1.tick_params(axis='y', labelcolor="blue")
 
     # Axe secondaire pour proportions
     ax2 = ax1.twinx()
     ax2.plot(bar_positions, proportions, color="red", marker="o", label="Proportion present")
-    ax2.set_ylabel("Proportion of Present Vertebral Levels", color="red")
+    ax2.set_ylabel("Proportion of present disc levels", color="red")
     ax2.tick_params(axis='y', labelcolor="red")
 
     # Afficher tous les labels de niveaux sur l'axe x
     ax1.set_xticks(levels)
     ax1.set_xticklabels(x_labels, rotation=45)
 
-    plt.title("Dice score and proportion of present vertebral levels")
+    plt.title("Dice score and proportion of present disc levels")
     fig.tight_layout()
-    plt.savefig(path_to_outputs + '/dice_scores_per_vert_level.png', dpi=300)
+    plt.savefig(path_to_outputs + '/dice_scores_per_disc_level.png', dpi=300)
 
     ####################################################
     ## For sensitivity
@@ -243,22 +243,22 @@ def main():
     bar_positions = [l + 0.5 for l in levels]
     bars = ax1.bar(bar_positions, mean_sens, width=0.9, color="skyblue", alpha=0.7, label="Mean Sensitivity score")
     ax1.set_ylabel("Mean Sensitivity score", color="blue")
-    ax1.set_xlabel("Vertebral level")
+    ax1.set_xlabel("Disc level")
     ax1.tick_params(axis='y', labelcolor="blue")
 
     # Axe secondaire pour proportions
     ax2 = ax1.twinx()
     ax2.plot(bar_positions, proportions, color="red", marker="o", label="Proportion present")
-    ax2.set_ylabel("Proportion of Present Vertebral Levels", color="red")
+    ax2.set_ylabel("Proportion of present disc levels", color="red")
     ax2.tick_params(axis='y', labelcolor="red")
 
     # Afficher tous les labels de niveaux sur l'axe x
     ax1.set_xticks(levels)
     ax1.set_xticklabels(x_labels, rotation=45)
 
-    plt.title("Sensitivity score and proportion of present vertebral levels")
+    plt.title("Sensitivity score and proportion of present disc levels")
     fig.tight_layout()
-    plt.savefig(path_to_outputs + '/sensitivity_scores_per_vert_level.png', dpi=300)
+    plt.savefig(path_to_outputs + '/sensitivity_scores_per_disc_level.png', dpi=300)
 
     ####################################################
     ## For PPV
@@ -303,22 +303,22 @@ def main():
     bar_positions = [l + 0.5 for l in levels]
     bars = ax1.bar(bar_positions, mean_ppv, width=0.9, color="skyblue", alpha=0.7, label="Mean PPV score")
     ax1.set_ylabel("Mean PPV score", color="blue")
-    ax1.set_xlabel("Vertebral level")
+    ax1.set_xlabel("Disc level")
     ax1.tick_params(axis='y', labelcolor="blue")
 
     # Axe secondaire pour proportions
     ax2 = ax1.twinx()
     ax2.plot(bar_positions, proportions, color="red", marker="o", label="Proportion present")
-    ax2.set_ylabel("Proportion of Present Vertebral Levels", color="red")
+    ax2.set_ylabel("Proportion of present disc levels", color="red")
     ax2.tick_params(axis='y', labelcolor="red")
 
     # Afficher tous les labels de niveaux sur l'axe x
     ax1.set_xticks(levels)
     ax1.set_xticklabels(x_labels, rotation=45)
 
-    plt.title("PPV score and proportion of present vertebral levels")
+    plt.title("PPV score and proportion of present disc levels")
     fig.tight_layout()
-    plt.savefig(path_to_outputs + '/ppv_scores_per_vert_level.png', dpi=300)
+    plt.savefig(path_to_outputs + '/ppv_scores_per_disc_level.png', dpi=300)
 
     ####################################################
     ## For F1 score
@@ -363,27 +363,27 @@ def main():
     bar_positions = [l + 0.5 for l in levels]
     bars = ax1.bar(bar_positions, mean_f1, width=0.9, color="skyblue", alpha=0.7, label="Mean F1 score")
     ax1.set_ylabel("Mean F1 score", color="blue")
-    ax1.set_xlabel("Vertebral level")
+    ax1.set_xlabel("Disc level")
     ax1.tick_params(axis='y', labelcolor="blue")
 
     # Axe secondaire pour proportions
     ax2 = ax1.twinx()
     ax2.plot(bar_positions, proportions, color="red", marker="o", label="Proportion present")
-    ax2.set_ylabel("Proportion of Present Vertebral Levels", color="red")
+    ax2.set_ylabel("Proportion of present disc levels", color="red")
     ax2.tick_params(axis='y', labelcolor="red")
 
     # Afficher tous les labels de niveaux sur l'axe x
     ax1.set_xticks(levels)
     ax1.set_xticklabels(x_labels, rotation=45)
 
-    plt.title("F1 score and proportion of present vertebral levels")
+    plt.title("F1 score and proportion of present disc levels")
     fig.tight_layout()
-    plt.savefig(path_to_outputs + '/f1_scores_per_vert_level.png', dpi=300)
+    plt.savefig(path_to_outputs + '/f1_scores_per_disc_level.png', dpi=300)
 
     #####################################
     # Save the summary table
     #####################################
-    # Now we want to build a table which displays mean and std for all 4 measures per vert levels
+    # Now we want to build a table which displays mean and std for all 4 measures per disc levels
     summary_table = pd.DataFrame({
         "Dice score": round(mean_dice,4).astype(str) + " ± " + round(df_long_dice.groupby('level_start')['dice'].std(),4).astype(str),
         "Precision (PPV)": round(mean_ppv,4).astype(str) + " ± " + round(df_long_ppv.groupby('level_start')['ppv'].std(),4).astype(str),
