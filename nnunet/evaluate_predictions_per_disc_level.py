@@ -71,6 +71,7 @@ def main():
     ppv_scores = {}
     f1_scores = {}
     sensitivity_scores = {}
+    lesion_volume = {}
     # Bottom and top scores
     bottom_dice_scores = {}
     top_dice_scores = {}
@@ -144,6 +145,9 @@ def main():
             f1 = lesion_f1_score(label_patch_data, pred_patch_data)
             sensitivity = lesion_sensitivity(label_patch_data, pred_patch_data)
 
+            # We also compute the lesion volume in the label patch
+            lesion_volume_patch = np.sum(label_patch_data > 0)
+
             # Initialize each subdictionary:
             for j in range(int(level), int(vert_levels[i + 1])):
                 level_key = f"{j}_to_{j+1}"
@@ -155,7 +159,9 @@ def main():
                     f1_scores[level_key] = {}
                 if level_key not in sensitivity_scores:
                     sensitivity_scores[level_key] = {}
-            
+                if level_key not in lesion_volume:
+                    lesion_volume[level_key] = {}
+
                 # Save the scores for this level
                 ## In the case where a vert levels is missing, the same values is set for each intermediate section
                 ## i.e. if dice=90% for 2-4 then dice=90% for 2-3 and dice=90% for 3-4
@@ -163,6 +169,7 @@ def main():
                 ppv_scores[level_key][image_name] = ppv
                 f1_scores[level_key][image_name] = f1
                 sensitivity_scores[level_key][image_name] = sensitivity
+                lesion_volume[level_key][image_name] = lesion_volume_patch
 
         # Now we also evaluate the performance below the first level and above the last level
         if len(vert_levels)>1:
@@ -207,7 +214,6 @@ def main():
                 top_ppv_scores[image_name] = top_ppv
                 top_f1_scores[image_name] = top_f1
                 top_sensitivity_scores[image_name] = top_sensitivity
-        break
 
     # Save the results
     with open(os.path.join(output_folder, "dice_scores.txt"), "w") as f:
