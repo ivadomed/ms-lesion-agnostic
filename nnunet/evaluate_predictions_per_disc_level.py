@@ -243,6 +243,9 @@ def main():
         with open(os.path.join(output_folder, f"sensitivity_scores_{level}.txt"), "w") as f:
             for key, value in sensitivity_scores[level].items():
                 f.write(f"{key}: {value}\n")
+        with open(os.path.join(output_folder, f"lesion_volume_{level}.txt"), "w") as f:
+            for key, value in lesion_volume[level].items():
+                f.write(f"{key}: {value}\n")
 
     # Save the results of the upper and lower parts
     with open(os.path.join(output_folder, "bottom_dice_scores.txt"), "w") as f:
