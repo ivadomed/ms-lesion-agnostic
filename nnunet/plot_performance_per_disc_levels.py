@@ -64,6 +64,16 @@ def main():
                 key, value = line.strip().split(':')
                 metrics_results.loc[metrics_results['name'] == key, level] = float(value)
 
+    # Now we also load all the lesion volume files (one file per disc level)
+    lesion_volume_files=list(Path(path_to_outputs).rglob("lesion_volume_*.txt"))
+    for volume_file in lesion_volume_files:
+        level = str(volume_file).split("/")[-1].replace('.txt', '')
+        metrics_results[level] = np.nan  # Create a new column for each file
+        with open(volume_file, 'r') as file:
+            for line in file:
+                key, value = line.strip().split(':')
+                metrics_results.loc[metrics_results['name'] == key, level] = float(value)
+
     # Create an empty column for the contrast, the site and the resolution
     metrics_results['contrast'] = None
     metrics_results['site'] = None
@@ -118,7 +128,7 @@ def main():
         score_files = list(Path(path_to_outputs).rglob(f"{score}_*.txt"))
         for score_file in score_files:
             level = str(score_file).split("/")[-1].replace('.txt', '')
-            level_scores = {}
+            metrics_results[level] = np.nan  # Create a new column for each file
             with open(score_file, 'r') as file:
                 for line in file:
                     key, value = line.strip().split(':')
@@ -148,57 +158,81 @@ def main():
     data_dice['site'] = metrics_results['site']
     data_dice['name'] = metrics_results['name']
 
-    dice_cols = data_dice.columns.tolist()
-    dice_cols = [col for col in dice_cols if col.startswith('dice_scores_')]
+    dice_cols = [col for col in data_dice.columns if col.startswith('dice_scores_')]
 
     # We reorganize the data for plotting
     df_long_dice = data_dice.melt(id_vars=['contrast', 'site', 'name'], value_vars=dice_cols,
-        var_name='vertebral_level',value_name='dice'
+        var_name='vertebral_level', value_name='dice'
     )
 
     # We only keep the first vert level as location:
     df_long_dice['vertebral_level'] = df_long_dice['vertebral_level'].str.replace('dice_scores_', '')
     df_long_dice['level_start'] = (df_long_dice['vertebral_level'].str.extract(r'(\d+)(?=_to_)')[0].astype(int))
 
+    # Prepare Lesion Volume data
+    # ===========================
+    data_vol = metrics_results.filter(like='lesion_volume').copy()
+    data_vol['contrast'] = metrics_results['contrast']
+    data_vol['site'] = metrics_results['site']
+    data_vol['name'] = metrics_results['name']
+
+    vol_cols = [col for col in data_vol.columns if col.startswith('lesion_volume_')]
+
+    df_long_vol = data_vol.melt(id_vars=['contrast', 'site', 'name'], value_vars=vol_cols,
+        var_name='vertebral_level', value_name='lesion_volume')
+    
+    df_long_vol['vertebral_level'] = df_long_vol['vertebral_level'].str.replace('lesion_volume_', '')
+    df_long_vol['level_start'] = (df_long_vol['vertebral_level'].str.extract(r'(\d+)(?=_to_)')[0].astype(int))
+
     # Mean per level
     mean_dice = df_long_dice.groupby('level_start')['dice'].mean()
+    mean_vol = df_long_vol.groupby('level_start')['lesion_volume'].mean()
 
     # --- Proportion of present levels ---
     total_images = df_long_dice['name'].nunique()
-    present_levels = df_long_dice[df_long_dice['dice'] > 0]
+    present_levels = df_long_dice[df_long_dice['dice'].notna()]
     proportions = present_levels['level_start'].value_counts() / total_images
 
     # Ensure both series share the same order
     levels = sorted(set(mean_dice.index) | set(proportions.index))
     mean_dice = mean_dice.reindex(levels, fill_value=0)
     proportions = proportions.reindex(levels, fill_value=0)
+    mean_vol = mean_vol.reindex(levels, fill_value=0)
 
     # Map levels to disc names using sc_disc_dict, fallback to str(level) if not found
     x_labels = [sc_disc_dict.get(str(l), str(l)) for l in levels]
 
-    # --- Combined plot with all labels on the x-axis ---
+    # --- Combined plot with three vertical axes ---
     fig, ax1 = plt.subplots(figsize=(12,6))
 
-    # Barres = Dice score (axe gauche)
+    # Dice plot
     bar_positions = [l + 0.5 for l in levels]
     bars = ax1.bar(bar_positions, mean_dice, width=0.9, color="skyblue", alpha=0.7, label="Mean Dice score")
     ax1.set_ylabel("Mean Dice score", color="blue")
     ax1.set_xlabel("Disc level")
     ax1.tick_params(axis='y', labelcolor="blue")
 
-    # Axe secondaire pour proportions
+    # Proportion present (first right axis)
     ax2 = ax1.twinx()
     ax2.plot(bar_positions, proportions, color="red", marker="o", label="Proportion present")
     ax2.set_ylabel("Proportion of present disc levels", color="red")
     ax2.tick_params(axis='y', labelcolor="red")
 
-    # Afficher tous les labels de niveaux sur l'axe x
+    # Avg lesion volume (second right axis, shifted outward)
+    ax3 = ax1.twinx()
+    ax3.spines["right"].set_position(("axes", 1.1))  # shift outward
+    ax3.plot(bar_positions, mean_vol, color="green", marker="s", linestyle="--", label="Mean lesion volume")
+    ax3.set_ylabel("Mean lesion volume (mm³)", color="green")
+    ax3.tick_params(axis='y', labelcolor="green")
+
+    # X-axis
     ax1.set_xticks(levels)
     ax1.set_xticklabels(x_labels, rotation=45)
 
-    plt.title("Dice score and proportion of present disc levels")
+    plt.title("Dice score, proportion of present disc levels, and mean lesion total volume per disc level")
     fig.tight_layout()
     plt.savefig(path_to_outputs + '/dice_scores_per_disc_level.png', dpi=300)
+    plt.close(fig)
 
     ####################################################
     ## For sensitivity
@@ -223,15 +257,9 @@ def main():
     # Mean per level
     mean_sens = df_long_sens.groupby('level_start')['sensitivity'].mean()
 
-    # --- Proportion of present levels ---
-    total_images = df_long_sens['name'].nunique()
-    present_levels = df_long_sens[df_long_sens['sensitivity'] > 0]
-    proportions = present_levels['level_start'].value_counts() / total_images
-
     # Ensure both series share the same order
     levels = sorted(set(mean_sens.index) | set(proportions.index))
     mean_sens = mean_sens.reindex(levels, fill_value=0)
-    proportions = proportions.reindex(levels, fill_value=0)
 
     # Map levels to disc names using sc_disc_dict, fallback to str(level) if not found
     x_labels = [sc_disc_dict.get(str(l), str(l)) for l in levels]
@@ -252,11 +280,18 @@ def main():
     ax2.set_ylabel("Proportion of present disc levels", color="red")
     ax2.tick_params(axis='y', labelcolor="red")
 
+    # Avg lesion volume (second right axis, shifted outward)
+    ax3 = ax1.twinx()
+    ax3.spines["right"].set_position(("axes", 1.1))  # shift outward
+    ax3.plot(bar_positions, mean_vol, color="green", marker="s", linestyle="--", label="Mean lesion volume")
+    ax3.set_ylabel("Mean lesion volume (mm³)", color="green")
+    ax3.tick_params(axis='y', labelcolor="green")
+
     # Afficher tous les labels de niveaux sur l'axe x
     ax1.set_xticks(levels)
     ax1.set_xticklabels(x_labels, rotation=45)
 
-    plt.title("Sensitivity score and proportion of present disc levels")
+    plt.title("Sensitivity score, proportion of present disc levels and mean lesion total volume per disc level")
     fig.tight_layout()
     plt.savefig(path_to_outputs + '/sensitivity_scores_per_disc_level.png', dpi=300)
 
@@ -283,15 +318,9 @@ def main():
     # Mean per level
     mean_ppv = df_long_ppv.groupby('level_start')['ppv'].mean()
 
-    # --- Proportion of present levels ---
-    total_images = df_long_ppv['name'].nunique()
-    present_levels = df_long_ppv[df_long_ppv['ppv'] > 0]
-    proportions = present_levels['level_start'].value_counts() / total_images
-
     # Ensure both series share the same order
     levels = sorted(set(mean_ppv.index) | set(proportions.index))
     mean_ppv = mean_ppv.reindex(levels, fill_value=0)
-    proportions = proportions.reindex(levels, fill_value=0)
 
     # Map levels to disc names using sc_disc_dict, fallback to str(level) if not found
     x_labels = [sc_disc_dict.get(str(l), str(l)) for l in levels]
@@ -312,11 +341,18 @@ def main():
     ax2.set_ylabel("Proportion of present disc levels", color="red")
     ax2.tick_params(axis='y', labelcolor="red")
 
+    # Avg lesion volume (second right axis, shifted outward)
+    ax3 = ax1.twinx()
+    ax3.spines["right"].set_position(("axes", 1.1))  # shift outward
+    ax3.plot(bar_positions, mean_vol, color="green", marker="s", linestyle="--", label="Mean lesion volume")
+    ax3.set_ylabel("Mean lesion volume (mm³)", color="green")
+    ax3.tick_params(axis='y', labelcolor="green")
+
     # Afficher tous les labels de niveaux sur l'axe x
     ax1.set_xticks(levels)
     ax1.set_xticklabels(x_labels, rotation=45)
 
-    plt.title("PPV score and proportion of present disc levels")
+    plt.title("PPV score, proportion of present disc levels and mean lesion total volume per disc level")
     fig.tight_layout()
     plt.savefig(path_to_outputs + '/ppv_scores_per_disc_level.png', dpi=300)
 
@@ -343,15 +379,9 @@ def main():
     # Mean per level
     mean_f1 = df_long_f1.groupby('level_start')['f1'].mean()
 
-    # --- Proportion of present levels ---
-    total_images = df_long_f1['name'].nunique()
-    present_levels = df_long_f1[df_long_f1['f1'] > 0]
-    proportions = present_levels['level_start'].value_counts() / total_images
-
     # Ensure both series share the same order
     levels = sorted(set(mean_f1.index) | set(proportions.index))
     mean_f1 = mean_f1.reindex(levels, fill_value=0)
-    proportions = proportions.reindex(levels, fill_value=0)
 
     # Map levels to disc names using sc_disc_dict, fallback to str(level) if not found
     x_labels = [sc_disc_dict.get(str(l), str(l)) for l in levels]
@@ -372,11 +402,18 @@ def main():
     ax2.set_ylabel("Proportion of present disc levels", color="red")
     ax2.tick_params(axis='y', labelcolor="red")
 
+    # Avg lesion volume (second right axis, shifted outward)
+    ax3 = ax1.twinx()
+    ax3.spines["right"].set_position(("axes", 1.1))  # shift outward
+    ax3.plot(bar_positions, mean_vol, color="green", marker="s", linestyle="--", label="Mean lesion volume")
+    ax3.set_ylabel("Mean lesion volume (mm³)", color="green")
+    ax3.tick_params(axis='y', labelcolor="green")
+
     # Afficher tous les labels de niveaux sur l'axe x
     ax1.set_xticks(levels)
     ax1.set_xticklabels(x_labels, rotation=45)
 
-    plt.title("F1 score and proportion of present disc levels")
+    plt.title("F1 score, proportion of present disc levels and mean lesion total volume per disc level")
     fig.tight_layout()
     plt.savefig(path_to_outputs + '/f1_scores_per_disc_level.png', dpi=300)
 
@@ -389,10 +426,32 @@ def main():
         "Precision (PPV)": round(mean_ppv,4).astype(str) + " ± " + round(df_long_ppv.groupby('level_start')['ppv'].std(),4).astype(str),
         "Sensitivity": round(mean_sens,4).astype(str) + " ± " + round(df_long_sens.groupby('level_start')['sensitivity'].std(),4).astype(str),
         "F1 Score": round(mean_f1,4).astype(str) + " ± " + round(df_long_f1.groupby('level_start')['f1'].std(),4).astype(str),
-        "Proportion of presence": round(proportions,4).astype(str) + " ± " + round(df_long_f1.groupby('level_start')['f1'].std(),4).astype(str)
+        "Proportion of presence": round(proportions,4).astype(str) + " ± " + round(df_long_f1.groupby('level_start')['f1'].std(),4).astype(str),
+        "Avg lesion total volume": round(mean_vol,4).astype(str) + " ± " + round(df_long_vol.groupby('level_start')['lesion_volume'].std(),4).astype(str)
     })
     # Save the table in csv file
     summary_table.to_csv(os.path.join(path_to_outputs, 'summary_table.csv'), sep='\t')
+
+    # Now load the performance at the top and at the bottom of the patches
+    top_dice_file = os.path.join(path_to_outputs, 'top_dice_scores.txt')
+    bottom_dice_file = os.path.join(path_to_outputs, 'bottom_dice_scores.txt')
+    # Create the associated df similar to what we did before
+    with open(top_dice_file, 'r') as file:
+        top_dice = {}
+        for line in file:
+            key, value = line.strip().split(':')
+            top_dice[key] = float(value)
+    with open(bottom_dice_file, 'r') as file:
+        bottom_dice = {}
+        for line in file:
+            key, value = line.strip().split(':')
+            bottom_dice[key] = float(value)
+    df_top = pd.DataFrame(list(top_dice.items()), columns=['name', 'dice'])
+    df_bottom = pd.DataFrame(list(bottom_dice.items()), columns=['name', 'dice'])
+    
+    # print the avg and std for both
+    print("Top Dice Scores - Avg: {:.4f}, Std: {:.4f}".format(df_top['dice'].mean(), df_top['dice'].std()))
+    print("Bottom Dice Scores - Avg: {:.4f}, Std: {:.4f}".format(df_bottom['dice'].mean(), df_bottom['dice'].std()))
 
     return None
 

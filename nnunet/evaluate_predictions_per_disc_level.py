@@ -173,37 +173,16 @@ def main():
 
         # Now we also evaluate the performance below the first level and above the last level
         if len(vert_levels)>1:
-            # Bottom part evaluation
+            # Top part evaluation
             first_level = int(min(vert_levels[vert_levels > 0]))
             first_level_mask = levels_data == first_level
             first_level_coords = np.where(first_level_mask)
-            bottom_voxel = int(first_level_coords[2])
-            bottom_pred_patch_data = pred_data[:, :, bottom_voxel:]
-            bottom_label_patch_data = label_data[:, :, bottom_voxel:]
+            top_voxel = int(first_level_coords[2])
+            top_pred_patch_data = pred_data[:, :, top_voxel:]
+            top_label_patch_data = label_data[:, :, top_voxel:]
             
             # If patch is not empty, compute performance below the first level
-            if bottom_pred_patch_data.shape[2] !=0 :
-                bottom_dice = dice_score(bottom_pred_patch_data, bottom_label_patch_data)
-                bottom_ppv = lesion_ppv(bottom_label_patch_data, bottom_pred_patch_data)
-                bottom_f1 = lesion_f1_score(bottom_label_patch_data, bottom_pred_patch_data)
-                bottom_sensitivity = lesion_sensitivity(bottom_label_patch_data, bottom_pred_patch_data)
-
-                # Save the scores
-                bottom_dice_scores[image_name] = bottom_dice
-                bottom_ppv_scores[image_name] = bottom_ppv
-                bottom_f1_scores[image_name] = bottom_f1
-                bottom_sensitivity_scores[image_name] = bottom_sensitivity
-
-            # Top part evaluation
-            last_level = int(max(vert_levels[vert_levels > 0]))
-            last_level_mask = levels_data == last_level
-            last_level_coords = np.where(last_level_mask)
-            top_voxel = int(last_level_coords[2])
-            top_pred_patch_data = pred_data[:, :, :top_voxel]
-            top_label_patch_data = label_data[:, :, :top_voxel]
-
-            # If patch is not empty, compute performance above the last level
-            if top_pred_patch_data.shape[2] != 0:
+            if top_pred_patch_data.shape[2] !=0 :
                 top_dice = dice_score(top_pred_patch_data, top_label_patch_data)
                 top_ppv = lesion_ppv(top_label_patch_data, top_pred_patch_data)
                 top_f1 = lesion_f1_score(top_label_patch_data, top_pred_patch_data)
@@ -214,6 +193,27 @@ def main():
                 top_ppv_scores[image_name] = top_ppv
                 top_f1_scores[image_name] = top_f1
                 top_sensitivity_scores[image_name] = top_sensitivity
+
+            # bottom part evaluation
+            last_level = int(max(vert_levels[vert_levels > 0]))
+            last_level_mask = levels_data == last_level
+            last_level_coords = np.where(last_level_mask)
+            bottom_voxel = int(last_level_coords[2])
+            bottom_pred_patch_data = pred_data[:, :, :bottom_voxel]
+            bottom_label_patch_data = label_data[:, :, :bottom_voxel]
+
+            # If patch is not empty, compute performance above the last level
+            if bottom_pred_patch_data.shape[2] != 0:
+                bottom_dice = dice_score(bottom_pred_patch_data, bottom_label_patch_data)
+                bottom_ppv = lesion_ppv(bottom_label_patch_data, bottom_pred_patch_data)
+                bottom_f1 = lesion_f1_score(bottom_label_patch_data, bottom_pred_patch_data)
+                bottom_sensitivity = lesion_sensitivity(bottom_label_patch_data, bottom_pred_patch_data)
+
+                # Save the scores
+                bottom_dice_scores[image_name] = bottom_dice
+                bottom_ppv_scores[image_name] = bottom_ppv
+                bottom_f1_scores[image_name] = bottom_f1
+                bottom_sensitivity_scores[image_name] = top_sensitivity
 
     # Save the results
     with open(os.path.join(output_folder, "dice_scores.txt"), "w") as f:
@@ -248,18 +248,6 @@ def main():
                 f.write(f"{key}: {value}\n")
 
     # Save the results of the upper and lower parts
-    with open(os.path.join(output_folder, "bottom_dice_scores.txt"), "w") as f:
-        for key, value in bottom_dice_scores.items():
-            f.write(f"{key}: {value}\n")
-    with open(os.path.join(output_folder, "bottom_ppv_scores.txt"), "w") as f:
-        for key, value in bottom_ppv_scores.items():
-            f.write(f"{key}: {value}\n")
-    with open(os.path.join(output_folder, "bottom_f1_scores.txt"), "w") as f:
-        for key, value in bottom_f1_scores.items():
-            f.write(f"{key}: {value}\n")
-    with open(os.path.join(output_folder, "bottom_sensitivity_scores.txt"), "w") as f:
-        for key, value in bottom_sensitivity_scores.items():
-            f.write(f"{key}: {value}\n")
     with open(os.path.join(output_folder, "top_dice_scores.txt"), "w") as f:
         for key, value in top_dice_scores.items():
             f.write(f"{key}: {value}\n")
@@ -271,6 +259,18 @@ def main():
             f.write(f"{key}: {value}\n")
     with open(os.path.join(output_folder, "top_sensitivity_scores.txt"), "w") as f:
         for key, value in top_sensitivity_scores.items():
+            f.write(f"{key}: {value}\n")
+    with open(os.path.join(output_folder, "bottom_dice_scores.txt"), "w") as f:
+        for key, value in bottom_dice_scores.items():
+            f.write(f"{key}: {value}\n")
+    with open(os.path.join(output_folder, "bottom_ppv_scores.txt"), "w") as f:
+        for key, value in bottom_ppv_scores.items():
+            f.write(f"{key}: {value}\n")
+    with open(os.path.join(output_folder, "bottom_f1_scores.txt"), "w") as f:
+        for key, value in bottom_f1_scores.items():
+            f.write(f"{key}: {value}\n")
+    with open(os.path.join(output_folder, "bottom_sensitivity_scores.txt"), "w") as f:
+        for key, value in bottom_sensitivity_scores.items():
             f.write(f"{key}: {value}\n")
 
     return None
