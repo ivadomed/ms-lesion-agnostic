@@ -176,6 +176,7 @@ def main():
 
     # Compute mean dice per bin
     grouped = metrics_results_copy.groupby("voxel_volume_bin")["dice"].mean().reset_index()
+    grouped["sample_proportion_voxel_volume"] = metrics_results_copy.groupby("voxel_volume_bin")["dice"].count().reset_index(drop=True) / len(metrics_results_copy)
 
     # For plotting, use bin midpoints instead of categorical intervals
     grouped["bin_center"] = grouped["voxel_volume_bin"].apply(lambda x: x.mid)
@@ -184,6 +185,12 @@ def main():
     ax.set_title(f"Dice per voxel volume")
     ax.set_xlabel(f"Voxel volume (mm³)")
     ax.set_ylabel("Dice score")
+
+    # Add a second y-axis for the sample proportion
+    ax2 = ax.twinx()
+    sns.lineplot(data=grouped, x="bin_center", y="sample_proportion_voxel_volume", ax=ax2, color="green", marker="o")
+    ax2.set_ylabel("Proportion of samples", color="green")
+
     plt.tight_layout()
     plt.savefig(os.path.join(path_to_outputs, 'dice_per_voxel_volume.png'))
     plt.close()
@@ -243,6 +250,7 @@ def main():
 
     # Compute mean PPV per bin
     grouped = metrics_results_copy.groupby("voxel_volume_bin")["ppv"].mean().reset_index()
+    grouped["sample_proportion_voxel_volume"] = metrics_results_copy.groupby("voxel_volume_bin")["ppv"].count().reset_index(drop=True) / len(metrics_results_copy)
 
     # For plotting, use bin midpoints instead of categorical intervals
     grouped["bin_center"] = grouped["voxel_volume_bin"].apply(lambda x: x.mid)
@@ -251,6 +259,12 @@ def main():
     ax.set_title(f"PPV per voxel volume")
     ax.set_xlabel(f"Voxel volume (mm³)")
     ax.set_ylabel("PPV score")
+
+    # Add a second y-axis for the sample proportion
+    ax2 = ax.twinx()
+    sns.lineplot(data=grouped, x="bin_center", y="sample_proportion_voxel_volume", ax=ax2, color="green", marker="o")
+    ax2.set_ylabel("Proportion of samples", color="green")
+
     plt.tight_layout()
     plt.savefig(os.path.join(path_to_outputs, 'ppv_per_voxel_volume.png'))
     plt.close()
@@ -310,6 +324,7 @@ def main():
 
     # Compute mean sensitivity per bin
     grouped = metrics_results_copy.groupby("voxel_volume_bin")["sensitivity"].mean().reset_index()
+    grouped["sample_proportion_voxel_volume"] = metrics_results_copy.groupby("voxel_volume_bin")["sensitivity"].count().reset_index(drop=True) / len(metrics_results_copy)
 
     # For plotting, use bin midpoints instead of categorical intervals
     grouped["bin_center"] = grouped["voxel_volume_bin"].apply(lambda x: x.mid)
@@ -318,6 +333,12 @@ def main():
     ax.set_title(f"Sensitivity per voxel volume")
     ax.set_xlabel(f"Voxel volume (mm³)")
     ax.set_ylabel("Sensitivity score")
+
+    # Add a second y-axis for the sample proportion
+    ax2 = ax.twinx()
+    sns.lineplot(data=grouped, x="bin_center", y="sample_proportion_voxel_volume", ax=ax2, color="green", marker="o")
+    ax2.set_ylabel("Proportion of samples", color="green")
+
     plt.tight_layout()
     plt.savefig(os.path.join(path_to_outputs, 'sensitivity_per_voxel_volume.png'))
     plt.close()
@@ -377,6 +398,7 @@ def main():
 
     # Compute mean F1 per bin
     grouped = metrics_results_copy.groupby("voxel_volume_bin")["f1"].mean().reset_index()
+    grouped["sample_proportion_voxel_volume"] = metrics_results_copy.groupby("voxel_volume_bin")["f1"].count().reset_index(drop=True) / len(metrics_results_copy)
 
     # For plotting, use bin midpoints instead of categorical intervals
     grouped["bin_center"] = grouped["voxel_volume_bin"].apply(lambda x: x.mid)
@@ -385,6 +407,12 @@ def main():
     ax.set_title(f"F1 per voxel volume")
     ax.set_xlabel(f"Voxel volume (mm³)")
     ax.set_ylabel("F1 score")
+
+    # Add a second y-axis for the sample proportion
+    ax2 = ax.twinx()
+    sns.lineplot(data=grouped, x="bin_center", y="sample_proportion_voxel_volume", ax=ax2, color="green", marker="o")
+    ax2.set_ylabel("Proportion of samples", color="green")
+
     plt.tight_layout()
     plt.savefig(os.path.join(path_to_outputs, 'f1_per_voxel_volume.png'))
     plt.close()
