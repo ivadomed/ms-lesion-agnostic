@@ -20,7 +20,6 @@ def get_parser():
     parser = argparse.ArgumentParser(description="Plot the performance of the model")
     parser.add_argument("--pred-dir-path", help="Path to the directory containing the dice_score.txt file. The structure should be /0.5/dice_score.txt for resampling by 0.5", required=True)
     parser.add_argument("--data-json-path", help="Path to the json file containing the data split", required=True)
-    # parser.add_argument("--split", help="Data split to use (train, validation, test)", required=True, type=str)
     return parser
 
 
