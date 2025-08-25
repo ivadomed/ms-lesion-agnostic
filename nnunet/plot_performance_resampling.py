@@ -155,8 +155,8 @@ def main():
 
         # We also plot on the right vert axis the proportion of samples in each bin
         ax2 = ax.twinx()
-        sns.lineplot(data=grouped, x="bin_center", y="sample_proportion", ax=ax2, color="gray", marker="o")
-        ax2.set_ylabel("Proportion of samples")
+        sns.lineplot(data=grouped, x="bin_center", y="sample_proportion", ax=ax2, color="green", marker="o")
+        ax2.set_ylabel("Proportion of samples", color="green")
 
         sns.lineplot(data=grouped, x="bin_center", y="dice", ax=ax, marker="o")
         ax.set_title(f"Dice per inference resolution ({axis})")
@@ -222,8 +222,8 @@ def main():
 
         # We also plot on the right vert axis the proportion of samples in each bin
         ax2 = ax.twinx()
-        sns.lineplot(data=grouped, x="bin_center", y="sample_proportion", ax=ax2, color="gray", marker="o")
-        ax2.set_ylabel("Proportion of samples")
+        sns.lineplot(data=grouped, x="bin_center", y="sample_proportion", ax=ax2, color="green", marker="o")
+        ax2.set_ylabel("Proportion of samples", color="green")
 
         sns.lineplot(data=grouped, x="bin_center", y="ppv", ax=ax, marker="o")
         ax.set_title(f"PPV per inference resolution ({axis})")
@@ -289,8 +289,8 @@ def main():
 
         # We also plot on the right vert axis the proportion of samples in each bin
         ax2 = ax.twinx()
-        sns.lineplot(data=grouped, x="bin_center", y="sample_proportion", ax=ax2, color="gray", marker="o")
-        ax2.set_ylabel("Proportion of samples")
+        sns.lineplot(data=grouped, x="bin_center", y="sample_proportion", ax=ax2, color="green", marker="o")
+        ax2.set_ylabel("Proportion of samples", color="green")
 
         sns.lineplot(data=grouped, x="bin_center", y="sensitivity", ax=ax, marker="o")
         ax.set_title(f"Sensitivity per inference resolution ({axis})")
@@ -356,8 +356,8 @@ def main():
 
         # We also plot on the right vert axis the proportion of samples in each bin
         ax2 = ax.twinx()
-        sns.lineplot(data=grouped, x="bin_center", y="sample_proportion", ax=ax2, color="gray", marker="o")
-        ax2.set_ylabel("Proportion of samples")
+        sns.lineplot(data=grouped, x="bin_center", y="sample_proportion", ax=ax2, color="green", marker="o")
+        ax2.set_ylabel("Proportion of samples", color="green")
 
         sns.lineplot(data=grouped, x="bin_center", y="f1", ax=ax, marker="o")
         ax.set_title(f"F1 score per inference resolution ({axis})")
