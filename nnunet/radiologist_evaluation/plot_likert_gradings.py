@@ -97,9 +97,13 @@ def main():
     # Save the combined results
     combined_results.to_csv(os.path.join(output_dir, 'combined_results.csv'), index=False)
 
+    # Replace rater names by rater 1, rater 2 ...
+    rater_mapping = {rater: f"rater {i+1}" for i, rater in enumerate(combined_results['rater'].unique())}
+    combined_results['rater_ID'] = combined_results['rater'].map(rater_mapping)
+
     # Convert to long format for easier plotting
     plot_df = combined_results.melt(
-        id_vars=['rater'],
+        id_vars=['rater_ID'],
         value_vars=['manual_score', 'predicted_score'],
         var_name='score_type',
         value_name='score'
@@ -113,17 +117,36 @@ def main():
     # Violin plot avec style similaire à ton exemple
     sns.violinplot(
         data=plot_df,
-        x="rater",
+        x="rater_ID",
         y="score",
         hue="score_type",
         split=True,      # pour fusionner en miroir
         gap=0.1,         # espace entre les deux distributions
         inner="quart"    # quartiles visibles
     )
-    plt.title('Manual vs Predicted Scores by Rater')
+
+    # Add mean line/point for each rater and score type
+    sns.pointplot(
+        data=plot_df,
+        x="rater_ID",
+        y="score",
+        hue="score_type",
+        dodge=0.15,       # slight horizontal separation
+        join=False,      # no connecting line
+        markers="_",     # use a short horizontal line
+        color="black",   # color for mean marker
+        errwidth=0,       # no error bars      
+    )
+
+    # Adjust legend (since pointplot adds a duplicate)
+    handles, labels = plt.gca().get_legend_handles_labels()
+    print(handles, labels)
+    plt.legend(handles[0:2], ["Manual", "Predicted"], title="Segmentation")
+
+    plt.title('Manual vs predicted Likert scores by rater')
     plt.xlabel('Rater')
     plt.ylabel('Score')
-    plt.legend(title="Score Type", labels=["Manual", "Predicted"])
+    # plt.legend(title="Score Type", labels=["Manual", "Predicted"])
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "violin_plot.png"))
     plt.close()
@@ -138,7 +161,8 @@ def main():
         rater_data = combined_results[combined_results['rater'] == rater]
         rater_avg = rater_data[['manual_score', 'predicted_score']].mean()
         rater_std = rater_data[['manual_score', 'predicted_score']].std()
-        print(f"  {rater}. : {rater_avg['manual_score']:.2f} ± {rater_std['manual_score']:.2f}   vs   {rater_avg['predicted_score']:.2f} ± {rater_std['predicted_score']:.2f}")
+        rater_ID = rater_mapping[rater]
+        print(f"  {rater} - {rater_ID} : {rater_avg['manual_score']:.2f} ± {rater_std['manual_score']:.2f}   vs   {rater_avg['predicted_score']:.2f} ± {rater_std['predicted_score']:.2f}")
 
     
     # Statistical tests: 
@@ -149,8 +173,9 @@ def main():
     # Then for each rater, we compute wilcoxon test between manual and pred
     for rater in raters:
         rater_data = combined_results[combined_results['rater'] == rater]
+        rater_ID = rater_mapping[rater]
         stat, p = wilcoxon(rater_data['manual_score'], rater_data['predicted_score'])
-        print(f"  {rater}. : Wilcoxon test statistic = {stat:.2f}, p-value = {p:.2f}")
+        print(f"  {rater} - {rater_ID} : Wilcoxon test statistic = {stat:.2f}, p-value = {p:.2f}")
 
 if __name__ == '__main__':
     main()
