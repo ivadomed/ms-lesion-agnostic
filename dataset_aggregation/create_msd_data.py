@@ -1,6 +1,5 @@
 """
 This file creates the MSD-style JSON datalist to train an nnunet model using monai. 
-The datasets used are CanProCo, Bavaria-quebec, basel and sct-testing-large.
 
 Arguments:
     -pd, --path-data: Path to the data set directory
@@ -53,6 +52,7 @@ def get_parser():
     parser.add_argument('--lesion-only', action='store_true', help='Use only masks which contain some lesions')
     parser.add_argument('--seed', default=42, type=int, help="Seed for reproducibility")
     parser.add_argument('--all-train', action='store_true', help='Use the data to train the model (except for the external test data)')
+    parser.add_argument('--list-contrast-distribution', action='store_true', help='Print the distribution of contrasts in the dataset and exit')
 
     return parser
 
@@ -118,6 +118,62 @@ def get_acquisition_resolution_and_dimension(image_path):
     return acquisition, resolution, dimension
 
 
+def print_dataset_contrasts_distribution(derivatives, dataset_name):
+    """
+    This function takes a list of derivatives and prints the distribution of contrasts in the dataset.
+    Input:
+        derivatives : list : List of derivatives
+    Returns:
+        None
+    """
+    # Get the contrasts
+    contrasts = []
+    for derivative in derivatives:
+        if 'basel-mp2rage' in str(derivative):
+            contrast = str(derivative).replace('_desc-rater3_label-lesion_seg.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+            contrasts.append(contrast)
+        elif 'nih-ms-mp2rage' in str(derivative):
+            contrast = str(derivative).replace('_desc-rater1_label-lesion_seg.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+            contrasts.append(contrast)
+        else:
+            contrast = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+            contrasts.append(contrast)        
+        
+    # Get the unique contrasts
+    unique_contrasts = set(contrasts)
+    # Print the distribution
+    logger.info(f"Distribution of contrasts in {dataset_name}:")
+    for contrast in unique_contrasts:
+        count = contrasts.count(contrast)
+        logger.info(f"{contrast}: {count}")
+    return contrasts
+
+
+def split_dataset(derivatives, test_size=0.1, random_state=42):
+    """
+    This function takes a list of derivatives and splits it into train, validation and test sets based on the subjects.
+
+    Input:
+        derivatives : list : List of derivatives
+        test_size : float : Size of the test set
+        random_state : int : Random state for reproducibility
+
+    Returns:
+        train : list : List of training derivatives
+        val : list : List of validation derivatives
+        test : list : List of test derivatives
+    """
+    df_derivatives = pd.DataFrame(derivatives, columns=['derivative'])
+    df_derivatives['subject'] = df_derivatives['derivative'].apply(lambda x: x.name.split('_')[0])
+    df_derivatives_subjects = df_derivatives['subject'].unique() 
+    df_derivatives_subjects_train, df_derivatives_subjects_test = train_test_split(df_derivatives_subjects, test_size=test_size, random_state=random_state)
+    df_derivatives_subjects_train, df_derivatives_subjects_val = train_test_split(df_derivatives_subjects_train, test_size=test_size/(1-test_size), random_state=random_state)
+    train = df_derivatives[df_derivatives['subject'].isin(df_derivatives_subjects_train)]["derivative"].tolist()
+    val = df_derivatives[df_derivatives['subject'].isin(df_derivatives_subjects_val)]["derivative"].tolist()
+    test = df_derivatives[df_derivatives['subject'].isin(df_derivatives_subjects_test)]["derivative"].tolist()
+    return train, val, test
+
+
 def main():
     """
     This is the main function of the script.
@@ -134,6 +190,8 @@ def main():
 
     root = args.path_data
     seed = args.seed
+
+    test_size = 0.1
 
     # Get all subjects
     path_basel_mp2rage = Path(os.path.join(root, "basel-mp2rage"))
@@ -177,69 +235,71 @@ def main():
                 exclude_list = yaml.load(file, Loader=yaml.FullLoader)
     exclude_list = exclude_list['EXCLUDED']
 
+    # Remove the excluded subjects from the datasets
+    derivatives_basel_mp2rage = [derivative for derivative in derivatives_basel_mp2rage if str(derivative).split('/')[-1] not in exclude_list]
+    derivatives_bavaria_unstitched = [derivative for derivative in derivatives_bavaria_unstitched if str(derivative).split('/')[-1] not in exclude_list]
+    derivatives_canproco = [derivative for derivative in derivatives_canproco if str(derivative).split('/')[-1] not in exclude_list]
+    derivatives_basel_2018 = [derivative for derivative in derivatives_basel_2018 if str(derivative).split('/')[-1] not in exclude_list]
+    derivatives_basel_2020 = [derivative for derivative in derivatives_basel_2020 if str(derivative).split('/')[-1] not in exclude_list]
+    derivatives_karo = [derivative for derivative in derivatives_karo if str(derivative).split('/')[-1] not in exclude_list]
+    derivatives_nih = [derivative for derivative in derivatives_nih if str(derivative).split('/')[-1] not in exclude_list]
+    derivatives_nyu = [derivative for derivative in derivatives_nyu if str(derivative).split('/')[-1] not in exclude_list]
+    derivatives_sct = [derivative for derivative in derivatives_sct if str(derivative).split('/')[-1] not in exclude_list]
+    # Remove the excluded subjects from the CanProCo dataset
+    for derivative in derivatives_canproco:
+        subject_id = derivative.name.replace('_PSIR_lesion-manual.nii.gz', '')
+        subject_id = subject_id.replace('_STIR_lesion-manual.nii.gz', '')
+        if subject_id in canproco_exclude_list:
+            # remove the derivative from the list
+            derivatives_canproco.remove(derivative)
+
+    # Print the distribution of contrasts in the datasets
+    contrasts_basel_mp2rage = print_dataset_contrasts_distribution(derivatives_basel_mp2rage, "Basel MP2RAGE")
+    contrasts_bavaria = print_dataset_contrasts_distribution(derivatives_bavaria_unstitched, "Bavaria Quebec")
+    contrasts_canproco = print_dataset_contrasts_distribution(derivatives_canproco, "CanProCo")
+    contrasts_basel_2018 = print_dataset_contrasts_distribution(derivatives_basel_2018, "Basel 2018")
+    contrasts_basel_2020 = print_dataset_contrasts_distribution(derivatives_basel_2020, "Basel 2020")
+    logger.info(f"We decided not to include the PD images because of the quality of the manual segmentations.")
+    contrasts_karo = print_dataset_contrasts_distribution(derivatives_karo, "Karolinska")
+    contrasts_nih = print_dataset_contrasts_distribution(derivatives_nih, "NIH")
+    contrasts_nyu = print_dataset_contrasts_distribution(derivatives_nyu, "NYU")
+    contrasts_sct = print_dataset_contrasts_distribution(derivatives_sct, "SCT Testing")
+
+    all_contrasts = contrasts_basel_mp2rage + contrasts_bavaria + contrasts_canproco + contrasts_basel_2018 + contrasts_basel_2020 + contrasts_karo + contrasts_nih + contrasts_nyu + contrasts_sct
+    # Change MEGRE TO T2star in the list
+    all_contrasts = [contrast.replace('MEGRE', 'T2star') for contrast in all_contrasts]
+    # create a dictionnary which stores the counts for each contrast
+    contrast_counts = {}
+    for contrast in all_contrasts:
+        if contrast in contrast_counts:
+            contrast_counts[contrast] += 1
+        else:
+            contrast_counts[contrast] = 1
+    # Print the counts
+    logger.info(f"Distribution of contrasts in the dataset:")
+    for contrast, count in contrast_counts.items():
+        logger.info(f"{contrast}: {count}")
+
+    if args.list_contrast_distribution:
+        # We print the distribution of contrasts in the datasets and exit
+        return None
+
     # The splitting should be done on the subjects and not on the images. It should also be done per site.
     ## To do so, we build a df of the subjects and then split it
-
-    df_basel_mp2rage = pd.DataFrame(derivatives_basel_mp2rage, columns=['derivative'])
-    df_basel_mp2rage['subject'] = df_basel_mp2rage['derivative'].apply(lambda x: x.name.split('_')[0])
-    df_basel_mp2rage_subjects = df_basel_mp2rage['subject'].unique() 
-    df_basel_mp2rage_subjects_train, df_basel_mp2rage_subjects_test = train_test_split(df_basel_mp2rage_subjects, test_size=0.1, random_state=args.seed)
-    df_basel_mp2rage_subjects_train, df_basel_mp2rage_subjects_val = train_test_split(df_basel_mp2rage_subjects_train, test_size=0.1, random_state=args.seed)
-    basel_mp2rage_train = df_basel_mp2rage[df_basel_mp2rage['subject'].isin(df_basel_mp2rage_subjects_train)]["derivative"].tolist()
-    basel_mp2rage_val = df_basel_mp2rage[df_basel_mp2rage['subject'].isin(df_basel_mp2rage_subjects_val)]["derivative"].tolist()
-    basel_mp2rage_test = df_basel_mp2rage[df_basel_mp2rage['subject'].isin(df_basel_mp2rage_subjects_test)]["derivative"].tolist()
-
-    df_bavaria_unstitched = pd.DataFrame(derivatives_bavaria_unstitched, columns=['derivative'])
-    df_bavaria_unstitched['subject'] = df_bavaria_unstitched['derivative'].apply(lambda x: x.name.split('_')[0])
-    df_bavaria_unstitched_subjects = df_bavaria_unstitched['subject'].unique()
-    df_bavaria_unstitched_subjects_train, df_bavaria_unstitched_subjects_test = train_test_split(df_bavaria_unstitched_subjects, test_size=0.1, random_state=args.seed)
-    df_bavaria_unstitched_subjects_train, df_bavaria_unstitched_subjects_val = train_test_split(df_bavaria_unstitched_subjects_train, test_size=0.1, random_state=args.seed)
-    bavaria_unstitched_train = df_bavaria_unstitched[df_bavaria_unstitched['subject'].isin(df_bavaria_unstitched_subjects_train)]["derivative"].tolist()
-    bavaria_unstitched_val = df_bavaria_unstitched[df_bavaria_unstitched['subject'].isin(df_bavaria_unstitched_subjects_val)]["derivative"].tolist()
-    bavaria_unstitched_test = df_bavaria_unstitched[df_bavaria_unstitched['subject'].isin(df_bavaria_unstitched_subjects_test)]["derivative"].tolist()
-
-    df_canproco = pd.DataFrame(derivatives_canproco, columns=['derivative'])
-    df_canproco['subject'] = df_canproco['derivative'].apply(lambda x: x.name.split('_')[0])
-    df_canproco_subjects = df_canproco['subject'].unique()
-    df_canproco_subjects_train, df_canproco_subjects_test = train_test_split(df_canproco_subjects, test_size=0.1, random_state=args.seed)
-    df_canproco_subjects_train, df_canproco_subjects_val = train_test_split(df_canproco_subjects_train, test_size=0.1, random_state=args.seed)
-    canproco_train = df_canproco[df_canproco['subject'].isin(df_canproco_subjects_train)]["derivative"].tolist()
-    canproco_val = df_canproco[df_canproco['subject'].isin(df_canproco_subjects_val)]["derivative"].tolist()
-    canproco_test = df_canproco[df_canproco['subject'].isin(df_canproco_subjects_test)]["derivative"].tolist()
-
-    df_nih = pd.DataFrame(derivatives_nih, columns=['derivative'])
-    df_nih['subject'] = df_nih['derivative'].apply(lambda x: x.name.split('_')[0])
-    df_nih_subjects = df_nih['subject'].unique()
-    df_nih_subjects_train, df_nih_subjects_test = train_test_split(df_nih_subjects, test_size=0.1, random_state=args.seed)
-    df_nih_subjects_train, df_nih_subjects_val = train_test_split(df_nih_subjects_train, test_size=0.1, random_state=args.seed)
-    nih_train = df_nih[df_nih['subject'].isin(df_nih_subjects_train)]["derivative"].tolist()
-    nih_val = df_nih[df_nih['subject'].isin(df_nih_subjects_val)]["derivative"].tolist()
-    nih_test = df_nih[df_nih['subject'].isin(df_nih_subjects_test)]["derivative"].tolist()
-
-    df_nyu = pd.DataFrame(derivatives_nyu, columns=['derivative'])
-    df_nyu['subject'] = df_nyu['derivative'].apply(lambda x: x.name.split('_')[0])
-    df_nyu_subjects = df_nyu['subject'].unique()
-    df_nyu_subjects_train, df_nyu_subjects_test = train_test_split(df_nyu_subjects, test_size=0.1, random_state=args.seed)
-    df_nyu_subjects_train, df_nyu_subjects_val = train_test_split(df_nyu_subjects_train, test_size=0.1, random_state=args.seed)
-    nyu_train = df_nyu[df_nyu['subject'].isin(df_nyu_subjects_train)]["derivative"].tolist()
-    nyu_val = df_nyu[df_nyu['subject'].isin(df_nyu_subjects_val)]["derivative"].tolist()
-    nyu_test = df_nyu[df_nyu['subject'].isin(df_nyu_subjects_test)]["derivative"].tolist()
-    
-    df_sct = pd.DataFrame(derivatives_sct, columns=['derivative'])
-    df_sct['subject'] = df_sct['derivative'].apply(lambda x: x.name.split('_')[0])
-    df_sct_subjects = df_sct['subject'].unique()
-    df_sct_subjects_train, df_sct_subjects_test = train_test_split(df_sct_subjects, test_size=0.1, random_state=args.seed)
-    df_sct_subjects_train, df_sct_subjects_val = train_test_split(df_sct_subjects_train, test_size=0.1, random_state=args.seed)
-    sct_train = df_sct[df_sct['subject'].isin(df_sct_subjects_train)]["derivative"].tolist()
-    sct_val = df_sct[df_sct['subject'].isin(df_sct_subjects_val)]["derivative"].tolist()
-    sct_test = df_sct[df_sct['subject'].isin(df_sct_subjects_test)]["derivative"].tolist()
+    basel_mp2rage_train, basel_mp2rage_val, basel_mp2rage_test = split_dataset(derivatives_basel_mp2rage, test_size=test_size, random_state=args.seed)
+    bavaria_unstitched_train, bavaria_unstitched_val, bavaria_unstitched_test = split_dataset(derivatives_bavaria_unstitched, test_size=test_size, random_state=args.seed)
+    canproco_train, canproco_val, canproco_test = split_dataset(derivatives_canproco, test_size=test_size, random_state=args.seed)
+    basel_2018_train, basel_2018_val, basel_2018_test = split_dataset(derivatives_basel_2018, test_size=test_size, random_state=args.seed)
+    nih_train, nih_val, nih_test = split_dataset(derivatives_nih, test_size=test_size, random_state=args.seed)
+    nyu_train, nyu_val, nyu_test = split_dataset(derivatives_nyu, test_size=test_size, random_state=args.seed)
+    sct_train, sct_val, sct_test = split_dataset(derivatives_sct, test_size=test_size, random_state=args.seed)
 
     # Gather the splittings
-    train_derivatives = basel_mp2rage_train + bavaria_unstitched_train + canproco_train + nih_train + nyu_train + sct_train
-    val_derivatives = basel_mp2rage_val + bavaria_unstitched_val + canproco_val + nih_val + nyu_val + sct_val
-    test_derivatives = basel_mp2rage_test + bavaria_unstitched_test + canproco_test + nih_test + nyu_test + sct_test
+    train_derivatives = basel_mp2rage_train + bavaria_unstitched_train + canproco_train + basel_2018_train + nih_train + nyu_train + sct_train
+    val_derivatives = basel_mp2rage_val + bavaria_unstitched_val + canproco_val + basel_2018_val + nih_val + nyu_val + sct_val
+    test_derivatives = basel_mp2rage_test + bavaria_unstitched_test + canproco_test + basel_2018_test + nih_test + nyu_test + sct_test
     # As for the external datasets, we don't split them
-    external_derivatives = derivatives_basel_2018 + derivatives_basel_2020 + derivatives_karo
+    external_derivatives = derivatives_karo
 
     # If the flag --all-train is set, use all the data for training
     if args.all_train:
@@ -267,6 +327,8 @@ def main():
     params["seed"] = args.seed
     params["reference"] = "NeuroPoly"
     params["tensorImageSize"] = "3D"
+    # Add the contrasts counts in the params
+    params["contrasts"] = contrast_counts
 
     train_derivatives_dict = {"train": train_derivatives}
     val_derivatives_dict = {"validation": val_derivatives}
@@ -280,6 +342,8 @@ def main():
     subjects_nih = []
     subjects_nyu = []
     subjects_sct = []
+    subjects_basel_2018 = []
+
     for derivatives_dict in tqdm(all_derivatives_list, desc="Iterating through train/val/test splits"):
 
         for name, derivs_list in derivatives_dict.items():
@@ -293,6 +357,7 @@ def main():
                 temp_data_nih = {}
                 temp_data_sct = {}
                 temp_data_nyu = {}
+                temp_data_basel_2018 = {}
                 
                 # Basel
                 if 'basel-mp2rage' in str(derivative):
@@ -320,6 +385,8 @@ def main():
                         # Get the subject
                         subject = str(derivative).split('/')[-1].split('_')[0]
                         subjects_basel.append(subject)
+                    else:
+                        logger.warning(f"Label or image not found for {derivative}")
             
                 # Bavaria-quebec
                 elif 'bavaria-quebec-spine-ms' in str(derivative):
@@ -344,6 +411,8 @@ def main():
                         # Get the subject
                         subject = str(derivative).split('/')[-1].split('_')[0]
                         subjects_bavaria.append(subject)
+                    else:
+                        logger.warning(f"Label or image not found for {derivative}")
                 
                 # Canproco
                 elif 'canproco' in str(derivative):
@@ -370,6 +439,8 @@ def main():
                         # Get the subject
                         subject = str(derivative).split('/')[-1].split('_')[0]
                         subjects_canproco.append(subject)
+                    else:
+                        logger.warning(f"Label or image not found for {derivative}")
 
                 # nih-ms-mp2rage
                 elif 'nih-ms-mp2rage' in str(derivative):
@@ -394,6 +465,8 @@ def main():
                         # Get the subject
                         subject = str(derivative).split('/')[-1].split('_')[0]
                         subjects_nih.append(subject)
+                    else:
+                        logger.warning(f"Label or image not found for {derivative}")
 
                 # ms-nyu   
                 elif 'ms-nyu' in str(derivative):
@@ -418,6 +491,8 @@ def main():
                         # Get the subject
                         subject = str(derivative).split('/')[-1].split('_')[0]
                         subjects_nyu.append(subject)
+                    else:
+                        logger.warning(f"Label or image not found for {derivative}")
 
                 # sct-testing-large
                 elif 'sct-testing-large' in str(derivative):
@@ -447,6 +522,34 @@ def main():
                         # Get the subject
                         subject = str(derivative).split('/')[-1].split('_')[0]
                         subjects_sct.append(subject)
+                    else:
+                        logger.warning(f"Label or image not found for {derivative}")
+
+                # ms-basel-2018
+                elif 'ms-basel-2018' in str(derivative):
+                    if str(derivative).split('/')[-1] in exclude_list:
+                        continue
+                    temp_data_basel_2018["label"] = str(derivative)
+                    temp_data_basel_2018["image"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').replace('derivatives/labels/', '')
+                    if os.path.exists(temp_data_basel_2018["label"]) and os.path.exists(temp_data_basel_2018["image"]):
+                        total_lesion_volume, nb_lesions = count_lesion(temp_data_basel_2018["label"])
+                        temp_data_basel_2018["total_lesion_volume"] = total_lesion_volume
+                        temp_data_basel_2018["nb_lesions"] = nb_lesions
+                        temp_data_basel_2018["site"]='ms-basel-2018'
+                        temp_data_basel_2018["contrast"] = str(derivative).replace('_lesion-manual.nii.gz', '.nii.gz').split('_')[-1].replace('.nii.gz', '')
+                        acquisition, resolution, dimension = get_acquisition_resolution_and_dimension(temp_data_basel_2018["image"])
+                        temp_data_basel_2018["acquisition"] = acquisition
+                        resolution = [np.float64(i) for i in resolution]
+                        temp_data_basel_2018["resolution"] = resolution
+                        temp_data_basel_2018["dimension"] = dimension
+                        if args.lesion_only and nb_lesions == 0:
+                            continue
+                        temp_list.append(temp_data_basel_2018)
+                        # Get the subject
+                        subject = str(derivative).split('/')[-1].split('_')[0]
+                        subjects_basel_2018.append(subject)
+                    else:
+                        logger.warning(f"Label or image not found for {derivative}")
                         
         params[name] = temp_list
         logger.info(f"Number of images in {name} set: {len(temp_list)}")
@@ -460,7 +563,7 @@ def main():
     # Now for the external validation datasets:
     temp_list = []
     subjects_external = []
-    for derivative in external_derivatives:
+    for derivative in tqdm(external_derivatives):
 
         temp_data = {}
         temp_data["label"] = str(derivative)
@@ -483,6 +586,8 @@ def main():
             # Get the subject
             subject = str(derivative).split('/')[-1].split('_')[0]
             subjects_external.append(site+"-"+subject)
+        else:
+            logger.warning(f"Label or image not found for {derivative}")
 
     params["externalValidation"] = temp_list
     params["numExternalValidation"] = len(params["externalValidation"])
@@ -498,14 +603,22 @@ def main():
         os.makedirs(args.path_out, exist_ok=True)
     if args.lesion_only and args.all_train:
         jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}_lesionOnly_allTrain.json", "w")
+        logger_file_path = os.path.join(args.path_out, f"dataset_{str(date.today())}_seed{seed}_lesionOnly_allTrain.log")
     elif args.lesion_only:
         jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}_lesionOnly.json", "w")
+        logger_file_path = os.path.join(args.path_out, f"dataset_{str(date.today())}_seed{seed}_lesionOnly.log")
     elif args.all_train:
         jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}_allTrain.json", "w")
+        logger_file_path = os.path.join(args.path_out, f"dataset_{str(date.today())}_seed{seed}_allTrain.log")
     else:
         jsonFile = open(args.path_out + "/" + f"dataset_{str(date.today())}_seed{seed}.json", "w")
+        logger_file_path = os.path.join(args.path_out, f"dataset_{str(date.today())}_seed{seed}.log")
     jsonFile.write(final_json)
     jsonFile.close()
+
+    # Save the logger as well  with the same file name
+    logger.info(f"Saving the log file in {args.path_out}")
+    logger.add(logger_file_path)
 
     return None
 
