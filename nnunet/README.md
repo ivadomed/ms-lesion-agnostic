@@ -41,6 +41,6 @@ CUDA_VISIBLE_DEVICES=1 nnUNetv2_predict -i PATH_imagesTs -o OUTPUT_PATH -d XXX -
 
 6. Evaluate predictions and plot the results:
 ```console
-python nnunet/evaluate_predictions.py -pred-folder PRED_PATH -label-folder PATH_labelsTs  -image-folder PATH_imagesTs -conversion-dict PATH_conversion_dict.json -output-folder PATH_OUTPUT
-python nnunet/plot_performance.py --pred-dir-path PRED_PATH  --data-json-path MSD_PATH --split test
+python evaluation/evaluate_predictions.py -pred-folder PRED_PATH -label-folder PATH_labelsTs  -image-folder PATH_imagesTs -conversion-dict PATH_conversion_dict.json -output-folder PATH_OUTPUT
+python evaluation/plot_performance.py --pred-dir-path PRED_PATH  --data-json-path MSD_PATH --split test
 ```
