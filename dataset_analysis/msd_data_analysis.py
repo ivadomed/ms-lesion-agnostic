@@ -119,36 +119,50 @@ def main():
     # Now we count the field strength of the images
     field_strength = []
     count_field_strength = {}
+    count_field_strength["missing"] = 0
+    image_unknown_field_strength = []
+    dict_image_to_field_strength = {}
     for image in tqdm(data):
         sidecar = image['image'].replace('.nii.gz', '.json')
         # if the sidecar does not exist, we skip the image
         if not os.path.exists(sidecar):
+            image_unknown_field_strength.append(image['image'])
+            count_field_strength["missing"] += 1
+            dict_image_to_field_strength[image['image']] = "Missing"
             continue
         with open(sidecar, 'r') as f:
             try:
-                metadata = json.load(f)  # Remplacez 'response' par votre source de données
+                metadata = json.load(f)
             except json.JSONDecodeError as e:
                 continue
         # if field "MagneticFieldStrength" does not exist, we skip the image
         if "MagneticFieldStrength" not in metadata:
+            # I checked and there are no alternative fields
+            count_field_strength["missing"] += 1
+            image_unknown_field_strength.append(image['image'])
+            dict_image_to_field_strength[image['image']] = "Missing"
             continue
         field_strength.append(metadata["MagneticFieldStrength"])
+        dict_image_to_field_strength[image['image']] = metadata["MagneticFieldStrength"]
         # Count the field strength
         if metadata["MagneticFieldStrength"] not in count_field_strength:
             count_field_strength[metadata["MagneticFieldStrength"]] = 0
         count_field_strength[metadata["MagneticFieldStrength"]] += 1
     logger.info(f"Field strength for MSD dataset: {set(field_strength)}")
     logger.info(f"Count of field strength for MSD dataset: {count_field_strength}")
-
     logger.info("-------------------------------------")
+    # Save the list of images with unknown field strength
+    with open(os.path.join(output_folder, 'images_unknown_field_strength.txt'), 'w') as f:
+        for item in image_unknown_field_strength:
+            f.write("%s\n" % item)
 
     # Now we want to display the following table : 
-    # | Site      | Contrast | Acquisition | Orientation | Count | Avg resolution (RPI) | Number of subjects |
-    # |-----------|----------|-------------|-------------|-------|----------------------|--------------------|
-    # | canproco  | PSIR     | 2D          | sagittal    | 100   | 0.1x0.1x0.5          | 100                |
-    # | canproco  | PSIR     | 2D          | axial       | 65    | 0.1x0.1x0.5          | 65                 |
-    # | canproco  | STIR     | 2D          | sagittal    | 200   | 0.5x0.5x0.6          | 200                |
-    # | canproco  | /        | /           | /           | 365   | 0.4x0.4x0.55         | 200                |
+    # | Site      | Contrast | Acquisition | Orientation | Count | Avg resolution (RPI) | Number of subjects | Field strength |
+    # |-----------|----------|-------------|-------------|-------|----------------------|--------------------| ---------------|
+    # | canproco  | PSIR     | 2D          | sagittal    | 100   | 0.1x0.1x0.5          | 100                |    3T          |         
+    # | canproco  | PSIR     | 2D          | axial       | 65    | 0.1x0.1x0.5          | 65                 |    1.5T        |
+    # | canproco  | STIR     | 2D          | sagittal    | 200   | 0.5x0.5x0.6          | 200                |    Missing     |
+    # | canproco  | /        | /           | /           | 365   | 0.4x0.4x0.55         | 200                |    3T          |
 
     # Create a pandas DataFrame to store the data
     df = pd.DataFrame(columns=['Site', 'Contrast', 'Acquisition', 'Orientation', 'Count', 'Avg resolution (R-L)', 'Avg resolution (P-A)', 'Avg resolution (I-S)', 'Number of subjects'])
@@ -169,6 +183,7 @@ def main():
         resolution = image['resolution']
         sub = image['image'].split('/')[-1].split('_')[0]
         subject = dataset + '/' + sub
+        field_strength = dict_image_to_field_strength[image['image']]
         # Add the data to the DataFrame
         new_row = {
             'Site': dataset,
@@ -182,11 +197,12 @@ def main():
             'Std resolution (P-A)': resolution[1],
             'Avg resolution (I-S)': resolution[2],
             'Std resolution (I-S)': resolution[2],
-            'Number of subjects': subject
+            'Number of subjects': subject,
+            'Field strength': field_strength
         }
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     # Group the DataFrame by Site, Contrast, Acquisition, Orientation and sum the Count and Number of subjects and average the Avg resolution (RPI)
-    df_grouped = df.groupby(['Site', 'Contrast', 'Acquisition', 'Orientation']).agg({
+    df_grouped = df.groupby(['Site', 'Contrast', 'Acquisition', 'Orientation', 'Field strength']).agg({
         'Count': 'sum',
         'Avg resolution (R-L)': 'mean',
         'Std resolution (R-L)': 'std',
@@ -199,7 +215,7 @@ def main():
     # Reset the index
     df_grouped = df_grouped.reset_index()
     # Log the DataFrame
-    logger.info("DataFrame with the number of images per site, contrast, acquisition and orientation:")
+    logger.info("DataFrame with the number of images per site, contrast, acquisition, orientation and field strength:")
     logger.info(df_grouped.to_string(index=False))
 
     # Also saver the DataFrame to a csv file
