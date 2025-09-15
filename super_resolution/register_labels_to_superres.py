@@ -6,6 +6,8 @@ Input:
     -labels: The directory containing the labels to register.
     -images: The directory containing the super-resolved images.
     -output: The directory to save the registered labels.
+    -min-idx: Minimum index of the files to process (inclusive).
+    -max-idx: Maximum index of the files to process (exclusive).
 
 Output:
     None
@@ -27,6 +29,8 @@ def parse_args():
     parser.add_argument("--labels", type=str, required=True, help="Directory containing the labels to register.")
     parser.add_argument("--images", type=str, required=True, help="Directory containing the super-resolved images.")
     parser.add_argument("--output", type=str, required=True, help="Directory to save the registered labels.")
+    parser.add_argument("--min-idx", type=int, default=0, help="Minimum index of the files to process (inclusive).")
+    parser.add_argument("--max-idx", type=int, default=None, help="Maximum index of the files to process (exclusive).")
     return parser.parse_args()
 
 
@@ -45,6 +49,10 @@ def main():
     label_files = sorted(label_files)
     label_files = [str(f) for f in label_files]
 
+    # Keep only file with file_00X.nii.gz with X between min_idx and max_idx
+    if args.min_idx is not None and args.max_idx is not None:
+        label_files = [f for f in label_files if int(f.split("_")[-1].replace(".nii.gz", "")) >= args.min_idx and int(f.split("_")[-1].replace(".nii.gz", "")) < args.max_idx]
+
     # For each label file, find the corresponding super-resolved image and register
     for label_file in tqdm(label_files):
         # Extract the base name to find the corresponding image
@@ -56,7 +64,8 @@ def main():
             break
 
         # Build a temporary folder to store intermediate results
-        temp_folder = Path(output_dir) / "temp"
+        label_number = str(label_file).split("_")[-1].replace(".nii.gz", "")
+        temp_folder = Path(output_dir) / f"temp_{label_number}"
         os.makedirs(temp_folder, exist_ok=True)
         
         output_temp_file = temp_folder / Path(label_file).name
