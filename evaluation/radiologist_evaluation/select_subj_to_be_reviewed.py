@@ -35,10 +35,10 @@ def parse_args():
     parser.add_argument("-path-to-labels", required=True, type=str, help="Path to the labels folder")
     parser.add_argument("-path-to-preds", required=True, type=str, help="Path to the predictions folder")
     parser.add_argument("-output-path", required=True, type=str, help="Path to the output folder")
-    parser.add_argument("-path-conversion-dict-ext", required=True, type=str, help="Path to the conversion dict of the external validation set")
-    parser.add_argument("-path-to-images-ext", required=True, type=str, help="Path to the images folder of the external validation set")
-    parser.add_argument("-path-to-labels-ext", required=True, type=str, help="Path to the labels folder of the external validation set")
-    parser.add_argument("-path-to-preds-ext", required=True, type=str, help="Path to the predictions folder of the external validation set")
+    # parser.add_argument("-path-conversion-dict-ext", required=True, type=str, help="Path to the conversion dict of the external validation set")
+    # parser.add_argument("-path-to-images-ext", required=True, type=str, help="Path to the images folder of the external validation set")
+    # parser.add_argument("-path-to-labels-ext", required=True, type=str, help="Path to the labels folder of the external validation set")
+    # parser.add_argument("-path-to-preds-ext", required=True, type=str, help="Path to the predictions folder of the external validation set")
     return parser.parse_args()
 
 
@@ -50,10 +50,10 @@ def main():
     path_to_labels = args.path_to_labels
     path_to_preds = args.path_to_preds
     output_path = args.output_path
-    path_conversion_dict_ext = args.path_conversion_dict_ext
-    path_to_images_ext = args.path_to_images_ext
-    path_to_labels_ext = args.path_to_labels_ext
-    path_to_preds_ext = args.path_to_preds_ext
+    # path_conversion_dict_ext = args.path_conversion_dict_ext
+    # path_to_images_ext = args.path_to_images_ext
+    # path_to_labels_ext = args.path_to_labels_ext
+    # path_to_preds_ext = args.path_to_preds_ext
 
     # Initiliaze the seed
     np.random.seed(40)
@@ -69,11 +69,11 @@ def main():
     conversion_dict_output = {}
 
     # Number of images
-    n_unit1 = 2
-    n_t2 = 9
-    n_stir = 2
+    n_unit1 = 4
+    n_t2 = 26
+    n_stir = 1
     n_psir = 3
-    n_t2star = 3
+    n_t2star = 5
     n_t1 = 1
 
     # Load the conversion dict
@@ -109,13 +109,19 @@ def main():
     # psir_images = {k: psir_images[k] for k in keys[:n_psir]}
 
     # SELECTION OF T2STAR IMAGES
-    t2star_images = {k: v for k, v in conversion_dict.items() if "_T2star." in k}
+    t2star_images = {k: v for k, v in conversion_dict.items() if "_T2star." in k or "_MEGRE." in k}
     keys = list(t2star_images.keys())
     np.random.shuffle(keys)
     # t2star_images = {k: t2star_images[k] for k in keys[:n_t2star]}
 
+    # SELECTION OF T1W IMAGES
+    t1_images = {k: v for k, v in conversion_dict.items() if "_T1w" in k}
+    keys = list(t1_images.keys())
+    np.random.shuffle(keys)
+    # t1_images = {k: t1_images[k] for k in keys[:n_t1]}
+
     # Aggregate all the images
-    images_to_be_reviewed = {**unit1_images, **t2_images, **stir_images, **psir_images, **t2star_images}
+    images_to_be_reviewed = {**unit1_images, **t2_images, **stir_images, **psir_images, **t2star_images, **t1_images}
 
     # count the number of images per contrast
     cnt_unit1 = 0
@@ -123,10 +129,13 @@ def main():
     cnt_stir = 0
     cnt_psir = 0
     cnt_t2star = 0
+    cnt_t1 = 0
 
     # iterate through the different lists of images
-    for contrast_list in [unit1_images, t2_images, stir_images, psir_images, t2star_images]:
+    for contrast_list in [unit1_images, t2_images, stir_images, psir_images, t2star_images, t1_images]:
         for elem in contrast_list:
+            if "sub-amuVirginie011_acq-inf_T2star" in elem or "sub-amuVirginie011_acq-sup_T2star" in elem or "sub-m198946_ses-20200518_acq-ax_chunk-2_T2w" in elem:
+                continue
             # Get the image name and path
             image_name = elem.split("/")[-1]
             image_path = images_to_be_reviewed[elem]
@@ -154,6 +163,8 @@ def main():
                 cnt_psir += 1
             elif "_T2star." in elem:
                 cnt_t2star += 1
+            elif "_T1w" in elem:
+                cnt_t1 += 1
 
             # Initialize the conversion dict output element
             conversion_dict_output[elem] = {}
@@ -184,71 +195,73 @@ def main():
                 break
             if cnt_t2star == n_t2star and contrast_list == t2star_images:
                 break
-            
-    # ---------------------------------------------------------------------------------------------
-    # ---------------------------------------------------------------------------------------------
-    # SELECTION OF T1 IMAGES IN THE EXTERNAL VALIDATION SET
+            if cnt_t1 == n_t1 and contrast_list == t1_images:
+                break
 
-    # Load the conversion dict ext
-    with open(path_conversion_dict_ext, 'r') as f:
-        conversion_dict_ext = json.load(f)
+    # # ---------------------------------------------------------------------------------------------
+    # # ---------------------------------------------------------------------------------------------
+    # # SELECTION OF T1 IMAGES IN THE EXTERNAL VALIDATION SET
 
-    # In the conversion dict, keep only the images(not the labels) which are in imagesExternalTs
-    conversion_dict_ext = {k: v for k, v in conversion_dict_ext.items() if "imagesExternalTs" in v}
+    # # Load the conversion dict ext
+    # with open(path_conversion_dict_ext, 'r') as f:
+    #     conversion_dict_ext = json.load(f)
 
-    # Select the T1w images
-    t1_images = {k: v for k, v in conversion_dict_ext.items() if "_T1w" in k}
-    keys = list(t1_images.keys())
-    np.random.shuffle(keys)
-    # t1_images = {k: t1_images[k] for k in keys[:n_t1]}
+    # # In the conversion dict, keep only the images(not the labels) which are in imagesExternalTs
+    # conversion_dict_ext = {k: v for k, v in conversion_dict_ext.items() if "imagesExternalTs" in v}
 
-    cnt_t1 = 0
+    # # Select the T1w images
+    # t1_images = {k: v for k, v in conversion_dict_ext.items() if "_T1w" in k}
+    # keys = list(t1_images.keys())
+    # np.random.shuffle(keys)
+    # # t1_images = {k: t1_images[k] for k in keys[:n_t1]}
 
-    # iterate over the T1w images
-    for elem in t1_images:
+    # cnt_t1 = 0
+
+    # # iterate over the T1w images
+    # for elem in t1_images:
         
-        # Get the image name and path
-        image_name = elem.split("/")[-1]
-        image_path = t1_images[elem]
-        # Get label and prediction path
-        label_file_name = t1_images[elem].split('/')[-1].replace('_0000', '')
-        label_path = os.path.join(path_to_labels_ext, label_file_name)
-        pred_path = os.path.join(path_to_preds_ext, label_file_name)
-        # check if all the files exist
-        if not os.path.exists(image_path) or not os.path.exists(label_path) or not os.path.exists(pred_path):
-            print("One of the files does not exist")
-            break
+    #     # Get the image name and path
+    #     image_name = elem.split("/")[-1]
+    #     image_path = t1_images[elem]
+    #     # Get label and prediction path
+    #     label_file_name = t1_images[elem].split('/')[-1].replace('_0000', '')
+    #     label_path = os.path.join(path_to_labels_ext, label_file_name)
+    #     pred_path = os.path.join(path_to_preds_ext, label_file_name)
+    #     # check if all the files exist
+    #     if not os.path.exists(image_path) or not os.path.exists(label_path) or not os.path.exists(pred_path):
+    #         print("One of the files does not exist")
+    #         break
 
-        #  We check if both the label and the prediction are not empty segmentation
-        label_data = nib.load(label_path).get_fdata()
-        pred_data = nib.load(pred_path).get_fdata()
-        if np.sum(label_data) == 0 and np.sum(pred_data) == 0:
-            continue
+    #     #  We check if both the label and the prediction are not empty segmentation
+    #     label_data = nib.load(label_path).get_fdata()
+    #     pred_data = nib.load(pred_path).get_fdata()
+    #     if np.sum(label_data) == 0 and np.sum(pred_data) == 0:
+    #         continue
 
-        # We add the count depending on the contrast
-        cnt_t1 += 1
+    #     # We add the count depending on the contrast
+    #     cnt_t1 += 1
 
-        # Initialize the conversion dict output element
-        conversion_dict_output[elem] = {}
-        # Copy the files to the output folder
-        shutil.copy(image_path, os.path.join(image_output_path, image_name))
-        # Save the conversion dict output element
-        conversion_dict_output[elem]['image'] = image_name
-        # For the labels they take image_labelA.nii.gz or image_labelB.nii.gz (with random choice)
-        if np.random.rand() > 0.5:
-            shutil.copy(label_path, os.path.join(label_output_path, image_name.replace('.nii.gz', '_labelA.nii.gz')))
-            conversion_dict_output[elem]['label'] = image_name.replace('.nii.gz', '_labelA.nii.gz')
-            shutil.copy(pred_path, os.path.join(label_output_path, image_name.replace('.nii.gz', '_labelB.nii.gz')))
-            conversion_dict_output[elem]['pred'] = image_name.replace('.nii.gz', '_labelB.nii.gz')
-        else:
-            shutil.copy(label_path, os.path.join(label_output_path, image_name.replace('.nii.gz', '_labelB.nii.gz')))
-            conversion_dict_output[elem]['label'] = image_name.replace('.nii.gz', '_labelB.nii.gz')
-            shutil.copy(pred_path, os.path.join(label_output_path, image_name.replace('.nii.gz', '_labelA.nii.gz')))
-            conversion_dict_output[elem]['pred'] = image_name.replace('.nii.gz', '_labelA.nii.gz')
+    #     # Initialize the conversion dict output element
+    #     conversion_dict_output[elem] = {}
+    #     # Copy the files to the output folder
+    #     shutil.copy(image_path, os.path.join(image_output_path, image_name))
+    #     # Save the conversion dict output element
+    #     conversion_dict_output[elem]['image'] = image_name
+    #     # For the labels they take image_labelA.nii.gz or image_labelB.nii.gz (with random choice)
+    #     if np.random.rand() > 0.5:
+    #         shutil.copy(label_path, os.path.join(label_output_path, image_name.replace('.nii.gz', '_labelA.nii.gz')))
+    #         conversion_dict_output[elem]['label'] = image_name.replace('.nii.gz', '_labelA.nii.gz')
+    #         shutil.copy(pred_path, os.path.join(label_output_path, image_name.replace('.nii.gz', '_labelB.nii.gz')))
+    #         conversion_dict_output[elem]['pred'] = image_name.replace('.nii.gz', '_labelB.nii.gz')
+    #     else:
+    #         shutil.copy(label_path, os.path.join(label_output_path, image_name.replace('.nii.gz', '_labelB.nii.gz')))
+    #         conversion_dict_output[elem]['label'] = image_name.replace('.nii.gz', '_labelB.nii.gz')
+    #         shutil.copy(pred_path, os.path.join(label_output_path, image_name.replace('.nii.gz', '_labelA.nii.gz')))
+    #         conversion_dict_output[elem]['pred'] = image_name.replace('.nii.gz', '_labelA.nii.gz')
 
-        # If the maximum number of images per contrast is reached, we move to the next contrast
-        if cnt_t1 == n_t1:
-            break
+    #     # If the maximum number of images per contrast is reached, we move to the next contrast
+    #     if cnt_t1 == n_t1:
+    #         break
 
     # Save the conversion dict output
     with open(os.path.join(output_path, 'conversion_dict.json'), 'w') as f:

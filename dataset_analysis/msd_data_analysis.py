@@ -3,15 +3,14 @@ This file was created to analyze the msd dataset used for training and testing o
 It takes as input the msd dataset and analysis the properties of the dataset.
 
 Input:
-    --msd-data-path
-    --dataset-path
-    --output-folder
+    --msd-data-path: path to the msd dataset in json format
+    --output-folder: path to the output folder where the analysis will be saved
 
 Output:
     None
 
 Example:
-    python dataset_analysis/msd_data_analysis.py --msd-data-path /path/to/msd/data --dataset-path /path/to/folder/of/datasets --output-folder /path/to/output/folder
+    python dataset_analysis/msd_data_analysis.py --msd-data-path /path/to/msd/data --output-folder /path/to/output/folder
 
 Author: Pierre-Louis Benveniste
 """
@@ -19,18 +18,16 @@ Author: Pierre-Louis Benveniste
 import argparse
 import os
 import json
-import nibabel as nib
 import numpy as np
 from pathlib import Path
-from image import Image
 from tqdm import tqdm
 from loguru import logger
+import pandas as pd
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--msd-data-path', type=str, required=True, help='Path to the MSD dataset')
     parser.add_argument('--output-folder', type=str, required=True, help='Path to the output folder')
-    parser.add_argument('--dataset-path', type=str, required=True, help='Path to the folder containing the datasets')
     return parser.parse_args()
 
 
@@ -39,7 +36,6 @@ def main():
     args = parse_args()
     msd_data_path = args.msd_data_path
     output_folder = args.output_folder
-    dataset_path = args.dataset_path
     
     # Build the output folder
     os.makedirs(output_folder, exist_ok=True)
@@ -58,6 +54,8 @@ def main():
         f.write('')
     logger.add(log_file)
 
+    # Log some basic stuff
+    logger.info(f"MSD dataset: {Path(msd_data_path)}")
     logger.info(f"Number of images: {len(data)}")
     logger.info(f"Number of images for training: {(msd_data['numTraining'])}")
     logger.info(f"Number of images for validation: {(msd_data['numValidation'])}")
@@ -69,60 +67,32 @@ def main():
         if image['contrast'] == 'MEGRE':
             image['contrast'] = 'T2star'
 
-    # Count the number of images per countrast
+    # Count the number of images per contrast
     contrast_count = {}
     for image in data:
         contrast = image['contrast']
         if contrast not in contrast_count:
             contrast_count[contrast] = 0
         contrast_count[contrast] += 1
-    
     logger.info(f"Number of images per contrast: {contrast_count}")
 
-    # Now we will look at the orientation of the images: 
-    logger.info(f"PSIR are 2D sagital images: count PSIR images: {contrast_count['PSIR']}")
-    logger.info(f"STIR are 2D sagital images: count STIR images: {contrast_count['STIR']}")
-    logger.info(f"UNIT1 are 3D images: count UNIT1 images: {contrast_count['UNIT1']}")
-    # We manually checked and all the T1w are 3D images
-    logger.info(f"T1w are 3D images: count T1w images: {contrast_count['T1w']}")
+    # Count the number of images per site
+    site_count = {}
+    for image in data:
+        site = image['site']
+        if site not in site_count:
+            site_count[site] = 0
+        site_count[site] += 1
+    logger.info(f"Number of images per site: {site_count}")
 
-    # Now for more complex cases: T2w and T2star
-    ## For T2w:
-    t2w = [image for image in data if image['contrast'] == 'T2w']
-    count_t2w_ax = 0
-    count_t2w_sag = 0
-    # for file in t2w files, if ax not in name print file name
-    for file in t2w:
-        if 'acq-ax' in file['image'].split('/')[-1]:
-            count_t2w_ax += 1
-        elif 'acq-sag' in file['image'].split('/')[-1]:
-            count_t2w_sag += 1
-        elif 'amuVirg' in file['image'].split('/')[-1]:
-            count_t2w_sag += 1
-        elif 'sub-nyuShepherd' in file['image'].split('/')[-1]:
-            count_t2w_ax += 1
-        elif 'uclCiccarelli' in file['image'].split('/')[-1]:
-            count_t2w_sag += 1
-        else:
-            logger.info(file['image'].split('/')[-1])
-    
-    logger.info(f'For T2w, we have only 2D images: {count_t2w_ax} axial images and {count_t2w_sag} sagital images')
-            
-    ## For T2star:
-    t2star = [image for image in data if image['contrast'] == 'T2star']
-    count_t2star_ax = 0
-    count_t2star_sag = 0
-    # for file in t2star files, if sag not in name print file name
-    for file in t2star:
-        if 'acq-sag' in file['image'].split('/')[-1]:
-            count_t2star_sag += 1
-        else:
-            count_t2star_ax += 1
-    logger.info(f'For T2star, we have only 2D images: {count_t2star_ax} axial images and {count_t2star_sag} sagital images')
-
-    logger.info(f"Total number of 2D sagital images: {count_t2star_sag + count_t2w_sag + contrast_count['PSIR'] + contrast_count['STIR']}")
-    logger.info(f"Total number of 2D axial images: {count_t2star_ax + count_t2w_ax}")
-    logger.info(f"Total number of 3D images: {contrast_count['UNIT1'] + contrast_count['T1w']}")
+    # Count the acquisition of images
+    acquisition_count = {}
+    for image in data:
+        acquisition = image['acquisition']
+        if acquisition not in acquisition_count:
+            acquisition_count[acquisition] = 0
+        acquisition_count[acquisition] += 1
+    logger.info(f"Number of images per acquisition: {acquisition_count}")
 
     # Now we count the number of subjects
     subjects = []
@@ -131,229 +101,25 @@ def main():
         dataset = image['site']
         subject = dataset + '/' + sub
         subjects.append(subject)
-    
     logger.info(f"Number of subjects: {len(set(subjects))}")   
 
     # Print the number of sites:
     logger.info(f"Number of sites: {len(set([image['site'] for image in data]))}")
 
     # Now we will look at the average resolution of the images
-    ## Iterate over the images
     resolutions = []
     for image in tqdm(data):
-        image_reoriented = Image(image['image']).change_orientation('RPI')
-        resolution = image_reoriented.dim[4:7]
-        resolution = [float(res) for res in resolution]
-        resolutions.append(resolution)
-        
+        resolutions.append(image['resolution'])
     logger.info(f"Average resolution (RPI): {np.mean(resolutions, axis=0)}")
     logger.info(f"Std resolution (RPI): {np.std(resolutions, axis=0)}")
     logger.info(f"Median resolution (RPI): {np.median(resolutions, axis=0)}")
     logger.info(f"Minimum pixel dimension (RPI): {np.min(resolutions)}")
     logger.info(f"Maximum pixel dimension (RPI): {np.max(resolutions)}")
 
-    logger.info("-------------------------------------")
-
-    # #############################################################
-    # Now we can look at the external testing dataset umass*
-    path_umass_1 = os.path.join(dataset_path, 'umass-ms-ge-hdxt1.5')
-    path_umass_2 = os.path.join(dataset_path, 'umass-ms-ge-pioneer3')
-    path_umass_3 = os.path.join(dataset_path, 'umass-ms-siemens-espree1.5')
-    path_umass_4 = os.path.join(dataset_path, 'umass-ms-ge-excite1.5')
-
-    # We count all the segmentation files in both using rglob
-    umass_1 = list(Path(path_umass_1).rglob("*.nii.gz"))
-    umass_2 = list(Path(path_umass_2).rglob("*.nii.gz"))
-    umass_3 = list(Path(path_umass_3).rglob("*.nii.gz"))
-    umass_4 = list(Path(path_umass_4).rglob("*.nii.gz"))
-
-    umass_1 = [image for image in umass_1 if 'SHA256E' not in str(image)]
-    umass_2 = [image for image in umass_2 if 'SHA256E' not in str(image)]
-    umass_3 = [image for image in umass_3 if 'SHA256E' not in str(image)]
-    umass_4 = [image for image in umass_4 if 'SHA256E' not in str(image)]
-
-    # for each we remove the 3 images 'sub-ms1115_ses-01_acq-ax_ce-gad_T1w', 'sub-ms1098_ses-01_acq-ax_ce-gad_T1w' and 'sub-ms1234_ses-03_acq-ax_ce-gad_T1w'
-    umass_1 = [image for image in umass_1 if 'sub-ms1115_ses-01_acq-ax_ce-gad_T1w' not in str(image)]
-    umass_1 = [image for image in umass_1 if 'sub-ms1098_ses-01_acq-ax_ce-gad_T1w' not in str(image)]
-    umass_1 = [image for image in umass_1 if 'sub-ms1234_ses-03_acq-ax_ce-gad_T1w' not in str(image)]
-    umass_2 = [image for image in umass_2 if 'sub-ms1115_ses-01_acq-ax_ce-gad_T1w' not in str(image)]
-    umass_2 = [image for image in umass_2 if 'sub-ms1098_ses-01_acq-ax_ce-gad_T1w' not in str(image)]
-    umass_2 = [image for image in umass_2 if 'sub-ms1234_ses-03_acq-ax_ce-gad_T1w' not in str(image)]
-    umass_3 = [image for image in umass_3 if 'sub-ms1115_ses-01_acq-ax_ce-gad_T1w' not in str(image)]
-    umass_3 = [image for image in umass_3 if 'sub-ms1098_ses-01_acq-ax_ce-gad_T1w' not in str(image)]
-    umass_3 = [image for image in umass_3 if 'sub-ms1234_ses-03_acq-ax_ce-gad_T1w' not in str(image)]
-    umass_4 = [image for image in umass_4 if 'sub-ms1115_ses-01_acq-ax_ce-gad_T1w' not in str(image)]
-    umass_4 = [image for image in umass_4 if 'sub-ms1098_ses-01_acq-ax_ce-gad_T1w' not in str(image)]
-    umass_4 = [image for image in umass_4 if 'sub-ms1234_ses-03_acq-ax_ce-gad_T1w' not in str(image)]
-
-    # We don't want PDw images 
-    umass_1 = [image for image in umass_1 if 'PD' not in str(image)]
-    umass_2 = [image for image in umass_2 if 'PD' not in str(image)]
-    umass_3 = [image for image in umass_3 if 'PD' not in str(image)]
-    umass_4 = [image for image in umass_4 if 'PD' not in str(image)]
-
-    # Initialize the seed
-    seed = np.random.RandomState(42)
-
-    # We randomly keep 5 images from each dataset
-    umass_1 = seed.choice(umass_1, 5, replace=False)
-    umass_1 = list(umass_1)
-    umass_2 = seed.choice(umass_2, 5, replace=False)
-    umass_2 = list(umass_2)
-    umass_3 = seed.choice(umass_3, 5, replace=False)
-    umass_3 = list(umass_3)
-    umass_4 = seed.choice(umass_4, 5, replace=False)
-    umass_4 = list(umass_4)
-
-    # Concatenate all the lists
-    umass = umass_1 + umass_2 + umass_3 + umass_4
-
-    list_contrast_umass = [str(image).split("/")[-1].split('_')[-1].split('.')[0] for image in umass]
-
-    logger.info(f"Number of images in umass: {len(umass)}")
-    logger.info(f"Contrast in umass: {set(list_contrast_umass)}")
-    # Print the number of each contrast
-    contrast_count_umass = {}
-    for contrast in set(list_contrast_umass):
-        contrast_count_umass[contrast] = list_contrast_umass.count(contrast)
-    logger.info(f"Number of images per contrast in umass: {contrast_count_umass}")
-
-    # Now we count the number of subjects
-    subjects_umass = []
-    for image in umass:
-        sub = str(image).split("/")[-1].split('_')[0]
-        dataset = str(image).split('/data/')[1].split('/')[0]
-        subject = dataset + '/' + sub
-        subjects_umass.append(subject)
-
-    logger.info(f"Number of subjects in umass: {len(set(subjects_umass))}")
-
-    logger.info("Number of sites in umass: 4")
-
-    # Now we look at orientation of the images
-    count_umass_ax = 0
-    count_umass_sag = 0
-    count_umass_3d = 0
-    for image in umass:
-        if 'acq-ax' in str(image):
-            count_umass_ax += 1
-        else:
-            # we can open the json sidecar
-            sidecar = str(image).replace('.nii.gz', '.json')
-            with open(sidecar, 'r') as f:
-                metadata = json.load(f)
-            if metadata['MRAcquisitionType'] == '3D':
-                count_umass_3d += 1
-            elif 'sag' in metadata['SeriesDescription'] or 'Sag' in metadata['SeriesDescription'] or 'SAG' in metadata['SeriesDescription']:
-                count_umass_sag += 1
-            else:
-                logger.info(f"Unknown orientation: {image}")
-    logger.info(f'For umass, we have {count_umass_ax} axial images, {count_umass_sag} sagital images and {count_umass_3d} 3D images')
-
-
-    # Now we will look at the average resolution of the images
-    ## Iterate over the images
-    resolutions_umass = []
-    for image in umass:
-        image_reoriented = Image(str(image)).change_orientation('RPI')
-        resolution = image_reoriented.dim[4:7]
-        resolution = [float(res) for res in resolution]
-        resolutions_umass.append(resolution)
-        
-    logger.info(f"Average resolution (RPI): {np.mean(resolutions_umass, axis=0)}")
-    logger.info(f"Std resolution (RPI): {np.std(resolutions_umass, axis=0)}")
-    logger.info(f"Median resolution (RPI): {np.median(resolutions_umass, axis=0)}")
-    logger.info(f"Minimum pixel dimension (RPI): {np.min(resolutions_umass)}")
-    logger.info(f"Maximum pixel dimension (RPI): {np.max(resolutions_umass)}")
-
-    logger.info("-------------------------------------")
-
-    #############################################################
-    # Now we can look at the external testing dataset ms-nmo-beijing
-    path_beijing = os.path.join(dataset_path, 'ms-nmo-beijing')
-    
-    beijing = list(Path(path_beijing).rglob("*/anat/*.nii.gz"))
-
-    # Keep only T1w images
-    beijing = [image for image in beijing if 'T1w' in str(image)]
-    # Remove Localizer images
-    beijing = [image for image in beijing if 'Localizer' not in str(image)]
-    beijing = [image for image in beijing if 'localizer' not in str(image)]
-    # Keep only the MS patients
-    beijing = [image for image in beijing if 'sub-MS' in str(image)]
-
-    # We only keep 20 images from the dataset
-    seed = np.random.RandomState(42)
-    beijing = seed.choice(beijing, 20, replace=False)
-
-    list_contrast_beijing = [str(image).split("/")[-1].split('_')[-1].split('.')[0] for image in beijing]
-
-    logger.info(f"Number of images in beijing: {len(beijing)}")
-    logger.info(f"Contrast in beijing: {set(list_contrast_beijing)}")
-    # Print the number of each contrast
-    contrast_count_beijing = {}
-    for contrast in set(list_contrast_beijing):
-        contrast_count_beijing[contrast] = list_contrast_beijing.count(contrast)
-    logger.info(f"Number of images per contrast in beijing: {contrast_count_beijing}")
-
-    # We look at the orientation
-    count_beijing_ax = 0
-    count_beijing_sag = 0
-    count_beijing_3d = 0
-    for image in beijing:
-        # open json sidecar
-        sidecar = str(image).replace('.nii.gz', '.json')
-        with open(sidecar, 'r') as f:
-            metadata = json.load(f)
-        if metadata['MRAcquisitionType'] == '3D':
-            count_beijing_3d += 1
-        elif 'tra' in metadata['SeriesDescription']:
-            count_beijing_ax += 1
-        elif 'sag' in metadata['SeriesDescription'] or 'SAG' in metadata['SeriesDescription']:
-            count_beijing_sag += 1
-        else:
-            logger.info(f"Unknown orientation: {image}")
-    logger.info(f'For beijing, we have {count_beijing_ax} axial images, {count_beijing_sag} sagital images and {count_beijing_3d} 3D images')
-
-    # Now we count the number of subjects
-    subjects_beijing = []
-    for image in beijing:
-        sub = str(image).split("/")[-1].split('_')[0]
-        subjects_beijing.append(sub)
-    logger.info(f"Number of subjects in beijing: {len(set(subjects_beijing))}")
-
-    logger.info("Number of sites in beijing: 1")
-
-    # Now we will look at the average resolution of the images
-    ## Iterate over the images
-    resolutions_beijing = []
-    for image in beijing:
-        image_reoriented = Image(str(image)).change_orientation('RPI')
-        resolution = image_reoriented.dim[4:7]
-        resolution = [float(res) for res in resolution]
-        resolutions_beijing.append(resolution)
-
-        
-    logger.info(f"Average resolution (RPI): {np.mean(resolutions_beijing, axis=0)}")
-    logger.info(f"Std resolution (RPI): {np.std(resolutions_beijing, axis=0)}")
-    logger.info(f"Median resolution (RPI): {np.median(resolutions_beijing, axis=0)}")
-    logger.info(f"Minimum pixel dimension (RPI): {np.min(resolutions_beijing)}")
-    logger.info(f"Maximum pixel dimension (RPI): {np.max(resolutions_beijing)}")
-
-    logger.info("-------------------------------------")
-    logger.info("-------------------------------------")
-
-    logger.info(f"Total number of images: {len(data) + len(umass) + len(beijing)}")
-    logger.info(f"Total number of subjects: {len(set(subjects)) + len(set(subjects_umass)) + len(set(subjects_beijing))}")
-    logger.info(f"Total number of sites: {len(set([image['site'] for image in data])) + 4 + 1}")
-
-    logger.info(f"Total number of sagital images: {count_t2star_sag + count_t2w_sag + contrast_count['PSIR'] + contrast_count['STIR'] +  count_umass_sag + count_beijing_sag}")
-    logger.info(f"Total number of axial images: {count_t2star_ax + count_t2w_ax + count_umass_ax + count_beijing_ax}")
-    logger.info(f"Total number of 3D images: {contrast_count['UNIT1'] + contrast_count['T1w'] + count_umass_3d + count_beijing_3d}")
-
-    # Field strength
+    # Now we count the field strength of the images
     field_strength = []
-    for image in data:
+    count_field_strength = {}
+    for image in tqdm(data):
         sidecar = image['image'].replace('.nii.gz', '.json')
         # if the sidecar does not exist, we skip the image
         if not os.path.exists(sidecar):
@@ -367,11 +133,78 @@ def main():
         if "MagneticFieldStrength" not in metadata:
             continue
         field_strength.append(metadata["MagneticFieldStrength"])
-        # if field strength is 1.5 print the image
-        if metadata["MagneticFieldStrength"] == 1.5:
-            ok =1 
-            # logger.info(image['image'])
+        # Count the field strength
+        if metadata["MagneticFieldStrength"] not in count_field_strength:
+            count_field_strength[metadata["MagneticFieldStrength"]] = 0
+        count_field_strength[metadata["MagneticFieldStrength"]] += 1
     logger.info(f"Field strength for MSD dataset: {set(field_strength)}")
+    logger.info(f"Count of field strength for MSD dataset: {count_field_strength}")
+
+    logger.info("-------------------------------------")
+
+    # Now we want to display the following table : 
+    # | Site      | Contrast | Acquisition | Orientation | Count | Avg resolution (RPI) | Number of subjects |
+    # |-----------|----------|-------------|-------------|-------|----------------------|--------------------|
+    # | canproco  | PSIR     | 2D          | sagittal    | 100   | 0.1x0.1x0.5          | 100                |
+    # | canproco  | PSIR     | 2D          | axial       | 65    | 0.1x0.1x0.5          | 65                 |
+    # | canproco  | STIR     | 2D          | sagittal    | 200   | 0.5x0.5x0.6          | 200                |
+    # | canproco  | /        | /           | /           | 365   | 0.4x0.4x0.55         | 200                |
+
+    # Create a pandas DataFrame to store the data
+    df = pd.DataFrame(columns=['Site', 'Contrast', 'Acquisition', 'Orientation', 'Count', 'Avg resolution (R-L)', 'Avg resolution (P-A)', 'Avg resolution (I-S)', 'Number of subjects'])
+    ## Add the data to the DataFrame
+    for image in data:
+        dataset = image['site']
+        contrast = image['contrast']
+        # For acquisition, if 3D ok, if sag or axial, then 2D
+        if image['acquisition'] == '3D':
+            acquisition = '3D'
+        elif image['acquisition'] in ['sag', 'ax']:
+            acquisition = '2D'
+        # for orientation, if axial or sagittal, then we keep it, else we put /
+        if image['acquisition'] in ['ax', 'sag']:
+            orientation = image['acquisition']
+        else:
+            orientation = '/'
+        resolution = image['resolution']
+        sub = image['image'].split('/')[-1].split('_')[0]
+        subject = dataset + '/' + sub
+        # Add the data to the DataFrame
+        new_row = {
+            'Site': dataset,
+            'Contrast': contrast,
+            'Acquisition': acquisition,
+            'Orientation': orientation,
+            'Count': 1,
+            'Avg resolution (R-L)': resolution[0],
+            'Std resolution (R-L)': resolution[0],
+            'Avg resolution (P-A)': resolution[1],
+            'Std resolution (P-A)': resolution[1],
+            'Avg resolution (I-S)': resolution[2],
+            'Std resolution (I-S)': resolution[2],
+            'Number of subjects': subject
+        }
+        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+    # Group the DataFrame by Site, Contrast, Acquisition, Orientation and sum the Count and Number of subjects and average the Avg resolution (RPI)
+    df_grouped = df.groupby(['Site', 'Contrast', 'Acquisition', 'Orientation']).agg({
+        'Count': 'sum',
+        'Avg resolution (R-L)': 'mean',
+        'Std resolution (R-L)': 'std',
+        'Avg resolution (P-A)': 'mean',
+        'Std resolution (P-A)': 'std',
+        'Avg resolution (I-S)': 'mean',
+        'Std resolution (I-S)': 'std',
+        'Number of subjects': 'nunique'
+    })
+    # Reset the index
+    df_grouped = df_grouped.reset_index()
+    # Log the DataFrame
+    logger.info("DataFrame with the number of images per site, contrast, acquisition and orientation:")
+    logger.info(df_grouped.to_string(index=False))
+
+    # Also saver the DataFrame to a csv file
+    csv_file = os.path.join(output_folder, 'csv_file.csv')
+    df_grouped.to_csv(csv_file, index=False)
 
     return None
 

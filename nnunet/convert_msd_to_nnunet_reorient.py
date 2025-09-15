@@ -152,7 +152,7 @@ def main():
         assert os.system(f"rm {other_file_to_remove}") ==0
 
         # Then we binarize the label
-        assert os.system(f"sct_maths -i {str(label_file_nnunet)} -bin 0. -o {str(label_file_nnunet)}") ==0
+        assert os.system(f"sct_maths -i {str(label_file_nnunet)} -bin 0.5 -o {str(label_file_nnunet)}") ==0
 
     # Display of number of training and number of testing images
     print("Number of images for training: " + str(scan_cnt_train))

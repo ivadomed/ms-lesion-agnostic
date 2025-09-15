@@ -17,6 +17,8 @@ Author: Pierre-Louis Benveniste
 import os
 import argparse
 from pathlib import Path
+import json
+from tqdm import tqdm
 
 
 def parse_args():
@@ -24,6 +26,8 @@ def parse_args():
     parser.add_argument('--path-img', type=str, required=True, help='Path to the images')
     parser.add_argument('--path-seg', type=str, required=True, help='Path to the segmentations')
     parser.add_argument('--path-out', type=str, required=True, help='Path to the output folder')
+    parser.add_argument('--path-sc-seg', type=str, required=True, help='Path to the spinal cord segmentations (optional)')
+    parser.add_argument('--path-msd-data', type=str, required=True, help='Path to the MSD data (optional)')
     return parser.parse_args()
 
 
@@ -33,37 +37,45 @@ def main():
     path_img = args.path_img
     path_seg = args.path_seg
     path_out = args.path_out
-
-    path_sc_seg = os.path.join(path_out, 'sc_segs')
+    path_sc_seg = args.path_sc_seg
+    path_msd_data = args.path_msd_data
 
     # Create output folder
     if not os.path.exists(path_out):
         os.makedirs(path_out)
-    if not os.path.exists(path_sc_seg):
-        os.makedirs(path_sc_seg)
+    
+    # Open the msd dataset:
+    # Load the data json file
+    with open(path_msd_data, 'r') as f:
+        jsondata = json.load(f)
+    msdData = jsondata['train'] + jsondata['validation'] + jsondata['test'] + jsondata['externalValidation']
     
     # Iterate over the segmentations rglob
     list_segmentations = list(Path(path_seg).rglob('*.nii.gz'))
     # sort the list by name
     list_segmentations.sort()
-    for seg in list_segmentations:
+    for seg in tqdm(list_segmentations):
         # Get the corresponding image
         img = seg.name.replace('_labelA', '').replace('_labelB', '')
         img = os.path.join(path_img, img)
 
-        # For each image we segment the spinal cord
-        sc_seg = os.path.join(path_sc_seg, Path(img).name)
-        if not os.path.exists(sc_seg):
-            os.system(f'sct_deepseg -i {img} -task seg_sc_contrast_agnostic -o {sc_seg}')
+        # For each image we find the corresponding segmentation
+        ## We need to find the site of the image
+        sub = [data for data in msdData if Path(data["image"]).name == Path(img).name][0]
+        sc_seg = os.path.join(path_sc_seg, sub['site'], Path(img).name.replace('.nii.gz', '_seg-manual.nii.gz'))
+        # Check if the image exists
+        if not os.path.exists(img):
+            print(f'Image {img} does not exist, skipping...')
+            break
 
         # Determine the plane
-        if 'sag' in img or 'PSIR' in img or 'STIR' in img:
+        if 'sag' in sub["acquisition"]:
             plane = 'sagittal'
         else :
             plane = 'axial'
 
-        # Generate the QC
-        os.system(f'sct_qc -i {img} -s {sc_seg} -d {seg} -qc {path_out} -p sct_deepseg_lesion -plane {plane}')
+        # # Generate the QC
+        assert os.system(f'sct_qc -i {img} -s {sc_seg} -d {seg} -qc {path_out} -p sct_deepseg_lesion -plane {plane}') == 0
 
     print('QC generated')
 
