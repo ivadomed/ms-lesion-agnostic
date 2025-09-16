@@ -63,6 +63,8 @@ def main():
         contrast = i['contrast']
         if contrast == 'MEGRE':
             contrast = 'T2*w'
+        if contrast == 'T2star':
+            contrast = 'T2*w'
         
         # Add the element to the df
         df = pd.concat([df, pd.DataFrame({'site': [site], 'acquisition': [acquisition], 'contrast': [contrast]})], ignore_index=True)
