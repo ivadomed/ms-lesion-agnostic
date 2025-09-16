@@ -169,6 +169,8 @@ def main():
     ## Add the data to the DataFrame
     for image in data:
         dataset = image['site']
+        if dataset == 'canproco':
+            dataset = 'canproco-'+image['image'].split('/')[-1][4:7]
         contrast = image['contrast']
         # For acquisition, if 3D ok, if sag or axial, then 2D
         if image['acquisition'] == '3D':
@@ -221,28 +223,6 @@ def main():
     # Also saver the DataFrame to a csv file
     csv_file = os.path.join(output_folder, 'csv_file.csv')
     df_grouped.to_csv(csv_file, index=False)
-
-    # For canproco images, we want to split per site:
-    site_canproco = {}
-    subjects_sites_canproco = {}
-    contrast_sites_canproco = {}
-    data_canproco = [image for image in data if image['site'] == 'canproco']
-    for image in tqdm(data_canproco):
-        site = image['image'].split('/')[-1][4:7]
-        sub = image['image'].split('/')[-1][7:10]
-        contrast = image['contrast']
-        if site not in site_canproco:
-            site_canproco[site] = []
-            subjects_sites_canproco[site] = set()
-            contrast_sites_canproco[site] = set()
-        site_canproco[site].append(image)
-        subjects_sites_canproco[site].add(sub)
-        contrast_sites_canproco[site].add(contrast)
-    for site in site_canproco:
-        logger.info(f"Site: {site}")
-        logger.info(f"Number of images for site {site}: {len(site_canproco[site])}")
-        logger.info(f"Number of subjects for site {site}: {len(subjects_sites_canproco[site])}")
-        logger.info(f"Number of contrasts for site {site}: {(contrast_sites_canproco[site])}")
 
     return None
 

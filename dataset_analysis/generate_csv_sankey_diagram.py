@@ -49,6 +49,9 @@ def main():
     # For each element in the json file add the element to the df
     for i in subjects:
         site = i['site']
+        # If the site is canproco, we split it into the 5 site corresponds sites
+        if site=='canproco':
+            site = 'canproco_'+i['image'].split('/')[-1][4:7]
         acquisition = i['acquisition']
         if acquisition == 'ax':
             acquisition = '2D axial'
