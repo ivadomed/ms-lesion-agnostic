@@ -47,6 +47,9 @@ def main():
     # Get data
     data = msd_data['train'] + msd_data['validation'] + msd_data['test'] + msd_data['externalValidation']
 
+    # We do not want to count the file from sct-testing-large--user as it is not relevant
+    data = [d for d in data if 'sct-testing-large--user' not in d['site']]
+
     # Create the logger file
     log_file = os.path.join(output_folder, f'{Path(msd_data_path).name.split(".json")[0]}_analysis.txt')
     # Clear the log file
@@ -169,6 +172,7 @@ def main():
     ## Add the data to the DataFrame
     for image in data:
         dataset = image['site']
+        # We split canproco into the 5 sites
         if dataset == 'canproco':
             dataset = 'canproco-'+image['image'].split('/')[-1][4:7]
         contrast = image['contrast']

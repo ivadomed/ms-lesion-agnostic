@@ -43,6 +43,9 @@ def main():
 
     subjects = data['train'] + data['validation'] + data['test'] + data['externalValidation']
 
+    # We do not want to count the file from sct-testing-large--user as it is not relevant
+    data = [d for d in subjects if 'sct-testing-large--user' not in d['site']]
+
     # Create a panda df with columns site (numbered sites), acquisition and contrast
     df = pd.DataFrame()
 
