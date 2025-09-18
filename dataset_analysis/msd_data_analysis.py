@@ -70,6 +70,19 @@ def main():
         if image['contrast'] == 'MEGRE':
             image['contrast'] = 'T2star'
 
+    # Correction found with Julien on 20250917 : reported here: https://docs.google.com/presentation/d/1Fin0Mr7OcDU1z4X9N5y05qTmvVlzda9-q_yz3wnPvAY/edit?slide=id.p#slide=id.p
+    for image in data:
+        if image['site'] == 'sct-testing-large--amuVirginie' and image['contrast'] == 'T2w' and image['acquisition'] == '3D':
+            image['acquisition'] = '3D_sag'
+        elif image['site'] == 'ms-basel-2018' and image['contrast'] == 'T1w' and image['acquisition'] == '3D':
+            image['acquisition'] = '3D_sag'
+        elif image['site'] == 'basel-mp2rage' and image['contrast'] == 'UNIT1' and image['acquisition'] == '3D':
+            image['acquisition'] = '3D_sag'
+        elif image['site'] == 'nih-ms-mp2rage' and image['contrast'] == 'UNIT1':
+            image['acquisition'] = '3D_sag'
+        elif image['site'] == 'sct-testing-large--nihReich' and image['contrast'] == 'T2w':
+            image['acquisition'] = 'sag'
+
     # Count the number of images per contrast
     contrast_count = {}
     for image in data:
@@ -118,6 +131,23 @@ def main():
     logger.info(f"Median resolution (RPI): {np.median(resolutions, axis=0)}")
     logger.info(f"Minimum pixel dimension (RPI): {np.min(resolutions)}")
     logger.info(f"Maximum pixel dimension (RPI): {np.max(resolutions)}")
+
+    # We also count the number of subjects per site
+    subjects_per_site = {}
+    for image in data:
+        dataset = image['site']
+        # We split canproco into the 5 sites
+        if dataset == 'canproco':
+            dataset = 'canproco-'+image['image'].split('/')[-1][4:7]
+        sub = image['image'].split('/')[-1].split('_')[0]
+        subject = dataset + '/' + sub
+        if dataset not in subjects_per_site:
+            subjects_per_site[dataset] = set()
+        subjects_per_site[dataset].add(subject)
+    # Convert the sets to counts
+    for site in subjects_per_site:
+        subjects_per_site[site] = len(subjects_per_site[site])
+    logger.info(f"\n Number of subjects per site: {subjects_per_site}")
 
     # Now we count the field strength of the images
     field_strength = []
@@ -177,13 +207,15 @@ def main():
             dataset = 'canproco-'+image['image'].split('/')[-1][4:7]
         contrast = image['contrast']
         # For acquisition, if 3D ok, if sag or axial, then 2D
-        if image['acquisition'] == '3D':
+        if image['acquisition'] == '3D' or image['acquisition'] == '3D_sag':
             acquisition = '3D'
         elif image['acquisition'] in ['sag', 'ax']:
             acquisition = '2D'
         # for orientation, if axial or sagittal, then we keep it, else we put /
-        if image['acquisition'] in ['ax', 'sag']:
+        if image['acquisition'] in ['ax', 'sag', '3D_sag']:
             orientation = image['acquisition']
+            if orientation == '3D_sag':
+                orientation = 'sag'
         else:
             orientation = '/'
         resolution = image['resolution']
@@ -220,11 +252,16 @@ def main():
     })
     # Reset the index
     df_grouped = df_grouped.reset_index()
+    # We add the number of subjects per site
+    subjects_per_site_series = pd.Series(subjects_per_site, name='# Participants')
+    df_grouped = df_grouped.merge(subjects_per_site_series, left_on='Site', right_index=True, how='left')
+    # Reorder the columns
+    df_grouped = df_grouped[['Site','# Participants','Field strength', 'Contrast', 'Acquisition', 'Orientation', 'Avg resolution (R-L)', 'Std resolution (R-L)', 'Avg resolution (P-A)', 'Std resolution (P-A)', 'Avg resolution (I-S)', 'Std resolution (I-S)', 'Count']]
     # Log the DataFrame
     logger.info("DataFrame with the number of images per site, contrast, acquisition, orientation and field strength:")
     logger.info(df_grouped.to_string(index=False))
 
-    # Also saver the DataFrame to a csv file
+    # Also save the DataFrame to a csv file
     csv_file = os.path.join(output_folder, 'csv_file.csv')
     df_grouped.to_csv(csv_file, index=False)
 

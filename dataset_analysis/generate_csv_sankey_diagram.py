@@ -44,8 +44,8 @@ def main():
     subjects = data['train'] + data['validation'] + data['test'] + data['externalValidation']
 
     # We do not want to count the file from sct-testing-large--user as it is not relevant
-    data = [d for d in subjects if 'sct-testing-large--user' not in d['site']]
-
+    subjects = [d for d in subjects if 'sct-testing-large--user' not in d['site']]
+    
     # Create a panda df with columns site (numbered sites), acquisition and contrast
     df = pd.DataFrame()
 
@@ -55,6 +55,10 @@ def main():
         # If the site is canproco, we split it into the 5 site corresponds sites
         if site=='canproco':
             site = 'canproco_'+i['image'].split('/')[-1][4:7]
+        # We correct the following site
+        if i['site'] == 'sct-testing-large--nihReich' and i['contrast'] == 'T2w':
+            i['acquisition'] = 'sag'
+        # Reformat acquisition and contrast
         acquisition = i['acquisition']
         if acquisition == 'ax':
             acquisition = '2D axial'
