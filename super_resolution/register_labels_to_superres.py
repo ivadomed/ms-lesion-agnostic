@@ -62,15 +62,18 @@ def main():
         if not image_file.exists():
             print(f"Warning: Corresponding image for {label_file} not found. Skipping.")
             break
+        
+        # Build the output label file path
+        output_label_file = Path(output_dir) / Path(label_file).name
+        if output_label_file.exists():
+            print(f"Warning: Output file {output_label_file} already exists. Skipping.")
+            continue
 
         # Build a temporary folder to store intermediate results
         label_number = str(label_file).split("_")[-1].replace(".nii.gz", "")
         temp_folder = Path(output_dir) / f"temp_{label_number}"
         os.makedirs(temp_folder, exist_ok=True)
-        
         output_temp_file = temp_folder / Path(label_file).name
-        output_label_file = Path(output_dir) / Path(label_file).name
-
 
         # Run the registration command
         command = f"sct_register_multimodal -i {label_file} -d {image_file} -o {output_temp_file} -identity 1 -x nn"
