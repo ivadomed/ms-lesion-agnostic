@@ -177,5 +177,41 @@ def main():
         stat, p = wilcoxon(rater_data['manual_score'], rater_data['predicted_score'])
         print(f"  {rater} - {rater_ID} : Wilcoxon test statistic = {stat:.2f}, p-value = {p:.2f}")
 
+    # Then we create another plot which just shows the global distribution of the scores for pred and manual (without separating by rater)
+    # Rename columns score_type for better legend
+    plot_df['score_type'] = plot_df['score_type'].map({'manual_score': 'Manual', 'predicted_score': 'Predicted'})
+    sns.set_palette(sns.color_palette(['lime', 'yellow']))
+    plt.figure(figsize=(7, 7))
+    plt.ylim(-0.5, 6.5)
+    plt.yticks(np.arange(1, 6, 1))
+    plt.grid(axis='y', linestyle='--', alpha=0.4)
+    # Violin plot avec style similaire à ton exemple
+    sns.violinplot(
+        data=plot_df,
+        x="score_type",
+        y="score",
+        hue="score_type",
+        split=True,
+        gap=0.001,         # espace entre les deux distributions
+        inner="quart"    # quartiles visibles
+    )
+    # Add mean line/point for manual and predicted
+    sns.pointplot(
+        data=plot_df,
+        x="score_type",
+        y="score",
+        hue="score_type",
+        dodge=0.15,       # slight horizontal separation
+        join=False,      # no connecting line
+        markers="_",     # use a short horizontal line
+        color="black",   # color for mean marker
+        errwidth=0,       # no error bars      
+    )
+    plt.title('Manual vs predicted segmentation Likert scores')
+    plt.ylabel('Score')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "violin_plot_global.png"))
+    plt.close()
+
 if __name__ == '__main__':
     main()
