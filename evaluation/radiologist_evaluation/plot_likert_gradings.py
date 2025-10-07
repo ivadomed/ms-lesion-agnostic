@@ -23,6 +23,7 @@ from pathlib import Path
 import seaborn as sns
 from scipy.stats import wilcoxon
 import os
+from sklearn.metrics import cohen_kappa_score
 
 
 def parse_args():
@@ -176,6 +177,179 @@ def main():
         rater_ID = rater_mapping[rater]
         stat, p = wilcoxon(rater_data['manual_score'], rater_data['predicted_score'])
         print(f"  {rater} - {rater_ID} : Wilcoxon test statistic = {stat:.2f}, p-value = {p:.2f}")
+
+    # Then we create another plot which just shows the global distribution of the scores for pred and manual (without separating by rater)
+    # Rename columns score_type for better legend
+    plot_df['score_type'] = plot_df['score_type'].map({'manual_score': 'Manual', 'predicted_score': 'Predicted'})
+    sns.set_palette(sns.color_palette(['lime', 'yellow']))
+    plt.figure(figsize=(7, 7))
+    plt.ylim(-0.5, 6.5)
+    plt.yticks(np.arange(1, 6, 1))
+    plt.grid(axis='y', linestyle='--', alpha=0.4)
+    # Violin plot avec style similaire à ton exemple
+    sns.violinplot(
+        data=plot_df,
+        x="score_type",
+        y="score",
+        hue="score_type",
+        split=True,
+        gap=0.001,         # espace entre les deux distributions
+        inner="quart"    # quartiles visibles
+    )
+    # Add mean line/point for manual and predicted
+    sns.pointplot(
+        data=plot_df,
+        x="score_type",
+        y="score",
+        hue="score_type",
+        dodge=0.15,       # slight horizontal separation
+        join=False,      # no connecting line
+        markers="_",     # use a short horizontal line
+        color="black",   # color for mean marker
+        errwidth=0,       # no error bars      
+    )
+    plt.title('Manual vs predicted segmentation Likert scores')
+    plt.ylabel('Score')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "violin_plot_global.png"))
+    plt.close()
+
+    # We now perform inter-rater Kappa agreement computed separately for manual and predicted
+    print("\n--------Inter-rater agreement (Cohen's Kappa) separately for manual and predicted")
+    kappa_manual_matrix = np.zeros((len(raters), len(raters)))
+    kappa_pred_matrix = np.zeros((len(raters), len(raters)))
+    for i, rater1 in enumerate(raters):
+        for j, rater2 in enumerate(raters):
+            if j < i:
+                rater1_data = combined_results[combined_results['rater'] == rater1]
+                rater2_data = combined_results[combined_results['rater'] == rater2]
+                # Merge the two dataframes on image
+                merged_data = pd.merge(rater1_data, rater2_data, on='image', suffixes=('_rater1', '_rater2'))
+                kappa_manual = cohen_kappa_score(merged_data['manual_score_rater1'], merged_data['manual_score_rater2'])
+                kappa_pred = cohen_kappa_score(merged_data['predicted_score_rater1'], merged_data['predicted_score_rater2'])
+                rater1_ID = rater_mapping[rater1]
+                rater2_ID = rater_mapping[rater2]
+                kappa_manual_matrix[i, j] = kappa_manual
+                kappa_pred_matrix[i, j] = kappa_pred
+                print(f"  {rater1} - {rater1_ID} vs {rater2} - {rater2_ID} : Kappa Manual = {kappa_manual:.2f}, Kappa Predicted = {kappa_pred:.2f}")
+            else:
+                kappa_manual_matrix[i, j] = np.nan
+                kappa_pred_matrix[i, j] = np.nan
+    # We plot the above in a heatmap:
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(kappa_manual_matrix, xticklabels=[rater_mapping[r] for r in raters], yticklabels=[rater_mapping[r] for r in raters], annot=True, vmin=0, vmax=1, cmap='viridis')
+    plt.yticks(rotation=0)
+    plt.title('Cohen\'s Kappa - Manual Scores')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "kappa_manual_heatmap.png"))
+    plt.close()
+
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(kappa_pred_matrix, xticklabels=[rater_mapping[r] for r in raters], yticklabels=[rater_mapping[r] for r in raters], annot=True, vmin=0, vmax=1, cmap='viridis')
+    plt.title('Cohen\'s Kappa - Predicted Scores')
+    plt.yticks(rotation=0)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "kappa_predicted_heatmaps.png"))
+    plt.close()
+
+    # We now perform inter-rater Kappa agreement per rater without separating manual and predicted (all in same column)
+    print("\n--------Inter-rater agreement (Cohen's Kappa) on all scores")
+    kappa_all_matrix = np.zeros((len(raters), len(raters)))
+    for i, rater1 in enumerate(raters):
+        for j, rater2 in enumerate(raters):
+            if j < i:
+                rater1_data = combined_results[combined_results['rater'] == rater1]
+                rater2_data = combined_results[combined_results['rater'] == rater2]
+                # Merge the two dataframes on image
+                merged_data = pd.merge(rater1_data, rater2_data, on='image', suffixes=('_rater1', '_rater2'))
+                all_scores_rater1 = pd.concat([merged_data['manual_score_rater1'], merged_data['predicted_score_rater1']])
+                all_scores_rater2 = pd.concat([merged_data['manual_score_rater2'], merged_data['predicted_score_rater2']])
+                kappa_all = cohen_kappa_score(all_scores_rater1, all_scores_rater2)
+                rater1_ID = rater_mapping[rater1]
+                rater2_ID = rater_mapping[rater2]
+                kappa_all_matrix[i, j] = kappa_all
+                print(f"  {rater1} - {rater1_ID} vs {rater2} - {rater2_ID} : Kappa All Scores = {kappa_all:.2f}")
+            else:
+                kappa_all_matrix[i, j] = np.nan
+    # Print mean kappa_all +- std
+    mean_kappa_all = np.nanmean(kappa_all_matrix)
+    std_kappa_all = np.nanstd(kappa_all_matrix)
+    print(f"Mean Cohen's Kappa on all scores: {mean_kappa_all:.2f} ± {std_kappa_all:.2f}")
+    # We plot the above in a heatmap:
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(kappa_all_matrix, xticklabels=[rater_mapping[r] for r in raters], yticklabels=[rater_mapping[r] for r in raters], annot=True, vmin=0, vmax=1, cmap='viridis')
+    plt.yticks(rotation=0)
+    plt.title('All segmentation scores')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "kappa_all_heatmap.png"))
+    plt.close()
+
+    # We now perform inter-rater Kappa agreement on difference between predicted and manual
+    print("\n--------Inter-rater agreement (Cohen's Kappa) on difference between predicted and manual")
+    kappa_diff_matrix = np.zeros((len(raters), len(raters)))
+    for i, rater1 in enumerate(raters):
+        for j, rater2 in enumerate(raters):
+            if j < i:
+                rater1_data = combined_results[combined_results['rater'] == rater1]
+                rater2_data = combined_results[combined_results['rater'] == rater2]
+                # Merge the two dataframes on image
+                merged_data = pd.merge(rater1_data, rater2_data, on='image', suffixes=('_rater1', '_rater2'))
+                # Compute the difference between predicted and manual for each rater
+                merged_data['diff_rater1'] = merged_data['predicted_score_rater1'] - merged_data['manual_score_rater1']
+                merged_data['diff_rater2'] = merged_data['predicted_score_rater2'] - merged_data['manual_score_rater2']
+                kappa_diff = cohen_kappa_score(merged_data['diff_rater1'], merged_data['diff_rater2'])
+                rater1_ID = rater_mapping[rater1]
+                rater2_ID = rater_mapping[rater2]
+                kappa_diff_matrix[i, j] = kappa_diff
+                print(f"  {rater1} - {rater1_ID} vs {rater2} - {rater2_ID} : Kappa Difference = {kappa_diff:.2f}")
+            else:
+                kappa_diff_matrix[i, j] = np.nan
+    # Print mean kappa_diff
+    mean_kappa_diff = np.nanmean(kappa_diff_matrix)
+    std_kappa_diff = np.nanstd(kappa_diff_matrix)
+    print(f"Mean Cohen's Kappa on difference between predicted and manual: {mean_kappa_diff:.2f} ± {std_kappa_diff:.2f}")
+    # We plot the above in a heatmap:
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(kappa_diff_matrix, xticklabels=[rater_mapping[r] for r in raters], yticklabels=[rater_mapping[r] for r in raters], annot=True, vmin=0, vmax=1, cmap='viridis')
+    plt.yticks(rotation=0)
+    plt.title('Difference between predicted and manual scores')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "kappa_diff_heatmap.png"))
+    plt.close()
+            
+    
+    # We now perform inter-rater Kappa agreement on the sign of the difference between predicted and manual
+    print("\n--------Inter-rater agreement (Cohen's Kappa) on the sign of the difference between predicted and manual")
+    kappa_diff_sign_matrix = np.zeros((len(raters), len(raters)))
+    for i, rater1 in enumerate(raters):
+        for j, rater2 in enumerate(raters):
+            if j < i:
+                rater1_data = combined_results[combined_results['rater'] == rater1]
+                rater2_data = combined_results[combined_results['rater'] == rater2]
+                # Merge the two dataframes on image
+                merged_data = pd.merge(rater1_data, rater2_data, on='image', suffixes=('_rater1', '_rater2'))
+                # Compute the difference between predicted and manual for each rater
+                merged_data['diff_rater1'] = np.sign(merged_data['predicted_score_rater1'] - merged_data['manual_score_rater1'])
+                merged_data['diff_rater2'] = np.sign(merged_data['predicted_score_rater2'] - merged_data['manual_score_rater2'])
+                kappa_diff = cohen_kappa_score(merged_data['diff_rater1'], merged_data['diff_rater2'])
+                rater1_ID = rater_mapping[rater1]
+                rater2_ID = rater_mapping[rater2]
+                kappa_diff_sign_matrix[i, j] = kappa_diff
+                print(f"  {rater1} - {rater1_ID} vs {rater2} - {rater2_ID} : Kappa Difference = {kappa_diff:.2f}")
+            else:
+                kappa_diff_sign_matrix[i, j] = np.nan
+    # Print mean kappa_diff_sign
+    mean_kappa_diff_sign = np.nanmean(kappa_diff_sign_matrix)
+    std_kappa_diff_sign = np.nanstd(kappa_diff_sign_matrix)
+    print(f"Mean Cohen's Kappa on sign of difference between predicted and manual: {mean_kappa_diff_sign:.2f} ± {std_kappa_diff_sign:.2f}")
+    # We plot the above in a heatmap:
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(kappa_diff_sign_matrix, xticklabels=[rater_mapping[r] for r in raters], yticklabels=[rater_mapping[r] for r in raters], annot=True, vmin=0, vmax=1, cmap='viridis')
+    plt.yticks(rotation=0)
+    plt.title('Sign of difference between predicted and manual scores')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "kappa_diff_sign_heatmap.png"))
+    plt.close()
 
 if __name__ == '__main__':
     main()
