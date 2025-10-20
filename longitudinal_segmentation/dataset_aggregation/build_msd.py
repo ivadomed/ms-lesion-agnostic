@@ -63,6 +63,12 @@ def main():
     root = args.path_data
     seed = 42
 
+    # Save the logger to a file:
+    os.makedirs(args.path_out, exist_ok=True)
+    logger.add(os.path.join(args.path_out, f'logger_{str(date.today())}.log'))
+    # Add the command line to the logger
+    logger.info(f"Command line: python {' '.join(os.sys.argv)}")
+
     # Get all subjects
     path_bavaria_unstitched = Path(os.path.join(root, "bavaria-quebec-spine-ms-unstitched"))
     path_canproco = Path(os.path.join(root, "canproco"))
