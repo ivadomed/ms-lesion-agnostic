@@ -44,3 +44,8 @@ CUDA_VISIBLE_DEVICES=1 nnUNetv2_predict -i PATH_imagesTs -o OUTPUT_PATH -d XXX -
 python evaluation/evaluate_predictions.py -pred-folder PRED_PATH -label-folder PATH_labelsTs  -image-folder PATH_imagesTs -conversion-dict PATH_conversion_dict.json -output-folder PATH_OUTPUT
 python evaluation/plot_performance.py --pred-dir-path PRED_PATH  --data-json-path MSD_PATH --split test
 ```
+
+## Trainer class
+
+The `trainer_class.py` contains the nnUNet trainer used for training the model associated to the release https://github.com/ivadomed/ms-lesion-agnostic/releases/tag/r20250909
+It is also stored in the model_fold0.zip so that SCT can use it when performing inference with this specific model. 
