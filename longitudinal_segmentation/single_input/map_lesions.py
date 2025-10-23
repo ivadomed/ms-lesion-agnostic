@@ -263,6 +263,55 @@ def label_centerline(centerline, levels, output_labeled_centerline):
     return None
 
 
+def compute_theta_angle(CoM, z_value, CoM_closest_centerline_point, lbl_centerline, levels, resolution):
+    """
+    This function computes the theta angle of a lesion center of mass relative to the spinal cord anatomy.
+    The angle is computed as the angle from the centerline-centerspine plane: 0 degree is anterior, 90 right, 180 posterior, 270 left.
+    The A-P direction is defined as the average direction of the 3 direction at 3 levels: above, at, and below the lesion z value.
+    
+    Inputs:
+        CoM : center of mass coordinates
+        z_value : centerline z value of the lesion
+        lbl_centerline : labeled centerline data
+        levels : vertebral levels
+        resolution : image resolution
+
+    Outputs:
+        theta : angle from centerline-centerspine plane
+    """
+    # We first need to define the anterior-posterior direction as the centerline-centerspine plane
+    ## We find the axis which first better the centerline and the centerspine points.
+    lbl_centerline_data = nib.load(lbl_centerline).get_fdata()
+    levels_data = nib.load(levels).get_fdata()
+    centerline_coords = np.argwhere(lbl_centerline_data > 0)
+    ## We find the 3 closest levels to the lesion z value: one above, one at, and one below
+    at_level = int(round(z_value))
+    above_level = at_level - 1 if at_level - 1 >= np.min(levels_data[levels_data > 0]) else at_level
+    below_level = at_level + 1 if at_level + 1 <= np.max(levels_data[levels_data > 0]) else at_level
+    ## For each level of the centerspine, we get the vector from centerline to centerspine
+    vectors = []
+    for level in [above_level, at_level, below_level]:
+        # Get the coordinates of the current level
+        level_coord = np.argwhere(levels_data == level)
+        # We find the closest point in the centerline
+        distances_centerline = np.linalg.norm((centerline_coords - level_coord) * resolution, axis=1)
+        closest_centerline_idx = np.argmin(distances_centerline)
+        closest_centerline_point = centerline_coords[closest_centerline_idx]
+        # Compute the vector from centerline to centerspine
+        vector = (level_coord - closest_centerline_point ) * resolution
+        vectors.append(vector)
+    ## We average the vectors to get a mean anterior-posterior direction
+    mean_vector = np.mean(vectors, axis=0).flatten()
+
+    # Now we can compute the theta angle of the lesion CoM
+    direction_lesion = (np.array(CoM) - CoM_closest_centerline_point) * resolution
+    ## Compute angle in degrees between mean_vector and direction_lesion
+    theta = np.arctan2(np.linalg.norm(np.cross(mean_vector, direction_lesion)), np.dot(mean_vector, direction_lesion))
+    theta = np.degrees(theta)
+
+    return theta
+
+
 def compute_lesion_location(lesion_analysis, lesion_seg, sc_seg, lbl_centerline, levels):
     """
     This function computes the lesion location relative to spinal cord anatomy.
@@ -292,7 +341,6 @@ def compute_lesion_location(lesion_analysis, lesion_seg, sc_seg, lbl_centerline,
     # iterate over each lesion:
     for lesion_id, lesion_info in lesion_analysis['lesions'].items():
         CoM = tuple(map(float, lesion_info['center_of_mass']))
-        print(f"Lesion {lesion_id} center of mass: {CoM}")
 
         # Compute the z value: the closest point on the centerline from the center of mass
         ## Get all centerline coordinates
@@ -301,24 +349,39 @@ def compute_lesion_location(lesion_analysis, lesion_seg, sc_seg, lbl_centerline,
         distances = np.linalg.norm((centerline_coords - CoM) * resolution, axis=1)
         ## Find the closest centerline voxel
         closest_idx = np.argmin(distances)
-        z_value = lbl_centerline_data[tuple(centerline_coords[closest_idx])]
+        closest_centerline_point = centerline_coords[closest_idx]
+        z_value = lbl_centerline_data[tuple(closest_centerline_point)]
         lesion_analysis['lesions'][lesion_id]['centerline_z'] = z_value
-        print(f"Lesion {lesion_id} centerline z value: {z_value}")
 
         # Compute the distance from the centerline (r) and angle (theta)
-        print(CoM, centerline_coords[closest_idx])
-        print(distances[closest_idx])
         r_value = distances[closest_idx] # in mm
-        print(f"Lesion {lesion_id} radial distance r value: {r_value} mm")
+        lesion_analysis['lesions'][lesion_id]['radius_mm'] = r_value
 
-        print("\n")
-
-
-
-
+        # To compute theta, we need to define the anterior-posterior direction
+        theta = compute_theta_angle(CoM, z_value, closest_centerline_point, lbl_centerline, levels, resolution)
+        lesion_analysis['lesions'][lesion_id]['theta'] = theta
 
     return lesion_analysis
 
+
+def lesion_matching(lesion_analysis_1, lesion_analysis_2):
+    """
+    This function performs lesion matching between two timepoints based on lesion location.
+
+    Inputs:
+        lesion_analysis_1 : results of the lesion analysis at timepoint 1
+        lesion_analysis_2 : results of the lesion analysis at timepoint 2
+
+    Outputs:
+        matched_lesions : dictionary containing matched lesions between the two timepoints
+    """
+    # Placeholder implementation
+    logger.info("Performing lesion matching between timepoint 1 and timepoint 2")
+
+    matched_lesions = {}
+
+    
+    return matched_lesions
 
 
 def map_lesions(input_image1, input_image2, output_folder):
@@ -389,12 +452,10 @@ def map_lesions(input_image1, input_image2, output_folder):
 
     # We compute lesion location relative to spinal cord anatomy
     lesion_analysis_1 = compute_lesion_location(lesion_analysis_1, lesion_seg_1, sc_seg_1, labeled_centerline_1, levels_1)
+    lesion_analysis_2 = compute_lesion_location(lesion_analysis_2, lesion_seg_2, sc_seg_2, labeled_centerline_2, levels_2)
 
-    # # print the lesion analysis results of both
-    # for key, value in lesion_analysis_1['lesions'].items():
-    #     logger.info(f"Timepoint 1 - Lesion {key}: Volume (mm^3): {value['volume_mm3']}")
-    # for key, value in lesion_analysis_2['lesions'].items():
-    #     logger.info(f"Timepoint 2 - Lesion {key}: Volume (mm^3): {value['volume_mm3']}")
+    # We perform lesion matching between timepoint 1 and timepoint 2 based on location
+    matched_lesions = lesion_matching(lesion_analysis_1, lesion_analysis_2)
 
     return None
 
@@ -406,6 +467,8 @@ def main():
     output_folder = args.output_folder
 
     map_lesions(input_image1, input_image2, output_folder)
+
+    return None
 
 
 if __name__ == "__main__":
