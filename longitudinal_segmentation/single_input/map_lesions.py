@@ -20,6 +20,8 @@ import nibabel as nib
 from scipy import ndimage
 import numpy as np
 from scipy.interpolate import interp1d
+from scipy.optimize import linear_sum_assignment
+import json
 
 
 def parse_args():
@@ -378,9 +380,51 @@ def lesion_matching(lesion_analysis_1, lesion_analysis_2):
     # Placeholder implementation
     logger.info("Performing lesion matching between timepoint 1 and timepoint 2")
 
+    # We build the Hungarian matrix with distances between lesions based on location (z, r, theta)
+    hungarian_matrix = np.zeros((len(lesion_analysis_1['lesions']), len(lesion_analysis_2['lesions'])))
+
+    # Define weights (tune empirically)
+    w_z = 25.0      # strong weight on z-axis
+    w_disk = 1.0    # small weight on axial position as angles are not very reliable
+
+    for i, lesion_1 in enumerate(lesion_analysis_1['lesions'].values()):
+        for j, lesion_2 in enumerate(lesion_analysis_2['lesions'].values()):
+            # Compute distance between lesion_1 and lesion_2 based on (z, r, theta)
+            distance_disk = np.sqrt(lesion_1['radius_mm']**2 + lesion_2['radius_mm']**2 
+                                    - 2 * lesion_1['radius_mm'] * lesion_2['radius_mm'] * np.cos(np.radians(lesion_1['theta'] - lesion_2['theta'])))
+            z_dist = lesion_1['centerline_z'] - lesion_2['centerline_z']
+            hungarian_matrix[i, j] = np.sqrt(w_z * z_dist**2 + w_disk * distance_disk**2)
+
+    # We perform the Hungarian algorithm to find the optimal matching
+    row_ind, col_ind = linear_sum_assignment(hungarian_matrix)
+
+    # We compute metrics of the lesions matching
     matched_lesions = {}
 
+    for i, j in zip(row_ind, col_ind):
+        # we print the information of the matched lesions
+        lesion_1_data = lesion_analysis_1['lesions'][str(i+1)]
+        lesion_2_data = lesion_analysis_2['lesions'][str(j+1)]
+        # We build the dictionary of matched lesions
+        matched_lesions[f'lesion_{i+1}'] = {
+            'timepoint_1': lesion_1_data,
+            'timepoint_2': lesion_2_data,
+            'distance': hungarian_matrix[i, j],
+        }
     
+    # If a lesion is not matched in either timepoint, we add it as unmatched
+    for lesion in range(len(lesion_analysis_1['lesions'])):
+        if lesion not in row_ind:
+            matched_lesions[f'lesion_{lesion+1}'] = {
+                'timepoint_1': lesion_analysis_1['lesions'][str(lesion+1)],
+                'timepoint_2': None,
+            }
+        if lesion not in col_ind:
+            matched_lesions[f'lesion_{lesion+1}'] = {
+                'timepoint_1': None,
+                'timepoint_2': lesion_analysis_2['lesions'][str(lesion+1)],
+            }
+
     return matched_lesions
 
 
@@ -456,6 +500,9 @@ def map_lesions(input_image1, input_image2, output_folder):
 
     # We perform lesion matching between timepoint 1 and timepoint 2 based on location
     matched_lesions = lesion_matching(lesion_analysis_1, lesion_analysis_2)
+
+    # We print the matched lesions
+    logger.info(f"Matched lesions between timepoint 1 and timepoint 2:\n{json.dumps(matched_lesions, indent=4)}")
 
     return None
 
