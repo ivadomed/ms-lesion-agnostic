@@ -151,16 +151,16 @@ def analyze_lesions(lesion_seg, sc_seg, centerline, levels):
         analysis_results['lesions'][f'{label}']['center_of_mass'] = CoM
 
     # For each lesion, we compute its volume
+    voxel_volume = np.prod(nib.load(lesion_seg).header.get_zooms())
     for label in labels:
         lesion_data = (lbl_data == label).astype(np.uint8)
-        voxel_volume = np.prod(nib.load(lesion_seg).header.get_zooms())
         lesion_volume = np.sum(lesion_data) * voxel_volume  # in mm^3
         analysis_results['lesions'][f'{label}']['volume_mm3'] = lesion_volume
 
     return analysis_results
 
 
-def interpolate_between_levels(centerline_data, labeled_centerline_data, level_coords_1, level_coords_2, SI_axis, superior_level):
+def interpolate_between_levels(centerline_data, labeled_centerline_data, level_coords_1, level_coords_2, SI_axis, superior_level, resolution):
     """
     Interpolate the labeled values between two vertebral levels along the centerline.
     """
@@ -175,8 +175,8 @@ def interpolate_between_levels(centerline_data, labeled_centerline_data, level_c
     # We interpolate the values for these points
     ## If dist to level 1 is d1 and dist to level 2 is d2, then the value is (d2/(d1+d2))*level1 + (d1/(d1+d2))*level2
     for coord in between_coords:
-        dist_1 = np.min(np.linalg.norm(level_coords_1 - coord))
-        dist_2 = np.min(np.linalg.norm(level_coords_2 - coord))
+        dist_1 = np.min(np.linalg.norm((level_coords_1 - coord) * resolution))
+        dist_2 = np.min(np.linalg.norm((level_coords_2 - coord) * resolution))
         total_dist = dist_1 + dist_2
         weight = dist_1 / total_dist
         labeled_value = weight + superior_level
@@ -209,6 +209,9 @@ def label_centerline(centerline, levels, output_labeled_centerline):
     orientation = nib.aff2axcodes(nib.load(centerline).affine)
     SI_axis = orientation.index('I') if 'I' in orientation else orientation.index('S')
 
+    # Get the resolution
+    resolution = nib.load(centerline).header.get_zooms()
+
     # Create a copy of the centerline data to store the labeled values
     labeled_centerline_data = np.zeros_like(centerline_data)
 
@@ -222,7 +225,7 @@ def label_centerline(centerline, levels, output_labeled_centerline):
             continue
         # For each coordinate in the level, find the closest centerline point
         for coord in level_coords:
-            distances = np.linalg.norm(np.argwhere(centerline_data == 1) - coord, axis=1)
+            distances = np.linalg.norm((np.argwhere(centerline_data == 1) - coord) * resolution, axis=1)
             closest_idx = np.argmin(distances)
             closest_point = np.argwhere(centerline_data == 1)[closest_idx]
             # Assign the level label to the closest centerline point
@@ -251,7 +254,7 @@ def label_centerline(centerline, levels, output_labeled_centerline):
             level_coords_2 = np.argwhere(labeled_centerline_data == level + 1)[0]
             superior_level = level
         # Then we interpolate the values between these two levels
-        labeled_centerline_data = interpolate_between_levels(centerline_data, labeled_centerline_data, level_coords_1, level_coords_2, SI_axis, superior_level)
+        labeled_centerline_data = interpolate_between_levels(centerline_data, labeled_centerline_data, level_coords_1, level_coords_2, SI_axis, superior_level, resolution)
     
     # Save the labeled centerline
     labeled_centerline_img = nib.Nifti1Image(labeled_centerline_data, nib.load(centerline).affine)
@@ -283,6 +286,9 @@ def compute_lesion_location(lesion_analysis, lesion_seg, sc_seg, lbl_centerline,
     lbl_centerline_data = nib.load(lbl_centerline).get_fdata()
     levels_data = nib.load(levels).get_fdata()
 
+    # Get the resolution
+    resolution = nib.load(lesion_seg).header.get_zooms()
+
     # iterate over each lesion:
     for lesion_id, lesion_info in lesion_analysis['lesions'].items():
         CoM = tuple(map(float, lesion_info['center_of_mass']))
@@ -292,15 +298,22 @@ def compute_lesion_location(lesion_analysis, lesion_seg, sc_seg, lbl_centerline,
         ## Get all centerline coordinates
         centerline_coords = np.argwhere(lbl_centerline_data > 0)
         ## Compute distances from CoM to all centerline voxels
-        distances = np.linalg.norm(centerline_coords - CoM, axis=1)
+        distances = np.linalg.norm((centerline_coords - CoM) * resolution, axis=1)
         ## Find the closest centerline voxel
         closest_idx = np.argmin(distances)
         z_value = lbl_centerline_data[tuple(centerline_coords[closest_idx])]
         lesion_analysis['lesions'][lesion_id]['centerline_z'] = z_value
         print(f"Lesion {lesion_id} centerline z value: {z_value}")
 
+        # Compute the distance from the centerline (r) and angle (theta)
+        print(CoM, centerline_coords[closest_idx])
+        print(distances[closest_idx])
+        r_value = distances[closest_idx] # in mm
+        print(f"Lesion {lesion_id} radial distance r value: {r_value} mm")
 
-        break
+        print("\n")
+
+
 
 
 
@@ -371,8 +384,8 @@ def map_lesions(input_image1, input_image2, output_folder):
     # We label the centerline so that it takes continous various following the disc levels
     labeled_centerline_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_labeled_centerline.nii.gz'))
     labeled_centerline_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_labeled_centerline.nii.gz'))
-    label_centerline(centerline_1, levels_1, labeled_centerline_1)
-    label_centerline(centerline_2, levels_2, labeled_centerline_2)
+    # label_centerline(centerline_1, levels_1, labeled_centerline_1)
+    # label_centerline(centerline_2, levels_2, labeled_centerline_2)
 
     # We compute lesion location relative to spinal cord anatomy
     lesion_analysis_1 = compute_lesion_location(lesion_analysis_1, lesion_seg_1, sc_seg_1, labeled_centerline_1, levels_1)
