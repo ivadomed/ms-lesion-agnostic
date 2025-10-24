@@ -119,7 +119,7 @@ def get_levels(input_image, output_levels):
     return None
 
 
-def analyze_lesions(lesion_seg, sc_seg, centerline, levels):
+def analyze_lesions(lesion_seg, sc_seg, centerline, levels, output_labeled_lesion_seg):
     """
     This function analyzes the lesions given the lesion segmentation, spinal cord segmentation, centerline, and vertebral levels.
 
@@ -158,6 +158,10 @@ def analyze_lesions(lesion_seg, sc_seg, centerline, levels):
         lesion_data = (lbl_data == label).astype(np.uint8)
         lesion_volume = np.sum(lesion_data) * voxel_volume  # in mm^3
         analysis_results['lesions'][f'{label}']['volume_mm3'] = lesion_volume
+
+    # We save a labeled lesion segmentation
+    labeled_lesion_img = nib.Nifti1Image(lbl_data, nib.load(lesion_seg).affine)
+    nib.save(labeled_lesion_img, output_labeled_lesion_seg)
 
     return analysis_results
 
@@ -404,7 +408,9 @@ def lesion_matching(lesion_analysis_1, lesion_analysis_2):
     for i, j in zip(row_ind, col_ind):
         # we print the information of the matched lesions
         lesion_1_data = lesion_analysis_1['lesions'][str(i+1)]
+        lesion_1_data['previous_lesion_id'] = str(i+1)
         lesion_2_data = lesion_analysis_2['lesions'][str(j+1)]
+        lesion_2_data['previous_lesion_id'] = str(j+1)
         # We build the dictionary of matched lesions
         matched_lesions[f'lesion_{i+1}'] = {
             'timepoint_1': lesion_1_data,
@@ -412,20 +418,102 @@ def lesion_matching(lesion_analysis_1, lesion_analysis_2):
             'distance': hungarian_matrix[i, j],
         }
     
+    # Get number of already matched lesions
+    nb_matched_lesion = len(matched_lesions)
+    
     # If a lesion is not matched in either timepoint, we add it as unmatched
     for lesion in range(len(lesion_analysis_1['lesions'])):
         if lesion not in row_ind:
-            matched_lesions[f'lesion_{lesion+1}'] = {
-                'timepoint_1': lesion_analysis_1['lesions'][str(lesion+1)],
+            lesion_1_data = lesion_analysis_1['lesions'][str(lesion+1)]
+            lesion_1_data['previous_lesion_id'] = str(lesion+1)
+            matched_lesions[f'lesion_{nb_matched_lesion+1}'] = {
+                'timepoint_1': lesion_1_data,
                 'timepoint_2': None,
             }
+            nb_matched_lesion += 1
         if lesion not in col_ind:
-            matched_lesions[f'lesion_{lesion+1}'] = {
+            lesion_2_data = lesion_analysis_2['lesions'][str(lesion+1)]
+            lesion_2_data['previous_lesion_id'] = str(lesion+1)
+            matched_lesions[f'lesion_{nb_matched_lesion+1}'] = {
                 'timepoint_1': None,
-                'timepoint_2': lesion_analysis_2['lesions'][str(lesion+1)],
+                'timepoint_2': lesion_2_data,
             }
+            nb_matched_lesion += 1
 
     return matched_lesions
+
+
+def correct_lesion_labels(matched_lesions, labeled_lesion_seg_1, labeled_lesion_seg_2):
+    """
+    This function corrects the lesion labels in the lesion segmentations based on the matched lesions.
+
+    Inputs:
+        matched_lesions : dictionary containing matched lesions between the two timepoints
+        labeled_lesion_seg_1 : path to the labeled lesion segmentation at timepoint 1
+        labeled_lesion_seg_2 : path to the labeled lesion segmentation at timepoint 2
+    
+    Outputs:
+        None
+    """
+    # Load the labeled lesion segmentations
+    lbl_lesion_data_1 = nib.load(labeled_lesion_seg_1).get_fdata()
+    lbl_lesion_data_2 = nib.load(labeled_lesion_seg_2).get_fdata()
+    # Create new label data arrays
+    new_lbl_lesion_data_1 = np.zeros_like(lbl_lesion_data_1)
+    new_lbl_lesion_data_2 = np.zeros_like(lbl_lesion_data_2)
+
+    # For each lesion in lbl_lesion_data_1, we assign its new label based on matched_lesions
+    for lesion_key, lesion_info in matched_lesions.items():
+        if lesion_info['timepoint_1'] is not None:
+            previous_lesion_id = int(lesion_info['timepoint_1']['previous_lesion_id'])
+            new_lesion_id = int(lesion_key.split('_')[1])
+            new_lbl_lesion_data_1[lbl_lesion_data_1 == previous_lesion_id] = new_lesion_id
+        if lesion_info['timepoint_2'] is not None:
+            previous_lesion_id = int(lesion_info['timepoint_2']['previous_lesion_id'])
+            new_lesion_id = int(lesion_key.split('_')[1])
+            new_lbl_lesion_data_2[lbl_lesion_data_2 == previous_lesion_id] = new_lesion_id
+
+    # Save the new label data arrays
+    lbl_lesion_img_1 = nib.Nifti1Image(new_lbl_lesion_data_1, nib.load(labeled_lesion_seg_1).affine)
+    lbl_lesion_img_2 = nib.Nifti1Image(new_lbl_lesion_data_2, nib.load(labeled_lesion_seg_2).affine)
+    nib.save(lbl_lesion_img_1, labeled_lesion_seg_1)
+    nib.save(lbl_lesion_img_2, labeled_lesion_seg_2)
+    
+    return None
+
+
+def generate_report(matched_lesions, output_folder):
+    """
+    This function generates a report of the matched lesions and saves it to the output folder.
+
+    Inputs:
+        matched_lesions : dictionary containing matched lesions between the two timepoints
+        output_folder : path to the output folder where the report will be saved
+    Outputs:
+        None
+    """
+    # Build the report file path, a csv file in the output folder
+    report_file = os.path.join(output_folder, 'lesion_mapping_report.csv')
+    with open(report_file, 'w') as f:
+        # Write the header
+        f.write('Lesion_ID,Timepoint_1_Volume_mm3,Timepoint_2_Volume_mm3,Timepoint_1_Centerline_z,Timepoint_2_Centerline_z, Timepoint_1_Radius_mm,Timepoint_2_Radius_mm,Timepoint_1_Theta,Timepoint_2_Theta,Distance\n')
+        # Write the data for each matched lesion
+        for lesion_key, lesion_info in matched_lesions.items():
+            lesion_id = lesion_key.split('_')[1]
+            tp1 = lesion_info['timepoint_1']
+            tp2 = lesion_info['timepoint_2']
+            distance = lesion_info.get('distance', '')
+            tp1_volume = tp1['volume_mm3'] if tp1 is not None else ''
+            tp1_z = tp1['centerline_z'] if tp1 is not None else ''
+            tp1_r = tp1['radius_mm'] if tp1 is not None else ''
+            tp1_theta = tp1['theta'] if tp1 is not None else ''
+            tp2_volume = tp2['volume_mm3'] if tp2 is not None else ''
+            tp2_z = tp2['centerline_z'] if tp2 is not None else ''
+            tp2_r = tp2['radius_mm'] if tp2 is not None else ''
+            tp2_theta = tp2['theta'] if tp2 is not None else ''
+            f.write(f'{lesion_id},{tp1_volume},{tp2_volume},{tp1_z},{tp2_z},{tp1_r},{tp2_r},{tp1_theta},{tp2_theta},{distance}\n')
+    logger.info(f"Report generated at {report_file}")
+    return None
 
 
 def map_lesions(input_image1, input_image2, output_folder):
@@ -458,41 +546,43 @@ def map_lesions(input_image1, input_image2, output_folder):
 
     # Segment the lesions, the sc, the centerline and the discs at both timepoints
     image_1_name = Path(input_image1).name
-    lesion_seg_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_lesion_seg.nii.gz'))
+    lesion_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_lesion_seg.nii.gz'))
     sc_seg_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_sc_seg.nii.gz'))
-    centerline_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_centerline.nii.gz'))
-    levels_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_levels.nii.gz'))
+    centerline_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_centerline.nii.gz'))
+    levels_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_levels.nii.gz'))
     image_2_name = Path(input_image2).name
-    lesion_seg_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_lesion_seg.nii.gz'))
+    lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion_seg.nii.gz'))
     sc_seg_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_sc_seg.nii.gz'))
-    centerline_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_centerline.nii.gz'))
-    levels_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_levels.nii.gz'))
+    centerline_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_centerline.nii.gz'))
+    levels_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_levels.nii.gz'))
 
     # Segment the spinal cord
-    # segment_sc(input_image1, sc_seg_1)
-    # segment_sc(input_image2, sc_seg_2)
-    # # Segment the lesions
-    # segment_lesions(input_image1, sc_seg_1, qc_folder, lesion_seg_1)
-    # segment_lesions(input_image2, sc_seg_2, qc_folder, lesion_seg_2)
-    # # Get the centerline
-    # get_centerline(sc_seg_1, centerline_1)
-    # get_centerline(sc_seg_2, centerline_2)
-    # # Get the levels
-    # get_levels(input_image1, levels_1)
-    # get_levels(input_image2, levels_2)
+    segment_sc(input_image1, sc_seg_1)
+    segment_sc(input_image2, sc_seg_2)
+    # Segment the lesions
+    segment_lesions(input_image1, sc_seg_1, qc_folder, lesion_seg_1)
+    segment_lesions(input_image2, sc_seg_2, qc_folder, lesion_seg_2)
+    # Get the centerline
+    get_centerline(sc_seg_1, centerline_1)
+    get_centerline(sc_seg_2, centerline_2)
+    # Get the levels
+    get_levels(input_image1, levels_1)
+    get_levels(input_image2, levels_2)
 
     # Now we can perform lesion mapping between timepoint 1 and timepoint 2
     logger.info("Performing lesion mapping between timepoint 1 and timepoint 2")
 
     # For each timepoint, we analyze lesions
-    lesion_analysis_1 = analyze_lesions(lesion_seg_1, sc_seg_1, centerline_1, levels_1)
-    lesion_analysis_2 = analyze_lesions(lesion_seg_2, sc_seg_2, centerline_2, levels_2)
+    labeled_lesion_seg_1 = os.path.join(output_folder, Path(lesion_seg_1).name.replace('.nii.gz', '_labeled.nii.gz'))
+    labeled_lesion_seg_2 = os.path.join(output_folder, Path(lesion_seg_2).name.replace('.nii.gz', '_labeled.nii.gz'))
+    lesion_analysis_1 = analyze_lesions(lesion_seg_1, sc_seg_1, centerline_1, levels_1, labeled_lesion_seg_1)
+    lesion_analysis_2 = analyze_lesions(lesion_seg_2, sc_seg_2, centerline_2, levels_2, labeled_lesion_seg_2)
 
     # We label the centerline so that it takes continous various following the disc levels
-    labeled_centerline_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_labeled_centerline.nii.gz'))
-    labeled_centerline_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_labeled_centerline.nii.gz'))
-    # label_centerline(centerline_1, levels_1, labeled_centerline_1)
-    # label_centerline(centerline_2, levels_2, labeled_centerline_2)
+    labeled_centerline_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_labeled_centerline.nii.gz'))
+    labeled_centerline_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_labeled_centerline.nii.gz'))
+    label_centerline(centerline_1, levels_1, labeled_centerline_1)
+    label_centerline(centerline_2, levels_2, labeled_centerline_2)
 
     # We compute lesion location relative to spinal cord anatomy
     lesion_analysis_1 = compute_lesion_location(lesion_analysis_1, lesion_seg_1, sc_seg_1, labeled_centerline_1, levels_1)
@@ -501,8 +591,11 @@ def map_lesions(input_image1, input_image2, output_folder):
     # We perform lesion matching between timepoint 1 and timepoint 2 based on location
     matched_lesions = lesion_matching(lesion_analysis_1, lesion_analysis_2)
 
-    # We print the matched lesions
-    logger.info(f"Matched lesions between timepoint 1 and timepoint 2:\n{json.dumps(matched_lesions, indent=4)}")
+    # Need to a labelization of lesion segmentations
+    correct_lesion_labels(matched_lesions, labeled_lesion_seg_1, labeled_lesion_seg_2)
+
+    # Need to add report generation
+    generate_report(matched_lesions, output_folder)
 
     return None
 
