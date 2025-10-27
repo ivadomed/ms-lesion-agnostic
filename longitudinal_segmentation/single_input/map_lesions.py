@@ -546,12 +546,12 @@ def map_lesions(input_image1, input_image2, output_folder):
 
     # Segment the lesions, the sc, the centerline and the discs at both timepoints
     image_1_name = Path(input_image1).name
-    lesion_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_lesion_seg.nii.gz'))
+    lesion_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
     sc_seg_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_sc_seg.nii.gz'))
     centerline_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_centerline.nii.gz'))
     levels_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_levels.nii.gz'))
     image_2_name = Path(input_image2).name
-    lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion_seg.nii.gz'))
+    lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
     sc_seg_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_sc_seg.nii.gz'))
     centerline_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_centerline.nii.gz'))
     levels_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_levels.nii.gz'))
@@ -573,8 +573,8 @@ def map_lesions(input_image1, input_image2, output_folder):
     logger.info("Performing lesion mapping between timepoint 1 and timepoint 2")
 
     # For each timepoint, we analyze lesions
-    labeled_lesion_seg_1 = os.path.join(output_folder, Path(lesion_seg_1).name.replace('.nii.gz', '_labeled.nii.gz'))
-    labeled_lesion_seg_2 = os.path.join(output_folder, Path(lesion_seg_2).name.replace('.nii.gz', '_labeled.nii.gz'))
+    labeled_lesion_seg_1 = os.path.join(output_folder, Path(lesion_seg_1).name.replace('.nii.gz', '-labeled.nii.gz'))
+    labeled_lesion_seg_2 = os.path.join(output_folder, Path(lesion_seg_2).name.replace('.nii.gz', '-labeled.nii.gz'))
     lesion_analysis_1 = analyze_lesions(lesion_seg_1, sc_seg_1, centerline_1, levels_1, labeled_lesion_seg_1)
     lesion_analysis_2 = analyze_lesions(lesion_seg_2, sc_seg_2, centerline_2, levels_2, labeled_lesion_seg_2)
 
