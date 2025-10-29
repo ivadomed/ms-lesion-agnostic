@@ -22,7 +22,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.optimize import linear_sum_assignment
 import json
-from longitudinal_segmentation.single_input.map_lesions_unregistered import segment_sc, segment_lesions
+from utils import segment_sc, segment_lesions
 
 
 def parse_args():
