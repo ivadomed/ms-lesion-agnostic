@@ -22,6 +22,11 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.optimize import linear_sum_assignment
 import json
+import sys
+# Import the functions from utils in parent folder
+file_path = os.path.abspath(os.path.dirname(__file__))
+root_path = os.path.abspath(os.path.join(file_path, ".."))
+sys.path.insert(0, root_path)
 from utils import segment_sc, segment_lesions
 
 

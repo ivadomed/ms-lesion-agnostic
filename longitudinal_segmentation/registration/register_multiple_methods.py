@@ -15,15 +15,10 @@ import argparse
 from pathlib import Path
 import sys
 # Import the functions from utils in parent folder
-if __package__ is None or __package__ == "":
-    # Set package root manually
-    file_path = os.path.abspath(os.path.dirname(__file__))
-    root_path = os.path.abspath(os.path.join(file_path, ".."))
-    sys.path.insert(0, root_path)
-
-    from utils import segment_sc, segment_lesions
-else:
-    from ..utils import segment_sc, segment_lesions
+file_path = os.path.abspath(os.path.dirname(__file__))
+root_path = os.path.abspath(os.path.join(file_path, ".."))
+sys.path.insert(0, root_path)
+from utils import segment_sc, segment_lesions
 
 def parse_args():
     parser = argparse.ArgumentParser()
