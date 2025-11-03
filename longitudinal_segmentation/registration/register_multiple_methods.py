@@ -56,7 +56,7 @@ def register(input_image, reference_image, input_sc_seg, reference_sc_seg, outpu
     # Build command
     command = f"sct_register_multimodal -i {input_image} -d {reference_image} -iseg {input_sc_seg} -dseg {reference_sc_seg} -ofolder {output_folder} -o {output_file} -param {method} -qc {qc_folder}"
     # Execute command
-    # assert os.system(command) == 0
+    assert os.system(command) == 0
 
     return output_file
 
@@ -87,7 +87,8 @@ def compute_registration_score(registered_image, reference_image):
         registered_image : path to the registered image
         reference_image : path to the reference image
     Outputs:
-        score : registration score (float)
+        mse : mean squared error between the registered image and the reference image
+        mi : mutual information between the registered image and the reference image
     """
     # Here we use a simple metric: mean squared error between the two images
     reg_img = nib.load(registered_image).get_fdata()
@@ -104,12 +105,10 @@ def compute_registration_score(registered_image, reference_image):
     ref_img_flat = ref_img.flatten()
     # Compute mutual information also
     mi = mutual_information(ref_img_flat, reg_img_flat)
-    print(f"Registration Mean Squared Error: {mse}")
-    print(f"Registration Mutual Information: {mi}")
     return mse, mi
 
 
-def register_multiple_methods(input_image1, input_image2, output_folder):
+def register_multiple_methods(input_image1, input_image2, output_folder, qc_folder):
     """
     This function performs registration of two images using multiple methods.
 
@@ -119,12 +118,11 @@ def register_multiple_methods(input_image1, input_image2, output_folder):
         output_folder : path to the output folder where registration results will be stored
 
     Outputs:
-        None
+        scores : list of tuples containing (mse, mi, registered_file, method) for each registration method
     """
     # Build output directory
     os.makedirs(output_folder, exist_ok=True)
     # Build the QC folder
-    qc_folder = os.path.join(output_folder, "qc")
     os.makedirs(qc_folder, exist_ok=True)
 
     # First we segment the spinal cord in both images
@@ -133,22 +131,46 @@ def register_multiple_methods(input_image1, input_image2, output_folder):
     image_2_name = Path(input_image2).name
     sc_seg_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_sc_seg.nii.gz'))
     # Segment the spinal cord
-    # segment_sc(input_image1, sc_seg_1)
-    # segment_sc(input_image2, sc_seg_2)
+    segment_sc(input_image1, sc_seg_1)
+    segment_sc(input_image2, sc_seg_2)
     
     # Then we perform registration using multiple strategies
-    methods = ['step=1,type=im,algo=dl,metric=MI',
-               'step=1,type=im,algo=dl,metric=MeanSquares',
-               'step=1,type=seg,algo=dl,metric=MeanSquares',
-               'step=1,type=im,algo=dl,metric=MI:step=2,type=seg,algo=dl,metric=MeanSquares',
+    methods = ['step=1,type=im,algo=dl',
+               'step=1,type=seg,algo=slicereg,metric=MeanSquares',
+               'step=1,type=seg,algo=slicereg,metric=MeanSquares:step=2,type=im,algo=dl',
                'step=1,type=seg,algo=slicereg,metric=MeanSquares:step=2,type=seg,algo=affine,metric=MeanSquares,gradStep=0.2:step=3,type=im,algo=syn,metric=MI,iter=5,shrink=2']
+    # Initialize variables to store best scores
+    scores = []
     # For each method, we register image 2 to image 1
     for i, method in enumerate(methods):
         output_register_method_i = os.path.join(output_folder, f'registered_method_{i+1}')
         registered_file = register(input_image2, input_image1, sc_seg_2, sc_seg_1, output_register_method_i, method, qc_folder)
         # Now we compute the registration "score"
-        compute_registration_score(registered_file, input_image1)
+        mse, mi = compute_registration_score(registered_file, input_image1)
+        scores.append((mse, mi, registered_file, f'method_{i+1}'))
 
+    return scores
+
+
+def save_registration_results(input_image1, input_image2, scores, output_folder):
+    """
+    This function saves the registration results to a csv file.
+
+    Inputs:
+        input_image1 : path to the input image at timepoint 1
+        input_image2 : path to the input image at timepoint 2
+        scores : list of tuples containing (mse, mi, registered_file, method) for each registration method
+        output_folder : path to the output folder where registration results will be stored
+
+    Outputs:
+        None
+    """
+    results_file = os.path.join(output_folder, "registration_results.csv")
+
+    with open(results_file, 'w') as f:
+        f.write(f"Input Image 1,Input Image 2,Method,MSE,MI\n")
+        for score in scores:
+            f.write(f"{input_image1},{input_image2},{score[3]},{score[0]},{score[1]}\n")
     return None
 
 
@@ -158,7 +180,19 @@ def main():
     input_image2 = args.input_image2
     output_folder = args.output_folder
 
-    register_multiple_methods(input_image1, input_image2, output_folder)
+    # Create a QC folder inside the output folder
+    qc_folder = os.path.join(output_folder, "qc")
+    os.makedirs(qc_folder, exist_ok=True)
+
+    # Perform registration using multiple methods
+    scores = register_multiple_methods(input_image1, input_image2, output_folder, qc_folder)
+
+    # Print and format the scores
+    for i, score in enumerate(scores):
+        print(f"Method {i+1}: MSE = {score[0]}, MI = {score[1]}, Registered File = {score[2]}, Method = {score[3]}")
+
+    # Save registration results
+    save_registration_results(input_image1, input_image2, scores, output_folder)
 
     return None
 
