@@ -58,6 +58,9 @@ def run_on_all_data(input_json, output_folder):
 
     # Iterate over all subjects and timepoints
     for subject in tqdm(msd_data):
+        if subject == "sub-van072":
+            # Skip this subject as the registration fails
+            continue
         # Create a subject-specific output folder
         subject_output_folder = os.path.join(output_folder, subject)
         os.makedirs(subject_output_folder, exist_ok=True)
