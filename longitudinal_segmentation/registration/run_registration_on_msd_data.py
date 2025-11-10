@@ -53,13 +53,16 @@ def run_on_all_data(input_json, output_folder):
     # Initialize QC folder
     qc_folder = os.path.join(output_folder, "qc")
     os.makedirs(qc_folder, exist_ok=True)
+    # Initialize fails folder
+    fails_folder =  os.path.join(output_folder, "fails")
+    os.makedirs(fails_folder, exist_ok=True)
     # Initialize a results dictionary
-    results = {}
+    results = []
 
     # Iterate over all subjects and timepoints
     for subject in tqdm(msd_data):
-        if subject == "sub-van072":
-            # Skip this subject as the registration fails
+        if 'sub-cal123' in subject:
+            # Skip this subject due to known issues
             continue
         # Create a subject-specific output folder
         subject_output_folder = os.path.join(output_folder, subject)
@@ -68,23 +71,14 @@ def run_on_all_data(input_json, output_folder):
         image1_path = msd_data[subject]['ses-M0'][0]
         image2_path = msd_data[subject]['ses-M12'][0]
         # Run registration using multiple methods
-        scores = register_multiple_methods(image1_path, image2_path, subject_output_folder, qc_folder)
-        # Store results
-        results[subject] = scores
-        
-    # Format thee results to a pandas DataFrame
-    all_results = []
-    for subject, scores in results.items():
+        scores = register_multiple_methods(image1_path, image2_path, subject_output_folder, qc_folder, fails_folder)
         for score in scores:
+            # Store results directly as a pandas DataFrame
             mse, mi, registered_file, method = score
-            all_results.append({
-                'subject': subject,
-                'method': method,
-                'mse': mse,
-                'mi': mi,
-                'registered_file': registered_file
-            })
-    results_df = pd.DataFrame(all_results)
+            results.append({'mse': mse, 'mi': mi, 'registered_file': registered_file, 'method': method})
+        results_df = pd.DataFrame(results)
+        # save the results to a CSV file after each subject
+        results_df.to_csv(os.path.join(output_folder, 'registration_results.csv'), index=False)
 
     return results_df
 
@@ -134,8 +128,6 @@ def main():
     output_folder = args.output
     # Run registration on all data
     results = run_on_all_data(input_json, output_folder)
-    # Save the results to a CSV file
-    results.to_csv(os.path.join(output_folder, 'registration_results.csv'), index=False)
     # Plot the results
     plot_results(results, output_folder)
 

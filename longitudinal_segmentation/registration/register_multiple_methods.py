@@ -55,8 +55,10 @@ def register(input_image, reference_image, input_sc_seg, reference_sc_seg, outpu
     
     # Build command
     command = f"sct_register_multimodal -i {input_image} -d {reference_image} -iseg {input_sc_seg} -dseg {reference_sc_seg} -ofolder {output_folder} -o {output_file} -param {method} -qc {qc_folder}"
-    # Execute command
-    assert os.system(command) == 0
+    # Execute command, if command fails return None
+    if os.system(command) != 0:
+        print(f"Registration failed for method: {method}")
+        return None
 
     return output_file
 
@@ -108,7 +110,7 @@ def compute_registration_score(registered_image, reference_image):
     return mse, mi
 
 
-def register_multiple_methods(input_image1, input_image2, output_folder, qc_folder):
+def register_multiple_methods(input_image1, input_image2, output_folder, qc_folder, output_fails):
     """
     This function performs registration of two images using multiple methods.
 
@@ -124,6 +126,8 @@ def register_multiple_methods(input_image1, input_image2, output_folder, qc_fold
     os.makedirs(output_folder, exist_ok=True)
     # Build the QC folder
     os.makedirs(qc_folder, exist_ok=True)
+    # Build the fails folder
+    os.makedirs(output_fails, exist_ok=True)
 
     # First we segment the spinal cord in both images
     image_1_name = Path(input_image1).name
@@ -135,16 +139,28 @@ def register_multiple_methods(input_image1, input_image2, output_folder, qc_fold
     segment_sc(input_image2, sc_seg_2)
     
     # Then we perform registration using multiple strategies
+    # methods = ['step=1,type=im,algo=dl',
+    #            'step=1,type=seg,algo=slicereg,metric=MeanSquares',
+    #            'step=1,type=seg,algo=slicereg,metric=MeanSquares:step=2,type=im,algo=dl',
+    #            'step=1,type=seg,algo=slicereg,metric=MeanSquares:step=2,type=seg,algo=affine,metric=MeanSquares,gradStep=0.2:step=3,type=im,algo=syn,metric=MI,iter=5,shrink=2']
     methods = ['step=1,type=im,algo=dl',
-               'step=1,type=seg,algo=slicereg,metric=MeanSquares',
-               'step=1,type=seg,algo=slicereg,metric=MeanSquares:step=2,type=im,algo=dl',
-               'step=1,type=seg,algo=slicereg,metric=MeanSquares:step=2,type=seg,algo=affine,metric=MeanSquares,gradStep=0.2:step=3,type=im,algo=syn,metric=MI,iter=5,shrink=2']
+               'step=1,type=seg,algo=slicereg,metric=MeanSquares:step=2,type=im,algo=dl']
+    
     # Initialize variables to store best scores
     scores = []
     # For each method, we register image 2 to image 1
     for i, method in enumerate(methods):
         output_register_method_i = os.path.join(output_folder, f'registered_method_{i+1}')
         registered_file = register(input_image2, input_image1, sc_seg_2, sc_seg_1, output_register_method_i, method, qc_folder)
+        # If the registration failed, skip to next method
+        if registered_file is None:
+            # Add the failed registration to the fails list (.txt file)
+            fail_file = os.path.join(output_fails, f'failed_registrations.txt')
+            with open(fail_file, 'a') as f:
+                f.write(f"Registration failed for method: {method} for image {input_image2}\n")
+            os.makedirs(output_fails, exist_ok=True)
+            # Then we continue to the next method
+            continue
         # Now we compute the registration "score"
         mse, mi = compute_registration_score(registered_file, input_image1)
         scores.append((mse, mi, registered_file, f'method_{i+1}'))
@@ -184,8 +200,12 @@ def main():
     qc_folder = os.path.join(output_folder, "qc")
     os.makedirs(qc_folder, exist_ok=True)
 
+    # Create a fails folder inside the output folder
+    output_fails = os.path.join(output_folder, "fails")
+    os.makedirs(output_fails, exist_ok=True)
+
     # Perform registration using multiple methods
-    scores = register_multiple_methods(input_image1, input_image2, output_folder, qc_folder)
+    scores = register_multiple_methods(input_image1, input_image2, output_folder, qc_folder, output_fails)
 
     # Print and format the scores
     for i, score in enumerate(scores):
