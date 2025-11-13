@@ -29,7 +29,7 @@ def segment_sc(input_image, output_sc_seg):
     return None
 
 
-def segment_lesions(input_image, input_sc_seg, qc_folder, output_lesion_seg):
+def segment_lesions(input_image, input_sc_seg, qc_folder, output_lesion_seg, test_time_aug=False):
     """
     This function segments lesions from the input image and saves the segmentation.
 
@@ -46,7 +46,7 @@ def segment_lesions(input_image, input_sc_seg, qc_folder, output_lesion_seg):
     logger.info(f"Segmenting lesions in {input_image} and saving to {output_lesion_seg}")
 
     # Use SCT with GPU:
-    assert os.system(f"SCT_USE_GPU=1 sct_deepseg lesion_ms -i {input_image} -o {output_lesion_seg} -qc {qc_folder} -qc-plane Sagittal -qc-seg {input_sc_seg}") == 0, "Lesion segmentation failed"
+    assert os.system(f"SCT_USE_GPU=1 sct_deepseg lesion_ms -i {input_image} {'-test-time-aug' if test_time_aug else ''} -o {output_lesion_seg} -qc {qc_folder} -qc-plane Sagittal -qc-seg {input_sc_seg}") == 0, "Lesion segmentation failed"
     
     return None
 
