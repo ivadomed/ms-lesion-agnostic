@@ -63,6 +63,10 @@ def main():
         os.makedirs(subject_output_folder, exist_ok=True)
         # For each session
         for session in data[subject]:
+            ## This was added to skip baseline session for inference before manual correction
+            if session == 'ses-M0':
+                continue  ############################################################################## Skip baseline session
+            ##############################################################################
             # Build folder
             session_output_folder = os.path.join(subject_output_folder, session)
             os.makedirs(session_output_folder, exist_ok=True)
@@ -75,13 +79,13 @@ def main():
                 assert os.system(f'SCT_USE_GPU=1 sct_deepseg spinalcord -i {input_image_path} -o {output_sc_seg_path} ') == 0
                 # For each image, we want the lesion segmentation
                 output_lesion_seg_path = os.path.join(session_output_folder, Path(input_image_path).name.replace('.nii.gz', '_seg.nii.gz'))
-                assert os.system(f'SCT_USE_GPU=1 sct_deepseg lesion_ms -i {input_image_path} -o {output_lesion_seg_path} -qc {qc_folder} -qc-plane Sagittal -qc-seg {output_sc_seg_path} ') == 0
-                # For each image, we also want the vertebral levels
-                output_vertebrae_path = os.path.join(session_output_folder, Path(input_image_path).name.replace('.nii.gz', '_levels.nii.gz'))
-                assert os.system(f'SCT_USE_GPU=1 sct_deepseg totalspineseg -i {input_image_path} -step1-only 1 -o {output_vertebrae_path} ') == 0
-                # Finally we also want the cord centerline
-                output_centerline_path = os.path.join(session_output_folder, Path(input_image_path).name.replace('.nii.gz', '_centerline.nii.gz'))
-                assert os.system(f'sct_get_centerline -i  {output_sc_seg_path} -method fitseg -o {output_centerline_path}') == 0
+                assert os.system(f'SCT_USE_GPU=1 sct_deepseg lesion_ms -i {input_image_path} -test-time-aug -o {output_lesion_seg_path} -qc {qc_folder} -qc-plane Sagittal -qc-seg {output_sc_seg_path} ') == 0
+                # # For each image, we also want the vertebral levels
+                # output_vertebrae_path = os.path.join(session_output_folder, Path(input_image_path).name.replace('.nii.gz', '_levels.nii.gz'))
+                # assert os.system(f'SCT_USE_GPU=1 sct_deepseg totalspineseg -i {input_image_path} -step1-only 1 -o {output_vertebrae_path} ') == 0
+                # # Finally we also want the cord centerline
+                # output_centerline_path = os.path.join(session_output_folder, Path(input_image_path).name.replace('.nii.gz', '_centerline.nii.gz'))
+                # assert os.system(f'sct_get_centerline -i  {output_sc_seg_path} -method fitseg -o {output_centerline_path}') == 0
 
     print("Inference completed.")
         
