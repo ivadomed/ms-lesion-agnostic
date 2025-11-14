@@ -27,7 +27,7 @@ import sys
 file_path = os.path.abspath(os.path.dirname(__file__))
 root_path = os.path.abspath(os.path.join(file_path, ".."))
 sys.path.insert(0, root_path)
-from utils import segment_sc, segment_lesions, get_levels
+from utils import segment_sc, segment_lesions, get_levels, keep_common_levels_only, compute_lesion_CoM, label_lesion_seg, correct_labeling
 
 
 def parse_args():
@@ -36,117 +36,6 @@ def parse_args():
     parser.add_argument('-i2', '--input_image2', type=str, required=True, help='Path to the input image at timepoint 2')
     parser.add_argument('-o', '--output_folder', type=str, required=True, help='Path to the output folder where comparison results will be stored')
     return parser.parse_args()
-
-
-def keep_common_levels_only(levels_1, levels_2):
-    """
-    This function keeps only the common disc levels between two level segmentations.
-    I could have done this using 'sct_label_utils -remove-reference'
-
-    Inputs:
-        levels_1 : path to the levels segmentation at timepoint 1
-        levels_2 : path to the levels segmentation at timepoint 2
-
-    Outputs:
-        None
-    """
-    # Load levels
-    img_levels_1 = nib.load(levels_1)
-    data_levels_1 = img_levels_1.get_fdata()
-    img_levels_2 = nib.load(levels_2)
-    data_levels_2 = img_levels_2.get_fdata()
-    # Find common levels
-    common_levels = np.intersect1d(np.unique(data_levels_1), np.unique(data_levels_2))
-    common_levels = common_levels[common_levels != 0]  # Exclude background
-    # Keep only common levels
-    new_data_levels_1 = np.zeros(data_levels_1.shape)
-    new_data_levels_2 = np.zeros(data_levels_2.shape)
-    for level in common_levels:
-        new_data_levels_1[data_levels_1 == level] = level
-        new_data_levels_2[data_levels_2 == level] = level
-    # Save new levels
-    new_img_levels_1 = nib.Nifti1Image(new_data_levels_1, img_levels_1.affine, img_levels_1.header)
-    nib.save(new_img_levels_1, levels_1)
-    new_img_levels_2 = nib.Nifti1Image(new_data_levels_2, img_levels_2.affine, img_levels_2.header)
-    nib.save(new_img_levels_2, levels_2)
-
-    return None
-
-
-def compute_lesion_CoM(labeled_lesion_seg):
-    """
-    This function computes the Center-of-Mass (CoM) of lesions in the lesion segmentation.
-
-    Inputs:
-        labeled_lesion_seg : path to the labeled lesion segmentation
-    
-    Outputs:
-        lesion_CoM : list of CoM coordinates for each lesion
-    """
-    # Load lesion segmentation
-    img_lesion = nib.load(labeled_lesion_seg)
-    data_lesion = img_lesion.get_fdata()
-    # Initialize dictionary to store CoM
-    lesion_CoM = {}
-    # Get unique lesion labels
-    lesions = np.unique(data_lesion)
-    lesions = lesions[lesions != 0]  # Exclude background
-    for lesion_id in lesions:
-        lesion_mask = (data_lesion == lesion_id)
-        if np.sum(lesion_mask) == 0:
-            continue
-        com = ndimage.center_of_mass(lesion_mask)
-        lesion_CoM[lesion_id] = com
-
-    return lesion_CoM
-
-
-def label_lesion_seg(lesion_seg, output_labeled_lesion_seg):
-    """
-    This function labels the lesion segmentation.
-
-    Inputs:
-        lesion_seg : path to the lesion segmentation
-        output_labeled_lesion_seg : path to the output labeled lesion segmentation
-
-    Outputs:
-        None
-    """
-    # Load lesion segmentation
-    img_lesion = nib.load(lesion_seg)
-    data_lesion = img_lesion.get_fdata()
-    # Label connected components (lesions)
-    labeled_lesions, num_lesions = ndimage.label(data_lesion)
-    # Save labeled lesion segmentation
-    labeled_img = nib.Nifti1Image(labeled_lesions, img_lesion.affine, img_lesion.header)
-    nib.save(labeled_img, output_labeled_lesion_seg)
-
-    return None
-
-
-def correct_labeling(labeled_lesion_seg, lesion_id_mapping):
-    """
-    This function corrects the labeling of lesions in the registered lesion segmentation based on the matching.
-    The lesion_id_mapping is a dictionary mapping old lesion IDs to new lesion IDs.
-
-    Inputs:
-        labeled_lesion_seg : path to the labeled lesion segmentation to be corrected
-        lesion_id_mapping : dictionary mapping old lesion IDs to new lesion IDs
-    Outputs:
-        None
-    """
-    # Load lesion segmentation
-    img_lesion = nib.load(labeled_lesion_seg)
-    data_lesion = img_lesion.get_fdata()
-    # Create a new array for corrected labels
-    corrected_data = np.zeros(data_lesion.shape)
-    for old_id, new_id in lesion_id_mapping.items():
-        corrected_data[data_lesion == old_id] = int(new_id)
-    # Save corrected lesion segmentation
-    corrected_img = nib.Nifti1Image(corrected_data, img_lesion.affine, img_lesion.header)
-    nib.save(corrected_img, labeled_lesion_seg)
-
-    return None
 
 
 def map_lesions_registered_with_CoM(input_image1, input_image2, output_folder):
