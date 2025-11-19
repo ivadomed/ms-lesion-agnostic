@@ -107,7 +107,7 @@ def label_centerline(centerline, levels, output_labeled_centerline):
             labeled_centerline_data[tuple(closest_point)] = level
     
     # Interpolate values along the centerline
-    for level, i in enumerate([min(level_labels)-1, *level_labels]):
+    for level, i in enumerate(level_labels):
         # We first take car of the centerline points that are above the first level
         if i == 0:
             superior_level = level + 1e-3 # A small value because we don't want it to be 0 like the background
@@ -335,12 +335,12 @@ def map_lesions_unregistered(input_image1, input_image2, output_folder):
     # Segment the lesions, the sc, the centerline and the discs at both timepoints
     image_1_name = Path(input_image1).name
     lesion_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
-    sc_seg_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_sc_seg.nii.gz'))
+    sc_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_sc_seg.nii.gz'))
     centerline_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_centerline.nii.gz'))
     levels_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_levels.nii.gz'))
     image_2_name = Path(input_image2).name
     lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
-    sc_seg_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_sc_seg.nii.gz'))
+    sc_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_sc_seg.nii.gz'))
     centerline_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_centerline.nii.gz'))
     levels_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_levels.nii.gz'))
     lesion_seg_labeled_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
@@ -396,7 +396,7 @@ def main():
     input_image2 = args.input_image2
     output_folder = args.output_folder
 
-    lesion_mapping =map_lesions_unregistered(input_image1, input_image2, output_folder)
+    lesion_mapping = map_lesions_unregistered(input_image1, input_image2, output_folder)
 
     return None
 
