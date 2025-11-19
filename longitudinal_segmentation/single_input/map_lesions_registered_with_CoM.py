@@ -38,6 +38,35 @@ def parse_args():
     return parser.parse_args()
 
 
+def compute_lesion_mapping(lesion_1_CoM, lesion_2_CoM):
+    """
+    This function computes the lesion mapping between two timepoints based on the CoM of lesions.
+
+    Inputs:
+        lesion_1_CoM : dict, mapping from lesion indices to their CoM at timepoint 1
+        lesion_2_reg_CoM : dict, mapping from lesion indices to their CoM at timepoint 2 (registered to timepoint 1)
+
+    Outputs:
+        lesion_mapping_forward : dict, mapping from lesion indices from baseline to follow-up
+    """
+    # Compute cost matrix based on Euclidean distance between CoMs
+    cost_matrix = np.zeros((len(lesion_1_CoM), len(lesion_2_CoM)))
+    for i, (lesion1_id, com1) in enumerate(lesion_1_CoM.items()):
+        for j, (lesion2_id, com2) in enumerate(lesion_2_CoM.items()):
+            cost_matrix[i, j] = np.linalg.norm(np.array(com1) - np.array(com2))
+    # Apply Hungarian algorithm to find optimal assignment
+    row_ind, col_ind = linear_sum_assignment(cost_matrix)
+    
+    # Create a lesion mapping report
+    lesion_mapping = {}
+    for i, j in zip(row_ind, col_ind):
+        lesion1_id = int(list(lesion_1_CoM.keys())[i])
+        lesion2_id = int(list(lesion_2_CoM.keys())[j])
+        lesion_mapping[lesion1_id] = lesion2_id
+    
+    return lesion_mapping
+
+
 def map_lesions_registered_with_CoM(input_image1, input_image2, output_folder):
     """
     This function performs lesion mapping between two timepoints using registered images and lesion matching based on the center of mass of lesions.
@@ -48,7 +77,7 @@ def map_lesions_registered_with_CoM(input_image1, input_image2, output_folder):
         output_folder : path to the output folder where comparison results will be stored
 
     Outputs:
-        None
+        lesion_mapping_1_to_2 : dict, mapping from lesion indices from timepoint 1 to timepoint 2 based on CoM
     """
     # Build output directory
     os.makedirs(output_folder, exist_ok=True)
@@ -82,8 +111,8 @@ def map_lesions_registered_with_CoM(input_image1, input_image2, output_folder):
     # Initialize file name for lesion segmentation of image 2 registered to image 1
     lesion_seg_2_reg = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_registered.nii.gz'))
     # Initialize file name for labeled lesion segmentations
-    labeled_lesion_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_lesion-seg_labeled.nii.gz'))
-    labeled_lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg_labeled.nii.gz'))
+    labeled_lesion_seg_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_lesion-seg_labeled.nii.gz'))
+    labeled_lesion_seg_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_lesion-seg_labeled.nii.gz'))
     labeled_lesion_seg_2_reg = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg_registered_labeled.nii.gz'))
 
     # Segment the spinal cord
@@ -117,26 +146,8 @@ def map_lesions_registered_with_CoM(input_image1, input_image2, output_folder):
     lesion_2_reg_CoM = compute_lesion_CoM(labeled_lesion_seg_2_reg)
 
     # We perform lesion matching based on the CoM using the Hungarian algorithm
-    cost_matrix = np.zeros((len(lesion_1_CoM), len(lesion_2_reg_CoM)))
-    for i, (lesion1_id, com1) in enumerate(lesion_1_CoM.items()):
-        for j, (lesion2_id, com2) in enumerate(lesion_2_reg_CoM.items()):
-            cost_matrix[i, j] = np.linalg.norm(np.array(com1) - np.array(com2))
-    row_ind, col_ind = linear_sum_assignment(cost_matrix)
-    # Creat a lesion mapping report
-    lesion_id_mapping = {}
-    print("Lesion mapping (lesion ID at timepoint 2 -> lesion ID at timepoint 1):")
-    print("i.e. initial lesion value -> corrected lesion value")
-    for i, j in zip(row_ind, col_ind):
-        lesion1_id = list(lesion_1_CoM.keys())[i]
-        lesion2_id = list(lesion_2_reg_CoM.keys())[j]
-        lesion_id_mapping[lesion2_id] = lesion1_id
-        distance = cost_matrix[i, j]
-        print(f"Lesion {lesion2_id} -> Lesion {lesion1_id} (Distance: {distance:.2f} voxels)")
-    # print lesion mapping with indentation
-    print(json.dumps(lesion_id_mapping, indent=4))
-
-    # Correct the labeling of lesions in the registered lesion segmentation based on the matching
-    correct_labeling(labeled_lesion_seg_2_reg, lesion_id_mapping)
+    lesion_mapping_1_to_reg2 = compute_lesion_mapping(lesion_1_CoM, lesion_2_reg_CoM)
+    logger.info(f"Lesion mapping from timepoint 1 to timepoint 2 based on CoM:\n{lesion_mapping_1_to_reg2}")
 
     # Then we register back to image 2 space the corrected lesion segmentation
     # Initialize file name for corrected lesion segmentation of image 2 registered back to image 2
@@ -145,37 +156,22 @@ def map_lesions_registered_with_CoM(input_image1, input_image2, output_folder):
     
     # Now we compute the CoM of the registered back lesions
     lesion_2_reg_back_CoM = compute_lesion_CoM(reg_back_labeled_lesion_seg_2)
+    # We perform lesion matching of reg back lesion 2 and lesion 2
+    lesion_mapping_regback2_to_2 = compute_lesion_mapping(lesion_2_reg_back_CoM, lesion_2_CoM)
+    logger.info(f"Lesion mapping from timepoint 2 registered back to timepoint 2 to timepoint 2 based on CoM:\n{lesion_mapping_regback2_to_2}")
 
-    # We perform lesion matching based on the CoM using the Hungarian algorithm
-    cost_matrix_back = np.zeros((len(lesion_2_CoM), len(lesion_2_reg_back_CoM)))
-    for i, (lesion2_id, com2) in enumerate(lesion_2_CoM.items()):
-        for j, (lesion2_reg_back_id, com2_reg_back) in enumerate(lesion_2_reg_back_CoM.items()):
-            cost_matrix_back[i, j] = np.linalg.norm(np.array(com2) - np.array(com2_reg_back))
-    row_ind_back, col_ind_back = linear_sum_assignment(cost_matrix_back)
-    # Creat a lesion mapping report
-    lesion_id_mapping_back = {}
-    print("Lesion mapping after registration back (lesion ID at timepoint 2 -> lesion ID at timepoint 2 after reg back):")
-    print("i.e. initial lesion value -> corrected lesion value")
-    for i, j in zip(row_ind_back, col_ind_back):
-        lesion2_id = list(lesion_2_CoM.keys())[i]
-        lesion2_reg_back_id = list(lesion_2_reg_back_CoM.keys())[j]
-        lesion_id_mapping_back[lesion2_id] = lesion2_reg_back_id
-        distance = cost_matrix_back[i, j]
-        print(f"Lesion {lesion2_id} -> Lesion {lesion2_reg_back_id} (Distance: {distance:.2f} voxels)")
-    # print lesion mapping with indentation
-    print(json.dumps(lesion_id_mapping_back, indent=4))
+    # Then we build the full mapping from timepoint 1 to timepoint 2
+    full_mapping_1_to_2 = {}
+    for lesion1_id, lesion2_reg_id in lesion_mapping_1_to_reg2.items():
+        if lesion2_reg_id in lesion_mapping_regback2_to_2:
+            lesion2_id = lesion_mapping_regback2_to_2[lesion2_reg_id]
+            full_mapping_1_to_2[lesion1_id] = lesion2_id
+    logger.info(f"Full lesion mapping from timepoint 1 to timepoint 2 based on CoM:\n{full_mapping_1_to_2}")
 
-    # We finally correct the labeling of lesions in the initial lesion segmentation at timepoint 2 based on the matching after reg back
-    correct_labeling(labeled_lesion_seg_2, lesion_id_mapping_back)
-    
-    # Move final labeled lesion segmentations to output folder
-    os.system(f'mv {labeled_lesion_seg_1} {os.path.join(output_folder, image_1_name.replace(".nii.gz", "_lesion-seg_labeled.nii.gz"))}')
-    os.system(f'mv {labeled_lesion_seg_2} {os.path.join(output_folder, image_2_name.replace(".nii.gz", "_lesion-seg_labeled.nii.gz"))}')
+    # # Remove temporary folder
+    # assert os.system(f'rm -rf {temp_folder}') == 0, "Failed to remove temporary folder"
 
-    # Remove temporary folder
-    os.system(f'rm -rf {temp_folder}')
-
-    return None
+    return full_mapping_1_to_2
 
 
 if __name__ == "__main__":
