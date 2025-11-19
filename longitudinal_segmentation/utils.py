@@ -97,53 +97,6 @@ def get_levels(input_image, output_levels):
     return None
 
 
-def analyze_lesions(lesion_seg, sc_seg, centerline, levels, output_labeled_lesion_seg):
-    """
-    This function analyzes the lesions given the lesion segmentation, spinal cord segmentation, centerline, and vertebral levels.
-
-    Inputs:
-        lesion_seg : path to the lesion segmentation
-        sc_seg : path to the spinal cord segmentation
-        centerline : path to the centerline
-        levels : path to the vertebral levels
-    
-    Outputs:
-        analysis_results : results of the lesion analysis
-    """
-    # Placeholder implementation
-    logger.info(f"Analyzing lesions in {lesion_seg}")
-
-    # Initialize the analysis results
-    analysis_results = {}
-
-    # We load the segmentation and look at each lesion (connected component)
-    lesion_data = nib.load(lesion_seg).get_fdata()
-    # Label the connected components
-    lbl_data, num_lesion = ndimage.label(lesion_data)
-    # Compute the center of mass for each lesion
-    labels = [i+1 for i in range(num_lesion)]
-    h = ndimage.center_of_mass(lesion_data, lbl_data, labels)
-    # Store the results
-    analysis_results['num_lesions'] = num_lesion
-    analysis_results['lesions'] = {}
-    for label, CoM in zip(labels, h):
-        analysis_results['lesions'][f'{label}'] = {}
-        analysis_results['lesions'][f'{label}']['center_of_mass'] = CoM
-
-    # For each lesion, we compute its volume
-    voxel_volume = np.prod(nib.load(lesion_seg).header.get_zooms())
-    for label in labels:
-        lesion_data = (lbl_data == label).astype(np.uint8)
-        lesion_volume = np.sum(lesion_data) * voxel_volume  # in mm^3
-        analysis_results['lesions'][f'{label}']['volume_mm3'] = lesion_volume
-
-    # We save a labeled lesion segmentation
-    labeled_lesion_img = nib.Nifti1Image(lbl_data, nib.load(lesion_seg).affine)
-    nib.save(labeled_lesion_img, output_labeled_lesion_seg)
-
-    return analysis_results
-
-
 def keep_common_levels_only(levels_1, levels_2):
     """
     This function keeps only the common disc levels between two level segmentations.
