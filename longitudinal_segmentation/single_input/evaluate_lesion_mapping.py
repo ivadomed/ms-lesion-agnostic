@@ -96,6 +96,8 @@ def convert_mapping(pred_mapping_file, convert_gt1_to_pred1, convert_gt2_to_pred
     for gt_lesion_id, pred_lesion_id_time1 in convert_gt1_to_pred1.items():
         converted_mapping[int(gt_lesion_id)] = []
         for pred_lesion_id in pred_lesion_id_time1:
+            if str(pred_lesion_id) not in pred_mapping.keys():
+                continue
             values_in_pred2 = pred_mapping[str(pred_lesion_id)]
             for val in values_in_pred2:
                 values_in_gt2 = convert_gt2_to_pred2[int(val)]
@@ -231,7 +233,7 @@ def evaluate_lesion_mapping(input_msd_dataset, predictions_folder, output_folder
         
         # Now we compute the lesion mapping from pred 1 to GT 1
         convert_gt1_to_pred1 = compute_lesion_mapping(compute_IoU_matrix(nib.load(gt_lesion_seg_1).get_fdata(), nib.load(predicted_lesion_seg_1).get_fdata()), 1e-4)
-        logger.info(f"Lesion mapping from predicted timepoint 1 to GT timepoint 1:\n{convert_gt1_to_pred1}")
+        logger.info(f"Lesion mapping from GT timepoint 1 to predicted timepoint 1 :\n{convert_gt1_to_pred1}")
         # Now we compute the lesion mapping from pred 2 to GT 2
         convert_pred2_to_gt2 = compute_lesion_mapping(compute_IoU_matrix(nib.load(predicted_lesion_seg_2).get_fdata(), nib.load(gt_lesion_seg_2).get_fdata()), 1e-4)
         logger.info(f"Lesion mapping from predicted timepoint 2 to GT timepoint 2:\n{convert_pred2_to_gt2}")
