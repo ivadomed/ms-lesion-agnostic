@@ -299,7 +299,7 @@ def lesion_matching(lesion_analysis_1, lesion_analysis_2):
     for i, j in zip(row_ind, col_ind):
         lesion_id_1 = list(lesion_analysis_1.keys())[i]
         lesion_id_2 = list(lesion_analysis_2.keys())[j]
-        lesion_mapping[lesion_id_1] = lesion_id_2
+        lesion_mapping[lesion_id_1] = [lesion_id_2]
 
     return lesion_mapping
 
@@ -335,12 +335,12 @@ def map_lesions_unregistered(input_image1, input_image2, output_folder):
     # Segment the lesions, the sc, the centerline and the discs at both timepoints
     image_1_name = Path(input_image1).name
     lesion_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
-    sc_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_sc_seg.nii.gz'))
+    sc_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_sc-seg.nii.gz'))
     centerline_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_centerline.nii.gz'))
     levels_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_levels.nii.gz'))
     image_2_name = Path(input_image2).name
     lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
-    sc_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_sc_seg.nii.gz'))
+    sc_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_sc-seg.nii.gz'))
     centerline_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_centerline.nii.gz'))
     levels_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_levels.nii.gz'))
     lesion_seg_labeled_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
@@ -371,8 +371,8 @@ def map_lesions_unregistered(input_image1, input_image2, output_folder):
     lesion_analysis_2 = analyze_lesions(lesion_seg_labeled_2)
 
     # We label the centerline so that it takes continous various following the disc levels
-    labeled_centerline_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_labeled_centerline.nii.gz'))
-    labeled_centerline_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_labeled_centerline.nii.gz'))
+    labeled_centerline_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_labeled-centerline.nii.gz'))
+    labeled_centerline_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_labeled-centerline.nii.gz'))
     label_centerline(centerline_1, levels_1, labeled_centerline_1)
     label_centerline(centerline_2, levels_2, labeled_centerline_2)
 

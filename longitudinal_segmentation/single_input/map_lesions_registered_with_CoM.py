@@ -98,11 +98,11 @@ def map_lesions_registered_with_CoM(input_image1, input_image2, output_folder):
     # Initialize file names for lesions, sc and disc levels at both timepoints
     image_1_name = Path(input_image1).name
     lesion_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
-    sc_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_sc_seg.nii.gz'))
+    sc_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_sc-seg.nii.gz'))
     levels_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_levels.nii.gz'))
     image_2_name = Path(input_image2).name
     lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
-    sc_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_sc_seg.nii.gz'))
+    sc_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_sc-seg.nii.gz'))
     levels_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_levels.nii.gz'))
     # Initialize file name for registered image 2
     registered_image2_to_1 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_registered_to_' + image_1_name))
@@ -111,9 +111,9 @@ def map_lesions_registered_with_CoM(input_image1, input_image2, output_folder):
     # Initialize file name for lesion segmentation of image 2 registered to image 1
     lesion_seg_2_reg = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_registered.nii.gz'))
     # Initialize file name for labeled lesion segmentations
-    labeled_lesion_seg_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_lesion-seg_labeled.nii.gz'))
-    labeled_lesion_seg_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_lesion-seg_labeled.nii.gz'))
-    labeled_lesion_seg_2_reg = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg_registered_labeled.nii.gz'))
+    labeled_lesion_seg_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
+    labeled_lesion_seg_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
+    labeled_lesion_seg_2_reg = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg-registered-labeled.nii.gz'))
 
     # Segment the spinal cord
     segment_sc(input_image1, sc_seg_1)
@@ -151,7 +151,7 @@ def map_lesions_registered_with_CoM(input_image1, input_image2, output_folder):
 
     # Then we register back to image 2 space the corrected lesion segmentation
     # Initialize file name for corrected lesion segmentation of image 2 registered back to image 2
-    reg_back_labeled_lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg_reg_back_labeled.nii.gz'))
+    reg_back_labeled_lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg-registered-back-labeled.nii.gz'))
     assert os.system(f"sct_apply_transfo -i {labeled_lesion_seg_2_reg} -d {input_image2} -w {inv_warping_field_img2_to_1} -o {reg_back_labeled_lesion_seg_2} -x nn") == 0, "Failed to warp back corrected lesion segmentation to image 2 space"
     
     # Now we compute the CoM of the registered back lesions
@@ -165,7 +165,7 @@ def map_lesions_registered_with_CoM(input_image1, input_image2, output_folder):
     for lesion1_id, lesion2_reg_id in lesion_mapping_1_to_reg2.items():
         if lesion2_reg_id in lesion_mapping_regback2_to_2:
             lesion2_id = lesion_mapping_regback2_to_2[lesion2_reg_id]
-            full_mapping_1_to_2[lesion1_id] = lesion2_id
+            full_mapping_1_to_2[lesion1_id] = [lesion2_id]
     logger.info(f"Full lesion mapping from timepoint 1 to timepoint 2 based on CoM:\n{full_mapping_1_to_2}")
 
     # # Remove temporary folder

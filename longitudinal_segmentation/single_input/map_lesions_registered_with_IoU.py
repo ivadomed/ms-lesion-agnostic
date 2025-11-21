@@ -120,12 +120,12 @@ def map_lesions_registered_with_IoU(input_image1, input_image2, output_folder, I
     image_1_name = Path(input_image1).name
     if lesion_seg_1_input is None:
         lesion_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
-    sc_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_sc_seg.nii.gz'))
+    sc_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_sc-seg.nii.gz'))
     levels_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_levels.nii.gz'))
     image_2_name = Path(input_image2).name
     if lesion_seg_2_input is None:
         lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
-    sc_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_sc_seg.nii.gz'))
+    sc_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_sc-seg.nii.gz'))
     levels_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_levels.nii.gz'))
     # Initialize file name for registered image 2
     registered_image2_to_1 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_registered_to_' + image_1_name))
@@ -134,9 +134,9 @@ def map_lesions_registered_with_IoU(input_image1, input_image2, output_folder, I
     # Initialize file name for lesion segmentation of image 2 registered to image 1
     lesion_seg_2_reg = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_registered.nii.gz'))
     # Initialize file name for labeled lesion segmentations
-    labeled_lesion_seg_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_lesion-seg_labeled.nii.gz'))
-    labeled_lesion_seg_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_lesion-seg_labeled.nii.gz'))
-    labeled_lesion_seg_2_reg = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg_registered_labeled.nii.gz'))
+    labeled_lesion_seg_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
+    labeled_lesion_seg_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
+    labeled_lesion_seg_2_reg = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg-registered-labeled.nii.gz'))
 
     # Segment the spinal cord
     segment_sc(input_image1, sc_seg_1)
@@ -181,7 +181,7 @@ def map_lesions_registered_with_IoU(input_image1, input_image2, output_folder, I
     logger.info(f"Lesion mapping based on IoU threshold of {IoU_threshold}:\n{lesion_mapping_1_to_2}")
 
     # We reg back the labeled lesion segmentation of timepoint 2 to timepoint 2 space
-    lesion_seg_2_reg_back_labeled = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion_registered_back_labeled.nii.gz'))
+    lesion_seg_2_reg_back_labeled = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg-registered-back-labeled.nii.gz'))
     assert os.system(f"sct_apply_transfo -i {labeled_lesion_seg_2_reg} -d {input_image2} -w {inv_warping_field_img2_to_1} -o {lesion_seg_2_reg_back_labeled} -x nn") == 0, "Failed to warp back lesion segmentation of image 2"
 
     # Then we match the labeled lesion segmentation of timepoint 2 reg back to timepoint 2 space to have consistent lesion labels
