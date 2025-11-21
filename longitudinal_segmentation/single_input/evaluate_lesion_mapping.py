@@ -144,6 +144,25 @@ def evaluate_lesion_mappings(pred_mapping, gt_mapping):
     return TP, FP, FN
 
 
+def lesion_volume(segmentation_path):
+    """
+    Compute the total lesion volume in mm^3 for a given segmentation.
+
+    Args:
+        segmentation_path (str): Path to the segmentation NIfTI file.
+    Returns:
+        volume_mm3 (float): Total lesion volume in mm^3.
+    """
+    seg_img = nib.load(segmentation_path)
+    seg_data = seg_img.get_fdata()
+    voxel_volume = np.prod(seg_img.header.get_zooms())  # in mm^3
+    # Binarize the segmentation
+    seg_data = (seg_data > 0).astype(np.uint8)
+    lesion_voxels = np.sum(seg_data)
+    volume_mm3 = lesion_voxels * voxel_volume
+    return volume_mm3
+
+
 def evaluate_lesion_mapping(input_msd_dataset, predictions_folder, output_folder):
     """
     This file evaluates the lesion mapping results between two timepoints.
@@ -228,6 +247,12 @@ def evaluate_lesion_mapping(input_msd_dataset, predictions_folder, output_folder
         TP, FP, FN = evaluate_lesion_mappings(converted_predicted_lesion_mapping, gt_lesion_mapping)
         logger.info(f"Lesion mapping evaluation - TP: {TP}, FP: {FP}, FN: {FN}")
 
+        # Compute total lesion volume in mm^3 for both timepoints and both predicted and GT segmentations
+        vol_gt1 = lesion_volume(gt_lesion_seg_1)
+        vol_pred1 = lesion_volume(predicted_lesion_seg_1)
+        vol_gt2 = lesion_volume(gt_lesion_seg_2)
+        vol_pred2 = lesion_volume(predicted_lesion_seg_2)
+
         # Add all the results to a dictionnary
         results = {
             'dice1': dice1,
@@ -250,8 +275,13 @@ def evaluate_lesion_mapping(input_msd_dataset, predictions_folder, output_folder
             'count_lesion_pred2': count_lesion_pred2,
             'lesion_mapping_TP': TP,
             'lesion_mapping_FP': FP,
-            'lesion_mapping_FN': FN
+            'lesion_mapping_FN': FN,
+            'vol_gt1_mm3': vol_gt1,
+            'vol_pred1_mm3': vol_pred1,
+            'vol_gt2_mm3': vol_gt2,
+            'vol_pred2_mm3': vol_pred2
         }
+        
         # Save the results to a JSON file
         results_file = os.path.join(subject_output_folder, 'results.json')
         with open(results_file, 'w') as f:
