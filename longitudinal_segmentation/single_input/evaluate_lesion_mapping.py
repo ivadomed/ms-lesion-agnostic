@@ -144,12 +144,20 @@ def evaluate_lesion_mappings(pred_mapping, gt_mapping):
     return TP, FP, FN
 
 
-def main():
-    args = parse_args()
-    input_msd_dataset = args.input_msd
-    predictions_folder = args.predictions_folder
-    output_folder = args.output_folder
+def evaluate_lesion_mapping(input_msd_dataset, predictions_folder, output_folder):
+    """
+    This file evaluates the lesion mapping results between two timepoints.
+    It computes segmentation metrics of the predicted segmentations against the ground truth.
+    It also computes lesion matching metrics based on the lesion mapping results and the ground truth mapping.
 
+    Args:
+        input_msd_dataset (str): Path to the input MSD dataset.
+        predictions_folder (str): Path to the folder where predictions were stored.
+        output_folder (str): Path to the output folder where evaluation results will be stored.
+
+    Returns:
+        results_dict (dict): Dictionary containing evaluation results for each subject.
+    """
     # Initialize logger
     logger.add(os.path.join(output_folder, f'logger_{str(date.today())}.log'))
     logger.info(f"Input MSD dataset: {input_msd_dataset}")
@@ -260,8 +268,14 @@ def main():
     # Remove the temp folder
     # os.system(f"rm -rf {temp_folder}")
 
-    return None
+    return results_dict
 
 
 if __name__ == "__main__":
-    main()
+    # Parse arguments
+    args = parse_args()
+    input_msd_dataset = args.input_msd
+    predictions_folder = args.predictions_folder
+    output_folder = args.output_folder
+    # Run evaluation
+    results = evaluate_lesion_mapping(input_msd_dataset, predictions_folder, output_folder)
