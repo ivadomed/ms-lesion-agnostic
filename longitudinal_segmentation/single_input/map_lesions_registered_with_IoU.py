@@ -86,7 +86,7 @@ def compute_lesion_mapping(IoU_matrix, IoU_threshold):
     return lesion_mapping_forward
 
 
-def map_lesions_registered_with_IoU(input_image1, input_image2, output_folder, IoU_threshold=0.02, lesion_seg_1=None, lesion_seg_2=None):
+def map_lesions_registered_with_IoU(input_image1, input_image2, output_folder, IoU_threshold=1e-5, lesion_seg_1_input=None, lesion_seg_2_input=None):
     """
     This function performs lesion mapping between two timepoints using registered images and lesion matching based on the center of mass of lesions.
 
@@ -94,6 +94,8 @@ def map_lesions_registered_with_IoU(input_image1, input_image2, output_folder, I
         input_image1 : path to the input image at timepoint 1
         input_image2 : path to the input image at timepoint 2
         output_folder : path to the output folder where comparison results will be stored
+        lesion_seg_1_input : path to the lesion segmentation at timepoint 1 (optional)
+        lesion_seg_2_input : path to the lesion segmentation at timepoint 2 (optional)
 
     Outputs:
         None
@@ -116,12 +118,12 @@ def map_lesions_registered_with_IoU(input_image1, input_image2, output_folder, I
 
     # Initialize file names for lesions, sc and disc levels at both timepoints
     image_1_name = Path(input_image1).name
-    if lesion_seg_1 is None:
+    if lesion_seg_1_input is None:
         lesion_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
     sc_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_sc_seg.nii.gz'))
     levels_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_levels.nii.gz'))
     image_2_name = Path(input_image2).name
-    if lesion_seg_2 is None:
+    if lesion_seg_2_input is None:
         lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
     sc_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_sc_seg.nii.gz'))
     levels_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_levels.nii.gz'))
@@ -140,10 +142,14 @@ def map_lesions_registered_with_IoU(input_image1, input_image2, output_folder, I
     segment_sc(input_image1, sc_seg_1)
     segment_sc(input_image2, sc_seg_2)
     # Segment the lesions
-    if lesion_seg_1 is None:
+    if lesion_seg_1_input is None:
         segment_lesions(input_image1, sc_seg_1, qc_folder, lesion_seg_1, test_time_aug=True)
-    if lesion_seg_2 is None:
+    else:
+        lesion_seg_1 = lesion_seg_1_input
+    if lesion_seg_2_input is None:
         segment_lesions(input_image2, sc_seg_2, qc_folder, lesion_seg_2, test_time_aug=True)
+    else:
+        lesion_seg_2 = lesion_seg_2_input
     # Get the levels
     get_levels(input_image1, levels_1)
     get_levels(input_image2, levels_2)
