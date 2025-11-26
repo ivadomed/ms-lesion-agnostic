@@ -157,9 +157,14 @@ def analyze_lesions(labeled_lesion_seg):
     labels = np.unique(lesion_data)
     labels = labels[labels != 0]  # Exclude background
     lesion_center_of_mass = ndimage.center_of_mass(lesion_data, lesion_data, labels)
+    # We also compute the volume of each lesion
+    resolution = nib.load(labeled_lesion_seg).header.get_zooms()
+
     for label, CoM in zip(labels, lesion_center_of_mass):
         analysis_results[f'{int(label)}'] = {
             'center_of_mass': CoM}
+        lesion_volume = np.sum(lesion_data == int(label)) * np.prod(resolution)
+        analysis_results[f'{int(label)}']['volume_mm3'] = lesion_volume
 
     return analysis_results
 
@@ -350,8 +355,8 @@ def map_lesions_unregistered(input_image1, input_image2, output_folder):
     segment_sc(input_image1, sc_seg_1)
     segment_sc(input_image2, sc_seg_2)
     # Segment the lesions
-    segment_lesions(input_image1, sc_seg_1, qc_folder, lesion_seg_1, test_time_aug=True)
-    segment_lesions(input_image2, sc_seg_2, qc_folder, lesion_seg_2, test_time_aug=True)
+    segment_lesions(input_image1, sc_seg_1, qc_folder, lesion_seg_1, test_time_aug=True, soft_ms_lesion=True)
+    segment_lesions(input_image2, sc_seg_2, qc_folder, lesion_seg_2, test_time_aug=True, soft_ms_lesion=True)
     # Get the centerline
     get_centerline(sc_seg_1, centerline_1)
     get_centerline(sc_seg_2, centerline_2)
