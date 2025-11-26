@@ -143,11 +143,11 @@ def map_lesions_registered_with_IoU(input_image1, input_image2, output_folder, I
     segment_sc(input_image2, sc_seg_2)
     # Segment the lesions
     if lesion_seg_1_input is None:
-        segment_lesions(input_image1, sc_seg_1, qc_folder, lesion_seg_1, test_time_aug=True)
+        segment_lesions(input_image1, sc_seg_1, qc_folder, lesion_seg_1, test_time_aug=True, soft_ms_lesion=True)
     else:
         lesion_seg_1 = lesion_seg_1_input
     if lesion_seg_2_input is None:
-        segment_lesions(input_image2, sc_seg_2, qc_folder, lesion_seg_2, test_time_aug=True)
+        segment_lesions(input_image2, sc_seg_2, qc_folder, lesion_seg_2, test_time_aug=True, soft_ms_lesion=True)
     else:
         lesion_seg_2 = lesion_seg_2_input
     # Get the levels
@@ -162,7 +162,7 @@ def map_lesions_registered_with_IoU(input_image1, input_image2, output_folder, I
     assert os.system(f"sct_register_multimodal -i {input_image2} -d {input_image1} -param '{parameter}' -ilabel {levels_2} -dlabel {levels_1} -o {registered_image2_to_1} -owarp {warping_field_img2_to_1} -owarpinv {inv_warping_field_img2_to_1} -dseg {sc_seg_1} -qc {qc_folder} ") == 0, "Registration failed"
 
     # # We warp the lesion segmentation of image 2 to image 1 space using a linear interpolation
-    assert os.system(f"sct_apply_transfo -i {lesion_seg_2} -d {input_image1} -w {warping_field_img2_to_1} -o {lesion_seg_2_reg} -x nn") == 0, "Failed to warp lesion segmentation of image 2"
+    assert os.system(f"sct_apply_transfo -i {lesion_seg_2} -d {input_image1} -w {warping_field_img2_to_1} -o {lesion_seg_2_reg} -x linear") == 0, "Failed to warp lesion segmentation of image 2"
     
     # We label the lesion segmentation files
     label_lesion_seg(lesion_seg_1, labeled_lesion_seg_1)
@@ -182,7 +182,7 @@ def map_lesions_registered_with_IoU(input_image1, input_image2, output_folder, I
 
     # We reg back the labeled lesion segmentation of timepoint 2 to timepoint 2 space
     lesion_seg_2_reg_back_labeled = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg-registered-back-labeled.nii.gz'))
-    assert os.system(f"sct_apply_transfo -i {labeled_lesion_seg_2_reg} -d {input_image2} -w {inv_warping_field_img2_to_1} -o {lesion_seg_2_reg_back_labeled} -x nn") == 0, "Failed to warp back lesion segmentation of image 2"
+    assert os.system(f"sct_apply_transfo -i {labeled_lesion_seg_2_reg} -d {input_image2} -w {inv_warping_field_img2_to_1} -o {lesion_seg_2_reg_back_labeled} -x linear") == 0, "Failed to warp back lesion segmentation of image 2"
 
     # Then we match the labeled lesion segmentation of timepoint 2 reg back to timepoint 2 space to have consistent lesion labels
     data_lesion_reg_back = nib.load(lesion_seg_2_reg_back_labeled).get_fdata()

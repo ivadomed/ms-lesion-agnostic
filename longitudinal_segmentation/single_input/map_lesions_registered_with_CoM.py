@@ -119,8 +119,8 @@ def map_lesions_registered_with_CoM(input_image1, input_image2, output_folder):
     segment_sc(input_image1, sc_seg_1)
     segment_sc(input_image2, sc_seg_2)
     # Segment the lesions
-    segment_lesions(input_image1, sc_seg_1, qc_folder, lesion_seg_1, test_time_aug=True)
-    segment_lesions(input_image2, sc_seg_2, qc_folder, lesion_seg_2, test_time_aug=True)
+    segment_lesions(input_image1, sc_seg_1, qc_folder, lesion_seg_1, test_time_aug=True, soft_ms_lesion=True)
+    segment_lesions(input_image2, sc_seg_2, qc_folder, lesion_seg_2, test_time_aug=True, soft_ms_lesion=True)
     # Get the levels
     get_levels(input_image1, levels_1)
     get_levels(input_image2, levels_2)
@@ -133,7 +133,7 @@ def map_lesions_registered_with_CoM(input_image1, input_image2, output_folder):
     assert os.system(f"sct_register_multimodal -i {input_image2} -d {input_image1} -param '{parameter}' -ilabel {levels_2} -dlabel {levels_1} -o {registered_image2_to_1} -owarp {warping_field_img2_to_1} -owarpinv {inv_warping_field_img2_to_1} -dseg {sc_seg_1} -qc {qc_folder} ") == 0, "Registration failed"
 
     # We warp the lesion segmentation of image 2 to image 1 space using a linear interpolation
-    assert os.system(f"sct_apply_transfo -i {lesion_seg_2} -d {input_image1} -w {warping_field_img2_to_1} -o {lesion_seg_2_reg} -x nn") == 0, "Failed to warp lesion segmentation of image 2"
+    assert os.system(f"sct_apply_transfo -i {lesion_seg_2} -d {input_image1} -w {warping_field_img2_to_1} -o {lesion_seg_2_reg} -x linear") == 0, "Failed to warp lesion segmentation of image 2"
     
     # We label the lesion segmentation files
     label_lesion_seg(lesion_seg_1, labeled_lesion_seg_1)
@@ -152,7 +152,7 @@ def map_lesions_registered_with_CoM(input_image1, input_image2, output_folder):
     # Then we register back to image 2 space the corrected lesion segmentation
     # Initialize file name for corrected lesion segmentation of image 2 registered back to image 2
     reg_back_labeled_lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg-registered-back-labeled.nii.gz'))
-    assert os.system(f"sct_apply_transfo -i {labeled_lesion_seg_2_reg} -d {input_image2} -w {inv_warping_field_img2_to_1} -o {reg_back_labeled_lesion_seg_2} -x nn") == 0, "Failed to warp back corrected lesion segmentation to image 2 space"
+    assert os.system(f"sct_apply_transfo -i {labeled_lesion_seg_2_reg} -d {input_image2} -w {inv_warping_field_img2_to_1} -o {reg_back_labeled_lesion_seg_2} -x linear") == 0, "Failed to warp back corrected lesion segmentation to image 2 space"
     
     # Now we compute the CoM of the registered back lesions
     lesion_2_reg_back_CoM = compute_lesion_CoM(reg_back_labeled_lesion_seg_2)
