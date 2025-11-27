@@ -9,6 +9,7 @@ Input:
         - registered_with_CoM
         - registered_with_IoU
         - unregistered
+    -gt: whether to use ground truth lesion segmentations (default: False)
 
 Output:
     None
@@ -29,6 +30,7 @@ def parse_args():
     parser.add_argument('-i', '--input-msd', type=str, required=True, help='Path to the input MSD dataset')
     parser.add_argument('-o', '--output-folder', type=str, required=True, help='Path to the output folder where lesion matching results will be stored')
     parser.add_argument('-m', '--method', type=str, required=True, choices=['registered_with_CoM', 'registered_with_IoU', 'unregistered'], help='Method to use for lesion matching')
+    parser.add_argument('-gt', '--ground-truth', action='store_true', help='Whether to use ground truth lesion segmentations')
     return parser.parse_args()
 
 
@@ -59,11 +61,11 @@ def main():
         os.makedirs(subject_output_folder, exist_ok=True)
 
         if method == 'registered_with_CoM':
-            lesion_mapping = map_lesions_registered_with_CoM(input_image1, input_image2, subject_output_folder)
+            lesion_mapping = map_lesions_registered_with_CoM(input_image1, input_image2, subject_output_folder, GT_lesion=args.ground_truth)
         elif method == 'registered_with_IoU':
-            lesion_mapping = map_lesions_registered_with_IoU(input_image1, input_image2, subject_output_folder)
+            lesion_mapping = map_lesions_registered_with_IoU(input_image1, input_image2, subject_output_folder, GT_lesion=args.ground_truth)
         elif method == 'unregistered':
-            lesion_mapping = map_lesions_unregistered(input_image1, input_image2, subject_output_folder)
+            lesion_mapping = map_lesions_unregistered(input_image1, input_image2, subject_output_folder, GT_lesion=args.ground_truth)
         
         # Save the lesion mapping in a json file
         mapping_output_file = os.path.join(subject_output_folder, 'lesion_mapping.json')

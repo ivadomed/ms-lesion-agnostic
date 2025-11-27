@@ -159,12 +159,39 @@ def analyze_lesions(labeled_lesion_seg):
     lesion_center_of_mass = ndimage.center_of_mass(lesion_data, lesion_data, labels)
     # We also compute the volume of each lesion
     resolution = nib.load(labeled_lesion_seg).header.get_zooms()
+    # We find to which plane each axis corresponds to
+    orientation = nib.aff2axcodes(nib.load(labeled_lesion_seg).affine)
+    for i, axis in enumerate(orientation):
+        if axis in ['R', 'L']:
+            RL_axis = i
+        elif axis in ['A', 'P']:
+            AP_axis = i
+        elif axis in ['S', 'I']:
+            SI_axis = i
+    print(orientation, RL_axis, AP_axis, SI_axis)
 
     for label, CoM in zip(labels, lesion_center_of_mass):
         analysis_results[f'{int(label)}'] = {
             'center_of_mass': CoM}
         lesion_volume = np.sum(lesion_data == int(label)) * np.prod(resolution)
         analysis_results[f'{int(label)}']['volume_mm3'] = lesion_volume
+        # We also compute lesion maximum diameter in each plane
+        lesion_mask = (lesion_data == int(label))
+        coords = np.argwhere(lesion_mask)
+        # Calculate min and max coordinates along each axis
+        min_bounds = coords.min(axis=0)
+        max_bounds = coords.max(axis=0)
+        print(f'Lesion {int(label)} min bounds: {min_bounds}, max bounds: {max_bounds}')
+        # Calculate extent in voxels (max - min + 1)
+        # We add 1 because if a lesion is at index 10, max=10, min=10, but length is 1 voxel
+        extent_voxels = max_bounds - min_bounds + 1
+        # Convert extent to millimeters
+        extent_mm = extent_voxels * np.array(resolution)
+        # Store dimensions based on anatomical axes determined earlier
+        analysis_results[f'{int(label)}']['diameter_RL_mm'] = extent_mm[RL_axis]
+        analysis_results[f'{int(label)}']['diameter_AP_mm'] = extent_mm[AP_axis]
+        analysis_results[f'{int(label)}']['diameter_SI_mm'] = extent_mm[SI_axis]
+        
 
     return analysis_results
 
@@ -309,7 +336,7 @@ def lesion_matching(lesion_analysis_1, lesion_analysis_2):
     return lesion_mapping
 
 
-def map_lesions_unregistered(input_image1, input_image2, output_folder):
+def map_lesions_unregistered(input_image1, input_image2, output_folder, GT_lesion=False):
     """
     This function performs lesion mapping between two timepoints.
 
@@ -338,31 +365,38 @@ def map_lesions_unregistered(input_image1, input_image2, output_folder):
     assert os.system(f'cp {input_image2} {output_folder}/') == 0, "Failed to copy image 2"
 
     # Segment the lesions, the sc, the centerline and the discs at both timepoints
+    if GT_lesion:
+        logger.info("Using ground truth lesion segmentations")
+        lesion_seg_1 = input_image1.replace('canproco', 'canproco/derivatives/labels-ms-spinal-cord-only').replace('.nii.gz', '_lesion-manual.nii.gz')
+        lesion_seg_2 = input_image2.replace('canproco', 'canproco/derivatives/labels-ms-spinal-cord-only').replace('.nii.gz', '_lesion-manual.nii.gz')
+    else:
+        lesion_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
+        lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
+    
     image_1_name = Path(input_image1).name
-    lesion_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
     sc_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_sc-seg.nii.gz'))
     centerline_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_centerline.nii.gz'))
     levels_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_levels.nii.gz'))
     image_2_name = Path(input_image2).name
-    lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
+    
     sc_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_sc-seg.nii.gz'))
     centerline_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_centerline.nii.gz'))
     levels_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_levels.nii.gz'))
     lesion_seg_labeled_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
     lesion_seg_labeled_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
 
-    # Segment the spinal cord
-    segment_sc(input_image1, sc_seg_1)
-    segment_sc(input_image2, sc_seg_2)
-    # Segment the lesions
-    segment_lesions(input_image1, sc_seg_1, qc_folder, lesion_seg_1, test_time_aug=True, soft_ms_lesion=True)
-    segment_lesions(input_image2, sc_seg_2, qc_folder, lesion_seg_2, test_time_aug=True, soft_ms_lesion=True)
-    # Get the centerline
-    get_centerline(sc_seg_1, centerline_1)
-    get_centerline(sc_seg_2, centerline_2)
-    # Get the levels
-    get_levels(input_image1, levels_1)
-    get_levels(input_image2, levels_2)
+    # # Segment the spinal cord
+    # segment_sc(input_image1, sc_seg_1)
+    # segment_sc(input_image2, sc_seg_2)
+    # # Segment the lesions
+    # segment_lesions(input_image1, sc_seg_1, qc_folder, lesion_seg_1, test_time_aug=True, soft_ms_lesion=True)
+    # segment_lesions(input_image2, sc_seg_2, qc_folder, lesion_seg_2, test_time_aug=True, soft_ms_lesion=True)
+    # # Get the centerline
+    # get_centerline(sc_seg_1, centerline_1)
+    # get_centerline(sc_seg_2, centerline_2)
+    # # Get the levels
+    # get_levels(input_image1, levels_1)
+    # get_levels(input_image2, levels_2)
 
     # Now we can perform lesion mapping between timepoint 1 and timepoint 2
     logger.info("Performing lesion mapping between timepoint 1 and timepoint 2")
