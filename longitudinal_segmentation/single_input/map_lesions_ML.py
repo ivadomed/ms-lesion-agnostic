@@ -15,7 +15,10 @@ import argparse
 import json
 import sys
 from pathlib import Path
-import pandas as pandas
+import pandas as pd
+from loguru import logger
+from datetime import date
+from tqdm import tqdm
 # Import the functions from utils in parent folder
 file_path = os.path.abspath(os.path.dirname(__file__))
 root_path = os.path.abspath(os.path.join(file_path, ".."))
@@ -68,34 +71,36 @@ def group_lesions(lesion_analysis_1, lesion_analysis_2, lesion_mapping_path):
     lesions_baselines = set(lesion_analysis_1.keys())
     lesions_followups = set(lesion_analysis_2.keys())
     # Iterate through the lesion mapping to create groups
-    while lesions_baselines:
+    for lesion_1 in list(lesions_baselines):
+        if 'group' in lesion_analysis_1[lesion_1]:
+            # Already assigned to a group
+            continue
         group_id += 1
-        # Take one lesion from the baseline set
-        lesion_1 = lesions_baselines.pop()
         # The lesion is assigned to a group
         lesion_analysis_1[lesion_1]['group'] = group_id
-        # And all mapped lesions too
-        for lesion_2 in lesion_mapping[lesion_1]:
+        # We check all mapped lesions too
+        for lesion_2 in lesion_mapping[lesion_1]: 
             lesion_analysis_2[str(lesion_2)]['group'] = group_id
-            # We also remove the lesion from the set to avoid re-processing
-            lesions_followups.remove(str(lesion_2))
-        # Now we look at at all other lesions in timepoint_1, if any of them have lesions in common with mapped_lesions_2, we add them to the same group
-        for other_lesion_1 in lesions_baselines:
+        # Now we check if all other lesions in baseline have any mapped lesions in common with the current lesion_1
+        for other_lesion_1 in list(lesions_baselines):
+            if other_lesion_1 == lesion_1:
+                continue
+            if 'group' in lesion_analysis_1[other_lesion_1]:
+                # Already assigned to a group
+                continue
             other_mapped_lesions_2 = lesion_mapping[other_lesion_1]
             # If there is an intersection between other_mapped_lesions_2 and mapped_lesions_2, we add other_lesion_1 to the same group
             if set(other_mapped_lesions_2).intersection(set(lesion_mapping[lesion_1])):
                 lesion_analysis_1[other_lesion_1]['group'] = group_id
-                lesions_baselines.remove(other_lesion_1)
                 # And all mapped lesions too
                 for lesion_2 in other_mapped_lesions_2:
-                    # If the lesion has not already been assigned to a group
-                    if 'group' not in lesion_analysis_2[lesion_2]:
-                        lesion_analysis_2[lesion_2]['group'] = group_id
-                        # We also remove the lesion from the set to avoid re-processing
-                        lesions_followups.remove(lesion_2)
+                    lesion_analysis_2[str(lesion_2)]['group'] = group_id
     
     # For lesions of follow-up that were not mapped to any baseline lesion, we create new groups
     for lesion_2 in lesions_followups:
+        # If already assigned to a group, we skip
+        if 'group' in lesion_analysis_2[lesion_2]:
+            continue
         group_id += 1
         lesion_analysis_2[lesion_2]['group'] = group_id
 
@@ -116,15 +121,18 @@ def build_dataset(input_msd_dataset, output_folder):
     # Ensure output folder exists
     os.makedirs(output_folder, exist_ok=True)
 
+    # Add a logger
+    logger.add(os.path.join(output_folder, f'logger_{str(date.today())}.log'))
+
     # Load the msd dataset
     with open(input_msd_dataset, 'r') as f:
         msd_data = json.load(f)
     data = msd_data['data']
 
-    dataset = pandas.DataFrame()
+    dataset = []
 
     # Loop through each subject
-    for subject in data:
+    for subject in tqdm(data):
         # Build subject output folder
         subject_output_folder = os.path.join(output_folder, subject)
         os.makedirs(subject_output_folder, exist_ok=True)
@@ -141,7 +149,7 @@ def build_dataset(input_msd_dataset, output_folder):
         image1 = data[subject][timepoint1][0]
         labeled_mask1_path = image1.replace('canproco', 'canproco/derivatives/labels-ms-spinal-cord-only').replace('.nii.gz', '_lesion-manual-labeled.nii.gz')
         image2 = data[subject][timepoint2][0]
-        labeled_mask2_âth = image2.replace('canproco', 'canproco/derivatives/labels-ms-spinal-cord-only').replace('.nii.gz', '_lesion-manual-labeled.nii.gz')
+        labeled_mask2_path = image2.replace('canproco', 'canproco/derivatives/labels-ms-spinal-cord-only').replace('.nii.gz', '_lesion-manual-labeled.nii.gz')
         ## We also load the lesion mapping
         lesion_mapping_path = str(Path(labeled_mask1_path).parent).replace('ses-M0/anat', 'lesion-mapping_M0-M12.json')
 
@@ -155,70 +163,74 @@ def build_dataset(input_msd_dataset, output_folder):
         labeled_centerline_1 = os.path.join(temp_folder, 'labeled_centerline_1.nii.gz')
         labeled_centerline_2 = os.path.join(temp_folder, 'labeled_centerline_2.nii.gz')
 
-        # Now for both timepoint, we compute lesion volume and coordinates in the anatomical space
-        # Segment the spinal cord
-        segment_sc(image1, sc_seg_1)
-        segment_sc(image2, sc_seg_2)
-        # Get the centerline
-        get_centerline(sc_seg_1, centerline_1)
-        get_centerline(sc_seg_2, centerline_2)
-        # Get the levels
-        get_levels(image1, levels_1)
-        get_levels(image2, levels_2)
+        # # Now for both timepoint, we compute lesion volume and coordinates in the anatomical space
+        # # Segment the spinal cord
+        # segment_sc(image1, sc_seg_1)
+        # segment_sc(image2, sc_seg_2)
+        # # Get the centerline
+        # get_centerline(sc_seg_1, centerline_1)
+        # get_centerline(sc_seg_2, centerline_2)
+        # # Get the levels
+        # get_levels(image1, levels_1)
+        # get_levels(image2, levels_2)
 
-        # We label the centerline
-        label_centerline(centerline_1, levels_1, labeled_centerline_1)
-        label_centerline(centerline_2, levels_2, labeled_centerline_2)
+        # # We label the centerline
+        # label_centerline(centerline_1, levels_1, labeled_centerline_1)
+        # label_centerline(centerline_2, levels_2, labeled_centerline_2)
 
 
         # For each lesion in the labeled mask at timepoint1, we get its coordinates and volume
         lesion_analysis_1 = analyze_lesions(labeled_mask1_path)
         lesion_analysis_1 = compute_lesion_location(lesion_analysis_1, labeled_mask1_path, sc_seg_1, labeled_centerline_1, levels_1)
-        lesion_analysis_2 = analyze_lesions(labeled_mask2_âth)
-        lesion_analysis_2 = compute_lesion_location(lesion_analysis_2, labeled_mask2_âth, sc_seg_2, labeled_centerline_2, levels_2)
+        lesion_analysis_2 = analyze_lesions(labeled_mask2_path)
+        lesion_analysis_2 = compute_lesion_location(lesion_analysis_2, labeled_mask2_path, sc_seg_2, labeled_centerline_2, levels_2)
 
-        print(f"Subject {subject} - Timepoint {timepoint1} Lesions:")
-        for lesion_id, lesion_info in lesion_analysis_1.items():
-            print(f"  Lesion {lesion_id}: {lesion_info}")
-        print(f"Subject {subject} - Timepoint {timepoint2} Lesions:")
-        for lesion_id, lesion_info in lesion_analysis_2.items():
-            print(f"  Lesion {lesion_id}: {lesion_info}")
-
+        # Now we group the lesions based on the lesion mapping
         lesion_analysis_1, lesion_analysis_2  = group_lesions(lesion_analysis_1, lesion_analysis_2, lesion_mapping_path)
 
-        print(f"Subject {subject} - Grouped Lesions Timepoint {timepoint1}:")
+        logger.info(f"Subject {subject} - Grouped Lesions Timepoint {timepoint1}:")
         for lesion_id, lesion_info in lesion_analysis_1.items():
-            print(f"  Lesion {lesion_id}: {lesion_info}")
-        print(f"Subject {subject} - Grouped Lesions Timepoint {timepoint2}:")
+            logger.info(f"  Lesion {lesion_id}: {lesion_info}")
+        logger.info("")
+        logger.info(f"Subject {subject} - Grouped Lesions Timepoint {timepoint2}:")
         for lesion_id, lesion_info in lesion_analysis_2.items():
-            print(f"  Lesion {lesion_id}: {lesion_info}")
+            logger.info(f"  Lesion {lesion_id}: {lesion_info}")
         
         # Now we add the lesions to the dataset
         for lesion_id, lesion_info in lesion_analysis_1.items():
-            dataset = dataset.append({
+            dataset.append({
                 'subject': subject,
                 'timepoint': timepoint1,
                 'group': lesion_info['group'],
-                'z_coordinate': lesion_info['z_coordinate'],
-                'level': lesion_info['level'],
-                'angle_theta': lesion_info['theta'],
-                'volume_mm3': lesion_info['volume_mm3']
-            }, ignore_index=True)
+                'z': lesion_info['centerline_z'],
+                'r': lesion_info['radius_mm'],
+                'theta': lesion_info['theta'],
+                'volume': lesion_info['volume_mm3'],
+                'diameter_RL': lesion_info['diameter_RL_mm'],
+                'diameter_AP': lesion_info['diameter_AP_mm'],
+                'diameter_SI': lesion_info['diameter_SI_mm']
+            })
     
         for lesion_id, lesion_info in lesion_analysis_2.items():
-            dataset = dataset.append({
+            dataset.append({
                 'subject': subject,
                 'timepoint': timepoint2,
                 'group': lesion_info['group'],
-                'z_coordinate': lesion_info['z_coordinate'],
-                'level': lesion_info['level'],
-                'angle_theta': lesion_info['theta'],
-                'volume_mm3': lesion_info['volume_mm3']
-            }, ignore_index=True)
+                'z': lesion_info['centerline_z'],
+                'r': lesion_info['radius_mm'],
+                'theta': lesion_info['theta'],
+                'volume': lesion_info['volume_mm3'],
+                'diameter_RL': lesion_info['diameter_RL_mm'],
+                'diameter_AP': lesion_info['diameter_AP_mm'],
+                'diameter_SI': lesion_info['diameter_SI_mm']
+            })
+        
+    # Convert to pandas dataframe
+    dataset = pd.DataFrame(dataset)
     # Save the dataset
     dataset_path = os.path.join(output_folder, 'lesion_dataset.csv')
     dataset.to_csv(dataset_path, index=False)
-    print(f"Dataset saved to {dataset_path}")
+    logger.info(f"Dataset saved to {dataset_path}")
         
     return None
 
