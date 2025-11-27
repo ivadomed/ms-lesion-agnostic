@@ -168,7 +168,6 @@ def analyze_lesions(labeled_lesion_seg):
             AP_axis = i
         elif axis in ['S', 'I']:
             SI_axis = i
-    print(orientation, RL_axis, AP_axis, SI_axis)
 
     for label, CoM in zip(labels, lesion_center_of_mass):
         analysis_results[f'{int(label)}'] = {
@@ -181,7 +180,6 @@ def analyze_lesions(labeled_lesion_seg):
         # Calculate min and max coordinates along each axis
         min_bounds = coords.min(axis=0)
         max_bounds = coords.max(axis=0)
-        print(f'Lesion {int(label)} min bounds: {min_bounds}, max bounds: {max_bounds}')
         # Calculate extent in voxels (max - min + 1)
         # We add 1 because if a lesion is at index 10, max=10, min=10, but length is 1 voxel
         extent_voxels = max_bounds - min_bounds + 1
