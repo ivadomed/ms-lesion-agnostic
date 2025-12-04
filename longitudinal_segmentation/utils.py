@@ -97,7 +97,7 @@ def get_levels(input_image, output_levels):
     return None
 
 
-def keep_common_levels_only(levels_1, levels_2):
+def keep_common_levels_only(levels_1, levels_2, output_levels_1, output_levels_2):
     """
     This function keeps only the common disc levels between two level segmentations.
     I could have done this using 'sct_label_utils -remove-reference'
@@ -125,9 +125,9 @@ def keep_common_levels_only(levels_1, levels_2):
         new_data_levels_2[data_levels_2 == level] = level
     # Save new levels
     new_img_levels_1 = nib.Nifti1Image(new_data_levels_1, img_levels_1.affine, img_levels_1.header)
-    nib.save(new_img_levels_1, levels_1)
+    nib.save(new_img_levels_1, output_levels_1)
     new_img_levels_2 = nib.Nifti1Image(new_data_levels_2, img_levels_2.affine, img_levels_2.header)
-    nib.save(new_img_levels_2, levels_2)
+    nib.save(new_img_levels_2, output_levels_2)
 
     return None
 
