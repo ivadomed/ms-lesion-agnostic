@@ -6,6 +6,7 @@ Input:
     - predictions_folder: Path to the folder containing model predictions.
     - output_folder: Path to the folder where evaluation results will be saved.
     - sub-edss: Path to a csv file containing subject EDSS scores.
+    - set: Dataset split to evaluate ('train', 'val', 'test' or None for all subjects)
 Output:
     None
 
@@ -30,6 +31,8 @@ def parse_args():
     parser.add_argument('-p', '--predictions-folder', type=str, required=True, help='Path to the folder containing model predictions')
     parser.add_argument('-o', '--output-folder', type=str, required=True, help='Path to the output folder where evaluation results will be stored')
     parser.add_argument('-s', '--sub-edss', type=str, required=True, help='Path to a csv file containing subject EDSS scores')
+    parser.add_argument('--set', type=str, choices=['train', 'val', 'test', None], default=None, help="Dataset split to evaluate ('train', 'val', 'test' or None for all subjects)")
+
     return parser.parse_args()
 
 
@@ -163,7 +166,7 @@ if __name__ == "__main__":
     sub_edss = args.sub_edss
 
     # Run the evaluation
-    results = evaluate_lesion_mapping(input_msd_dataset, predictions_folder, output_folder)
+    results = evaluate_lesion_mapping(input_msd_dataset, predictions_folder, output_folder, set=args.set)
 
     # results_path = "~/net/longitudinal_ms/20251121_lesion_matching_reg_com_results_debug/overall_results.json"
     # with open(os.path.expanduser(results_path), 'r') as f:
