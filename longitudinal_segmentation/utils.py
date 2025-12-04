@@ -174,8 +174,10 @@ def label_lesion_seg(lesion_seg, output_labeled_lesion_seg):
     # Load lesion segmentation
     img_lesion = nib.load(lesion_seg)
     data_lesion = img_lesion.get_fdata()
+    # Connectivity for labeling (this is to have connectivity in 3D even through corners)
+    s = ndimage.generate_binary_structure(3,3)
     # Label connected components (lesions)
-    labeled_lesions, num_lesions = ndimage.label(data_lesion)
+    labeled_lesions, num_lesions = ndimage.label(data_lesion, structure=s)
     # Save labeled lesion segmentation
     labeled_img = nib.Nifti1Image(labeled_lesions, img_lesion.affine, img_lesion.header)
     nib.save(labeled_img, output_labeled_lesion_seg)
