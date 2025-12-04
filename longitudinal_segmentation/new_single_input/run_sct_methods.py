@@ -64,6 +64,11 @@ def main():
         
         image_1_name = Path(input_image1).name
         image_2_name = Path(input_image2).name
+        # Copy image to the subject output folder
+        copy_image1 = os.path.join(subject_output_folder, image_1_name)
+        copy_image2 = os.path.join(subject_output_folder, image_2_name)
+        assert os.system(f"cp {input_image1} {copy_image1}") == 0, "Failed to copy image 1"
+        assert os.system(f"cp {input_image2} {copy_image2}") == 0, "Failed to copy image 2"
         # SC segmentations
         sc_seg_1 = os.path.join(subject_output_folder, image_1_name.replace('.nii.gz', '_sc-seg.nii.gz'))
         sc_seg_2 = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_sc-seg.nii.gz'))
@@ -77,14 +82,14 @@ def main():
         warping_field_img2_to_1 = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_warp_to_' + image_1_name))
         inv_warping_field_img2_to_1 = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_inv_warp_to_' + image_1_name))
         # Initialize file name for labeled lesion segmentations
-        lesion_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
-        lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
+        lesion_seg_1 = os.path.join(subject_output_folder, image_1_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
+        lesion_seg_2 = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
         # Initialize file name for lesion segmentation of image 2 registered to image 1
         lesion_seg_2_reg = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_lesion-seg-reg.nii.gz'))
         # Labeled lesion segmentations
-        labeled_lesion_seg_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
-        labeled_lesion_seg_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
-        labeled_lesion_seg_2_reg = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg-reg-labeled.nii.gz'))
+        labeled_lesion_seg_1 = os.path.join(subject_output_folder, image_1_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
+        labeled_lesion_seg_2 = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
+        labeled_lesion_seg_2_reg = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_lesion-seg-reg-labeled.nii.gz'))
 
         # Run the SCT methods
         segment_sc(input_image1, sc_seg_1)
