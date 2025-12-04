@@ -3,6 +3,7 @@ In this script, we perform lesion mapping between two timepoints using an XGBoos
 
 Inputs:
     - dataset_csv: Path to the csv dataset containing lesion features over time.
+    - inference_csv: Path the csv dataset containing lesion features for the inference. They are the features of predicted lesions to be mapped.
     - output_folder: Path to the folder where model and results will be saved.
 
 Output:
@@ -36,11 +37,13 @@ from keras import ops
 import torch
 from sklearn.preprocessing import StandardScaler
 from sklearn.utils import class_weight
+import json
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--data', type=str, required=True, help='Path to the csv dataset containing lesion features over time')
+    parser.add_argument('-i', '--inference-csv', type=str, required=True, help='Path to the csv dataset containing lesion features for the inference.')
     parser.add_argument('-o', '--output-folder', type=str, required=True, help='Path to the output folder where model and results will be stored')
     return parser.parse_args()
 
@@ -68,6 +71,7 @@ def load_data():
     args = parse_args()
     dataset_csv = args.data
     output_folder = args.output_folder
+    inference_csv = args.inference_csv
 
     # Create output folder if it does not exist
     os.makedirs(output_folder, exist_ok=True)
@@ -159,6 +163,10 @@ def load_data():
     logger.info(f"Validation set size: {X_val_1.shape[0]} pairs")
     logger.info(f"Testing set size: {X_test_1.shape[0]} pairs")
 
+    # Extract mean and std for each feature in the training set
+    means = X_train_1.mean()
+    stds = X_train_1.std()
+
     # Initialize Scaler
     scaler = StandardScaler()
 
@@ -174,15 +182,8 @@ def load_data():
 
     logger.info("Data normalized using StandardScaler.")
 
-    return X_train_1, X_train_2, y_train, X_val_1, X_val_2, y_val, X_test_1, X_test_2, y_test, output_folder
+    return X_train_1, X_train_2, y_train, X_val_1, X_val_2, y_val, X_test_1, X_test_2, y_test, output_folder, logger, inference_csv, means, stds
 
-
-# def focal_loss(gamma=2., alpha=.25):
-#     def focal_loss_fixed(y_true, y_pred):
-#         pt_1 = tf.where(tf.equal(y_true, 1), y_pred, tf.ones_like(y_pred))
-#         pt_0 = tf.where(tf.equal(y_true, 0), y_pred, tf.zeros_like(y_pred))
-#         return -K.sum(alpha * K.pow(1. - pt_1, gamma) * K.log(pt_1)) -K.sum((1-alpha) * K.pow( pt_0, gamma) * K.log(1. - pt_0))
-#     return focal_loss_fixed
 
 def focal_loss(gamma=2., alpha=0.25):
     def focal_loss_in(inputs, targets):
@@ -192,17 +193,6 @@ def focal_loss(gamma=2., alpha=0.25):
         focal_loss = alpha * (1 - pt) ** gamma * bce_loss  # Apply focal adjustment
         return focal_loss.mean()
     return focal_loss_in
-
-# def build_siamese_network_tf():
-#     input = Input(shape=(28,28,), name="base_input")
-#     x = Flatten(name="flatten_input")(input)
-#     x = Dense(128, activation=’relu’, name="first_base_dense")(x)
-#     x = Dropout(0.1, name="first_dropout")(x)
-#     x = Dense(128, activation=’relu’, name="second_base_dense")(x)
-#     x = Dropout(0.1, name="second_dropout")(x)
-#     x = Dense(128, activation=’relu’, name="third_base_dense")(x)
-
-#     return Model(inputs=input, outputs=x)
 
 
 def contrastive_loss_margin(margin=1):
@@ -272,8 +262,7 @@ def build_siamese_network(num_features_per_lesion):
     return model
 
 
-def train(X_train_1, X_train_2, y_train, X_val_1, X_val_2, y_val, X_test_1, X_test_2, y_test, output_folder):
-
+def train(X_train_1, X_train_2, y_train, X_val_1, X_val_2, y_val, X_test_1, X_test_2, y_test, output_folder, logger):
 
     model = build_siamese_network(X_train_1.shape[1])
     optimizer = optimizers.RMSprop(learning_rate=0.001)
@@ -332,11 +321,108 @@ def train(X_train_1, X_train_2, y_train, X_val_1, X_val_2, y_val, X_test_1, X_te
     f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
     logger.info(f"Training set - Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1_score:.4f}")
 
+    return model
+
+
+def perform_inference_on_inference_set(inference_csv, logger, model, output_folder, means, stds):
+    
+    # Load the inference dataset
+    df_inf = pd.read_csv(inference_csv)
+
+    # We transform the df to create one row per lesion pair in timepoint1 and timepoint2 (pairing only within the same subject)
+    ## Columns are : subject,timepoint,group,z,r,theta,volume
+    lesions_1 = []
+    lesions_2 = []
+    lesion_pairs_labels = []
+    subjects = df_inf['subject'].unique()
+
+    for subject in subjects:
+        df_subject = df_inf[df_inf['subject'] == subject]
+        timepoints = df_subject['timepoint'].unique()
+        if len(timepoints) != 2:
+            continue  # We only process subjects with exactly 2 timepoints
+        tp1, tp2 = timepoints
+
+        df_tp1 = df_subject[df_subject['timepoint'] == tp1]
+        df_tp2 = df_subject[df_subject['timepoint'] == tp2]
+
+        for _, lesion1 in df_tp1.iterrows():
+            for _, lesion2 in df_tp2.iterrows():
+                lesion1_features = {
+                    'subject': subject,
+                }
+                lesion2_features = {
+                    'subject': subject,
+                }
+                # Add features from lesion1 and lesion2
+                for col in df_inf.columns:
+                    if col not in ['subject', 'timepoint', 'group']:
+                        lesion1_features[f'{col}'] = lesion1[col]
+                        lesion2_features[f'{col}'] = lesion2[col]
+                lesions_1.append(lesion1_features)
+                lesions_2.append(lesion2_features)
+
+    # Create a DataFrame from lesion pairs
+    lesion_1_df_inf = pd.DataFrame(lesions_1)
+    lesion_2_df_inf = pd.DataFrame(lesions_2)
+
+    subjects = lesion_1_df_inf['subject'].unique()
+    logger.info(f"Total subjects for inference {len(subjects)}")
+    logger.info(f"Total numbers of lesion pairs for inference {len(lesion_1_df_inf)}")
+
+    # Perform inference
+    X_inf_1 = lesion_1_df_inf.drop(columns=['subject', 'lesion_id'])
+    X_inf_2 = lesion_2_df_inf.drop(columns=['subject', 'lesion_id'])
+    # Normalize using training set mean and std
+    X_inf_1 = (X_inf_1 - means) / stds
+    X_inf_2 = (X_inf_2 - means) / stds
+
+    # Perform prediction
+    results = model.predict([X_inf_1, X_inf_2], verbose=0)
+
+    # Rebuild a dataset with lesion mappings: subject, lesion_id_timepoint1, lesion_id_timepoint2, predicted_score
+    mapping_df = []
+    for i in range(len(lesion_1_df_inf)):
+        mapping_df.append({
+            'subject': lesion_1_df_inf.iloc[i]['subject'],
+            'lesion_id_timepoint1': lesion_1_df_inf.iloc[i]['lesion_id'],
+            'lesion_id_timepoint2': lesion_2_df_inf.iloc[i]['lesion_id'],
+            'predicted_score': results[i][0]
+        })
+    mapping_df = pd.DataFrame(mapping_df)
+    # Remove all negative predictions
+    mapping_df = mapping_df[mapping_df['predicted_score'] > 0.5]
+    logger.info(f"Total predicted mappings: {len(mapping_df)}")
+
+    # For each subject, save the mapping json file
+    for subject in subjects:
+        lesion_mapping = {}
+        subject_mapping_df = mapping_df[mapping_df['subject'] == subject]
+        lesion_timepoint_1_ids = subject_mapping_df['lesion_id_timepoint1'].unique()
+        for lesion_id_1 in lesion_timepoint_1_ids:
+            lesion_mappings = subject_mapping_df[subject_mapping_df['lesion_id_timepoint1'] == lesion_id_1]
+            lesion_timepoint_2_ids = lesion_mappings['lesion_id_timepoint2'].tolist()
+            lesion_timepoint_2_ids = [int(lid) for lid in lesion_timepoint_2_ids]
+            lesion_mapping[str(lesion_id_1)] = lesion_timepoint_2_ids
+        # Save the mapping as json
+        # Build subject output folder
+        subject_output_folder = os.path.join(output_folder, subject)
+        os.makedirs(subject_output_folder, exist_ok=True)
+        lesion_mapping_path = os.path.join(subject_output_folder, f'lesion_mapping.json')
+        with open(lesion_mapping_path, 'w') as f:
+            json.dump(lesion_mapping, f)
 
     return None
-
+    
 
 if __name__ == "__main__":
-
-    X_train_1, X_train_2, y_train, X_val_1, X_val_2, y_val, X_test_1, X_test_2, y_test, output_folder = load_data()
-    train(X_train_1, X_train_2, y_train, X_val_1, X_val_2, y_val, X_test_1, X_test_2, y_test, output_folder)
+    # Load the traing and testing data
+    X_train_1, X_train_2, y_train, X_val_1, X_val_2, y_val, X_test_1, X_test_2, y_test, output_folder, logger, inference_csv, means, stds = load_data()
+    # Train the model and evaluate it
+    model = train(X_train_1, X_train_2, y_train, X_val_1, X_val_2, y_val, X_test_1, X_test_2, y_test, output_folder, logger)
+    # Run inference on the inference set (predicted lesions)
+    perform_inference_on_inference_set(inference_csv, logger, model, output_folder, means, stds)
+    # Save the model
+    model_path = os.path.join(output_folder, 'lesion_mapping_siamese_model.keras')
+    model.save(model_path)
+    logger.info(f"Model saved at {model_path}")
