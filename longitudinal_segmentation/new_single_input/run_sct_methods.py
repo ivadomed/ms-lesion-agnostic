@@ -21,7 +21,7 @@ import sys
 file_path = os.path.abspath(os.path.dirname(__file__))
 root_path = os.path.abspath(os.path.join(file_path, ".."))
 sys.path.insert(0, root_path)
-from utils import segment_sc, segment_lesions, get_levels, keep_common_levels_only, compute_lesion_CoM, label_lesion_seg, correct_labeling
+from utils import segment_sc, segment_lesions, get_levels, keep_common_levels_only, compute_lesion_CoM, label_lesion_seg, correct_labeling, get_centerline
 
 
 def parse_args():
@@ -69,6 +69,9 @@ def main():
         sc_seg_2 = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_sc-seg.nii.gz'))
         levels_1 = os.path.join(subject_output_folder, image_1_name.replace('.nii.gz', '_levels.nii.gz'))
         levels_2 = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_levels.nii.gz'))
+        # Centerline segmentations
+        centerline_1 = os.path.join(subject_output_folder, image_1_name.replace('.nii.gz', '_centerline.nii.gz'))
+        centerline_2 = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_centerline.nii.gz'))
         # Initialize file name for registered image 2
         registered_image2_to_1 = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_registered_to_' + image_1_name))
         warping_field_img2_to_1 = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_warp_to_' + image_1_name))
@@ -77,15 +80,18 @@ def main():
         lesion_seg_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
         lesion_seg_2 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
         # Initialize file name for lesion segmentation of image 2 registered to image 1
-        lesion_seg_2_reg = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_registered.nii.gz'))
+        lesion_seg_2_reg = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_lesion-seg-reg.nii.gz'))
         # Labeled lesion segmentations
         labeled_lesion_seg_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
         labeled_lesion_seg_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
-        labeled_lesion_seg_2_reg = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg-registered-labeled.nii.gz'))
+        labeled_lesion_seg_2_reg = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg-reg-labeled.nii.gz'))
 
         # Run the SCT methods
         segment_sc(input_image1, sc_seg_1)
         segment_sc(input_image2, sc_seg_2)
+        # Get centerlines
+        get_centerline(input_image1, centerline_1)
+        get_centerline(input_image2, centerline_2)
         # Get vertebral levels
         get_levels(input_image1, levels_1)
         get_levels(input_image2, levels_2)
