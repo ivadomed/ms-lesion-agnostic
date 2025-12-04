@@ -165,7 +165,7 @@ def lesion_volume(segmentation_path):
     return volume_mm3
 
 
-def evaluate_lesion_mapping(input_msd_dataset, predictions_folder, output_folder):
+def evaluate_lesion_mapping(input_msd_dataset, predictions_folder, output_folder, set = None):
     """
     This file evaluates the lesion mapping results between two timepoints.
     It computes segmentation metrics of the predicted segmentations against the ground truth.
@@ -192,6 +192,13 @@ def evaluate_lesion_mapping(input_msd_dataset, predictions_folder, output_folder
     with open(input_msd_dataset, 'r') as f:
         msd_data = json.load(f)
     data = msd_data['data']
+    if set == 'test':
+        # Keep only test subjects
+        data = {k: v for k, v in data.items() if 'tor' in k}
+    elif set == 'train':
+        data = {k: v for k, v in data.items() if 'edm' in k or 'van' in k}
+    elif set == 'val':
+        data = {k: v for k, v in data.items() if 'cal' in k or 'mon' in k}
 
     # Initilialize results dictionary
     results_dict = {}
