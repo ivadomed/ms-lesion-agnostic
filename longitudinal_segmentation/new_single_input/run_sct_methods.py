@@ -74,6 +74,8 @@ def main():
         sc_seg_2 = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_sc-seg.nii.gz'))
         levels_1 = os.path.join(subject_output_folder, image_1_name.replace('.nii.gz', '_levels.nii.gz'))
         levels_2 = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_levels.nii.gz'))
+        levels_1_common = os.path.join(subject_output_folder, image_1_name.replace('.nii.gz', '_levels-common.nii.gz'))
+        levels_2_common = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_levels-common.nii.gz'))
         # Centerline segmentations
         centerline_1 = os.path.join(subject_output_folder, image_1_name.replace('.nii.gz', '_centerline.nii.gz'))
         centerline_2 = os.path.join(subject_output_folder, image_2_name.replace('.nii.gz', '_centerline.nii.gz'))
@@ -95,8 +97,8 @@ def main():
         segment_sc(input_image1, sc_seg_1)
         segment_sc(input_image2, sc_seg_2)
         # Get centerlines
-        get_centerline(input_image1, centerline_1)
-        get_centerline(input_image2, centerline_2)
+        get_centerline(sc_seg_1, centerline_1)
+        get_centerline(sc_seg_2, centerline_2)
         # Get vertebral levels
         get_levels(input_image1, levels_1)
         get_levels(input_image2, levels_2)
@@ -104,10 +106,10 @@ def main():
         segment_lesions(input_image1, sc_seg_1, qc_folder, lesion_seg_1, test_time_aug=True)
         segment_lesions(input_image2, sc_seg_2, qc_folder, lesion_seg_2, test_time_aug=True)
         # Keep only common levels
-        keep_common_levels_only(levels_1, levels_2)
+        keep_common_levels_only(levels_1, levels_2, levels_1_common, levels_2_common)
         # Register image 2 to image 1
         parameter = "step=0,type=label,dof=Tx_Ty_Tz:step=1,type=im,algo=dl"
-        assert os.system(f"sct_register_multimodal -i {input_image2} -d {input_image1} -param '{parameter}' -ilabel {levels_2} -dlabel {levels_1} -o {registered_image2_to_1} -owarp {warping_field_img2_to_1} -owarpinv {inv_warping_field_img2_to_1} -dseg {sc_seg_1} -qc {qc_folder} ") == 0, "Registration failed"
+        assert os.system(f"sct_register_multimodal -i {input_image2} -d {input_image1} -param '{parameter}' -ilabel {levels_2_common} -dlabel {levels_1_common} -o {registered_image2_to_1} -owarp {warping_field_img2_to_1} -owarpinv {inv_warping_field_img2_to_1} -dseg {sc_seg_1} -qc {qc_folder} ") == 0, "Registration failed"
         # # We warp the lesion segmentation of image 2 to image 1 space using a linear interpolation
         assert os.system(f"sct_apply_transfo -i {lesion_seg_2} -d {input_image1} -w {warping_field_img2_to_1} -o {lesion_seg_2_reg} -x nn") == 0, "Failed to warp lesion segmentation of image 2"
         # Label the lesion segmentations
