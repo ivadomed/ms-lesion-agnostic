@@ -59,11 +59,11 @@ def build_dataset(input_msd_dataset, pred_folder, output_folder):
 
     dataset = []
 
-    # Remove subjects that are not from Toronto site
-    data = {k: v for k, v in data.items() if 'tor' in k}
-
     # Loop through each subject
     for subject in tqdm(data):
+
+        # Build subject pred folder
+        subject_pred_folder = os.path.join(pred_folder, subject)
 
         # Build subject output folder
         subject_output_folder = os.path.join(output_folder, subject)
@@ -87,21 +87,21 @@ def build_dataset(input_msd_dataset, pred_folder, output_folder):
         image_1_name = Path(image1).name
         image_2_name = Path(image2).name
         # Initialize the names
-        sc_seg_1 = os.path.join(pred_folder, image_1_name.replace('.nii.gz', '_sc-seg.nii.gz'))
-        sc_seg_2 = os.path.join(pred_folder, image_2_name.replace('.nii.gz', '_sc-seg.nii.gz'))
-        centerline_1 = os.path.join(pred_folder, image_1_name.replace('.nii.gz', '_centerline.nii.gz'))
-        centerline_2 = os.path.join(pred_folder, image_2_name.replace('.nii.gz', '_centerline.nii.gz'))
-        lesion_seg_1 =  os.path.join(pred_folder, image_1_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
-        lesion_seg_2 =  os.path.join(pred_folder, image_2_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
-        levels_1 = os.path.join(pred_folder, image_1_name.replace('.nii.gz', '_levels.nii.gz'))
-        levels_2 = os.path.join(pred_folder, image_2_name.replace('.nii.gz', '_levels.nii.gz'))
-        registered_image2_to_1 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_registered_to_' + image_1_name))
-        warping_field_img2_to_1 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_warp_to_' + image_1_name))
-        inv_warping_field_img2_to_1 = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_inv_warp_to_' + image_1_name))
-        lesion_seg_2_reg = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg-reg.nii.gz'))
-        labeled_lesion_seg_1 = os.path.join(output_folder, image_1_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
-        labeled_lesion_seg_2 = os.path.join(output_folder, image_2_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
-        labeled_lesion_seg_2_reg = os.path.join(temp_folder, image_2_name.replace('.nii.gz', '_lesion-seg-reg-labeled.nii.gz'))
+        sc_seg_1 = os.path.join(subject_pred_folder, image_1_name.replace('.nii.gz', '_sc-seg.nii.gz'))
+        sc_seg_2 = os.path.join(subject_pred_folder, image_2_name.replace('.nii.gz', '_sc-seg.nii.gz'))
+        centerline_1 = os.path.join(subject_pred_folder, image_1_name.replace('.nii.gz', '_centerline.nii.gz'))
+        centerline_2 = os.path.join(subject_pred_folder, image_2_name.replace('.nii.gz', '_centerline.nii.gz'))
+        lesion_seg_1 =  os.path.join(subject_pred_folder, image_1_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
+        lesion_seg_2 =  os.path.join(subject_pred_folder, image_2_name.replace('.nii.gz', '_lesion-seg.nii.gz'))
+        levels_1 = os.path.join(subject_pred_folder, image_1_name.replace('.nii.gz', '_levels.nii.gz'))
+        levels_2 = os.path.join(subject_pred_folder, image_2_name.replace('.nii.gz', '_levels.nii.gz'))
+        registered_image2_to_1 = os.path.join(subject_pred_folder, image_2_name.replace('.nii.gz', '_registered_to_' + image_1_name))
+        warping_field_img2_to_1 = os.path.join(subject_pred_folder, image_2_name.replace('.nii.gz', '_warp_to_' + image_1_name))
+        inv_warping_field_img2_to_1 = os.path.join(subject_pred_folder, image_2_name.replace('.nii.gz', '_inv_warp_to_' + image_1_name))
+        lesion_seg_2_reg = os.path.join(subject_pred_folder, image_2_name.replace('.nii.gz', '_lesion-seg-reg.nii.gz'))
+        labeled_lesion_seg_1 = os.path.join(subject_pred_folder, image_1_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
+        labeled_lesion_seg_2 = os.path.join(subject_pred_folder, image_2_name.replace('.nii.gz', '_lesion-seg-labeled.nii.gz'))
+        labeled_lesion_seg_2_reg = os.path.join(subject_pred_folder, image_2_name.replace('.nii.gz', '_lesion-seg-reg-labeled.nii.gz'))
 
         # We label the centerline
         labeled_centerline_1 = os.path.join(temp_folder, image_1_name.replace('.nii.gz', '_labeled-centerline.nii.gz'))
@@ -163,4 +163,4 @@ if __name__ == "__main__":
     output_folder = args.output_folder
 
     # Build the dataset
-    build_dataset(input_msd_dataset, output_folder)
+    build_dataset(input_msd_dataset, pred_folder, output_folder)

@@ -10,7 +10,6 @@ Input:
         - registered_with_CoM
         - registered_with_IoU
         - unregistered
-    -gt: whether to use ground truth lesion segmentations (default: False)
 
 Output:
     None
@@ -32,7 +31,6 @@ def parse_args():
     parser.add_argument('-pred', '--pred', type=str, required=True, help='Path to the folder containing the predicted segmentations')
     parser.add_argument('-o', '--output-folder', type=str, required=True, help='Path to the output folder where lesion matching results will be stored')
     parser.add_argument('-m', '--method', type=str, required=True, choices=['registered_with_CoM', 'registered_with_IoU', 'unregistered'], help='Method to use for lesion matching')
-    parser.add_argument('-gt', '--ground-truth', action='store_true', help='Whether to use ground truth lesion segmentations')
     return parser.parse_args()
 
 
