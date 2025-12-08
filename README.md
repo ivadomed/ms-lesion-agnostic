@@ -47,6 +47,8 @@ TODO: if accepted add icon here
 
 Official repository of the longitudinal lesion tracking of MS SC lesions.
 
+This repo contains the code for evaluating 5 strategies to track SC MS lesions across timepoints. More details can be find in the paper.
+
 ```
 TODO: if accepted add the citation here
 ```
