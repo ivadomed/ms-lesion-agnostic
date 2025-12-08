@@ -1,15 +1,23 @@
 # Dataset aggregation
 
 The files here are used to aggregate the data in MSD style datasets from the following datasets:
-- basel-mp2rage: used for training/testing
-- bavaria-quebec-spine-ms-unstitched: used for training/testing
-- canproco: used for training/testing
-- ms-basel-2018: used for external testing
-- ms-basel-2020: used for external testing
-- ms-karolinska-2020: used for external testing
-- ms-nyu: used for training/testing
-- nih-ms-mp2rage: used for training/testing
-- sct-testing-large: used for training/testing
+- labeled datasets: 
+  - basel-mp2rage
+  - bavaria-quebec-spine-ms-unstitched
+  - canproco
+  - ms-basel-2018
+  - ms-basel-2020
+  - ms-karolinska-2020
+  - ms-nyu
+  - nih-ms-mp2rage
+  - sct-testing-large
+- unlabeled datasets
+  - ms-mayo-critical-lesions
+  - ms-nmo-beijing
+  - umass-ms-ge-hdxt1.5
+  - umass-ms-ge-pioneer3
+  - umass-ms-siemens-espree1.5
+  - umass-ms-ge-excite1.5
 
 The scripts use the following exclude files:
 - [`exclude.yml`](./exclude.yml): in this repo
@@ -17,5 +25,5 @@ The scripts use the following exclude files:
 
 The files in this repo are: 
 - [`create_msd_data.py`](./create_msd_data.py): creates the basic MSD dataset with the above listed datasets
-- ~~`create_msd_data_head_cropped.py` : creates the MSD dataset similarly to the code above, but also crops the head.~~ (This file was removed as it wasn't used)
 - [`qc_datasets.py`](./qc_datasets.py): used to QC the dataset and check if lesions are located in the spinal cord
+- [agregate_unannotated_data.py](./agregate_unannotated_data.py): used to aggregate the unannotated datasets
