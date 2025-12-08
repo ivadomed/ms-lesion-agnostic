@@ -18,6 +18,17 @@ If you find this work and/or code useful for your research, please cite our pape
 TODO: when published, add citation.
 ```
 
+### How to use the model
+
+Install the Spinal Cord Toolbox (SCT) [here](https://spinalcordtoolbox.com/stable/user_section/installation.html).
+
+Run the command: 
+```console
+sct_deepseg lesion_ms
+```
+
+More details can be found in the user section [here](https://spinalcordtoolbox.com/stable/user_section/command-line/sct_deepseg.html#sct-deepseg)
+
 ### Annotators
 
 Below is a list of certified radiologists who have helped label lesion segmentation.
