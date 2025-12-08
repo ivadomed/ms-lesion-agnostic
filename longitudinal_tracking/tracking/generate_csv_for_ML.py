@@ -26,7 +26,7 @@ file_path = os.path.abspath(os.path.dirname(__file__))
 root_path = os.path.abspath(os.path.join(file_path, ".."))
 sys.path.insert(0, root_path)
 from utils import segment_sc, segment_lesions, get_centerline, get_levels, label_lesion_seg
-from single_input.map_lesions_unregistered import label_centerline, analyze_lesions, compute_lesion_location
+from tracking.map_lesions_unregistered import label_centerline, analyze_lesions, compute_lesion_location
 
 def parse_args():
     parser = argparse.ArgumentParser()
