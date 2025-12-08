@@ -129,8 +129,11 @@ def load_data():
     ## We arbitrarily choose that subjects from the Toronto site are used for testing
     test_subjects = [s for s in subjects if 'tor' in s]
     val_subjects = [s for s in subjects if 'cal' in s or 'mon' in s]
-
     train_subjects = [s for s in subjects if s not in test_subjects and s not in val_subjects]
+
+    # I manually set to false index 684 in lesion_pairs (because of this: https://github.com/ivadomed/ms-lesion-agnostic/issues/98)
+    df_pairs.at[684, 'label'] = 0
+
     train_lesion_1_df = lesion_1_df[lesion_1_df['subject'].isin(train_subjects)]
     train_lesion_2_df = lesion_2_df[lesion_2_df['subject'].isin(train_subjects)]
     train_df_pairs = df_pairs[df_pairs['subject'].isin(train_subjects)]
@@ -182,7 +185,7 @@ def load_data():
 
     logger.info("Data normalized using StandardScaler.")
 
-    return X_train_1, X_train_2, y_train, X_val_1, X_val_2, y_val, X_test_1, X_test_2, y_test, output_folder, logger, inference_csv, means, stds
+    return X_train_1, X_train_2, y_train, X_val_1, X_val_2, y_val, X_test_1, X_test_2, y_test, output_folder, logger, means, stds
 
 
 def focal_loss(gamma=2., alpha=0.25):
@@ -326,7 +329,7 @@ def train(X_train_1, X_train_2, y_train, X_val_1, X_val_2, y_val, X_test_1, X_te
 
 if __name__ == "__main__":
     # Load the traing and testing data
-    X_train_1, X_train_2, y_train, X_val_1, X_val_2, y_val, X_test_1, X_test_2, y_test, output_folder, logger, inference_csv, means, stds = load_data()
+    X_train_1, X_train_2, y_train, X_val_1, X_val_2, y_val, X_test_1, X_test_2, y_test, output_folder, logger, means, stds = load_data()
     # Train the model and evaluate it
     model = train(X_train_1, X_train_2, y_train, X_val_1, X_val_2, y_val, X_test_1, X_test_2, y_test, output_folder, logger)
     # Save the model

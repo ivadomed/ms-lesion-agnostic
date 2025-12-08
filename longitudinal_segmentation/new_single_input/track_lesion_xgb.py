@@ -108,6 +108,9 @@ def main():
     # Create a DataFrame from lesion pairs
     df_pairs = pd.DataFrame(lesion_pairs)
 
+    # I manually set to false index 684 in lesion_pairs (because of this: https://github.com/ivadomed/ms-lesion-agnostic/issues/98)
+    df_pairs.at[684, 'label'] = 0
+
     # Split the dataset into training and testing sets (done on subject level to avoid data leakage)
     subjects = df_pairs['subject'].unique()
     ## We arbitrarily choose that subjects from the Toronto site are used for testing
@@ -127,33 +130,23 @@ def main():
     logger.info(f"Testing set size: {X_test.shape[0]} pairs")
 
     # Train an XGBoost model
-    # search_spaces = {
-    #     'max_depth': Integer(3, 10), # Lower values prevent overfitting
-    #     'min_child_weight': Integer(1, 10), # Higher values prevent overfitting # Suggested to go as high as 5 by LeChat
-    #     'subsample': Real(0.5, 1), # Lower values prevent overfitting
-    #     'colsample_bytree': Real(0.001, 1), # Lower values prevent overfitting # Suggested to go as low as 0.5 by LeChat
-    #     'learning_rate': Real(0.01, 0.5, prior='log-uniform'),
-    #     'scale_pos_weight': Real(5, 10, prior='log-uniform')  # To handle class imbalance
-    # }
-    # # We define the model
-    # model = XGBClassifier(seed=42, eval_metric='logloss')  # We set scale_pos_weight to the ratio of negative to positive samples
-    # # We define the search
-    # search = BayesSearchCV(model, search_spaces, n_iter=50, n_jobs=1, cv=3, random_state=42, scoring='average_precision', verbose=1)
-    # # We fit the search
-    # search.fit(X_train, y_train)
-    # model = search.best_estimator_
-    # # print best hyperparameters
-    # logger.info(f"Best hyperparameters: {search.best_params_}")
-
-    # To avoid having to run the optimization each time, we directly train a model with fixed hyperparameters
-    parameters_found = {'colsample_bytree': 0.8750152904321713,
-                        'learning_rate': 0.0382641683481247,
-                        'max_depth': 10,
-                        'min_child_weight': 10,
-                        'scale_pos_weight': 7.0202360215459345,
-                        'subsample': 0.5}
-    model = XGBClassifier(seed=42, eval_metric='logloss', **parameters_found)
-    model.fit(X_train, y_train)
+    search_spaces = {
+        'max_depth': Integer(3, 10), # Lower values prevent overfitting
+        'min_child_weight': Integer(1, 10), # Higher values prevent overfitting # Suggested to go as high as 5 by LeChat
+        'subsample': Real(0.5, 1), # Lower values prevent overfitting
+        'colsample_bytree': Real(0.001, 1), # Lower values prevent overfitting # Suggested to go as low as 0.5 by LeChat
+        'learning_rate': Real(0.01, 0.5, prior='log-uniform'),
+        'scale_pos_weight': Integer(5, 10, prior='log-uniform')  # To handle class imbalance
+    }
+    # We define the model
+    model = XGBClassifier(seed=42, eval_metric='logloss')  # We set scale_pos_weight to the ratio of negative to positive samples
+    # We define the search
+    search = BayesSearchCV(model, search_spaces, n_iter=50, n_jobs=1, cv=3, random_state=42, scoring='average_precision', verbose=1)
+    # We fit the search
+    search.fit(X_train, y_train)
+    model = search.best_estimator_
+    # print best hyperparameters
+    logger.info(f"Best hyperparameters: {search.best_params_}")
 
     # Evaluate the model
     train_accuracy = model.score(X_train, y_train)
@@ -182,7 +175,7 @@ def main():
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0
     f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
-    logger.info(f"Validation set - Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1_score:.4f}")
+    logger.info(f"Test set - Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1_score:.4f}")
 
     # save the model
     output_model_path = os.path.join(output_folder, 'lesion_mapping_XGB_model.pkl')
