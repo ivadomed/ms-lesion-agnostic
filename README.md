@@ -41,3 +41,14 @@ The repository contains all the code for the SC MS lesion segmentation project:
 - `nnunet`: code used for training with nnunet
 - `post-processing`: code used for post-processing
 
+## Longitudinal tracking of multiple sclerosis lesions in the spinal cord: A validation study
+
+TODO: if accepted add icon here
+
+Official repository of the longitudinal lesion tracking of MS SC lesions.
+
+```
+TODO: if accepted add the citation here
+```
+
+All the code is contained in the folder [longitudinal_tracking](./longitudinal_tracking). 
