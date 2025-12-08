@@ -75,9 +75,12 @@ def main():
     # Create a dictionary to map site names to numbers
     site_dict = {}
     for i, site in enumerate(df['site'].unique()):
-        site_dict[site] = f"site {i+1}"
+        site_dict[site] = f"site {i+1:02d}"
+
     # Replace site names with numbers
     df['site'] = df['site'].map(site_dict)
+    # Sort the df by site
+    df = df.sort_values(by=['site', 'acquisition', 'contrast'])
     # Save the df to a csv file
     df.to_csv(path_output_csv, index=False)
 
