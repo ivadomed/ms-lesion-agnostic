@@ -1,37 +1,19 @@
-# Evaluation of SCT methods
+# Evaluation
 
-The files in the folder were used to evaluate the SCT methods on the test set and the external test sets. 
-The test set is described in the MSD dataset while the external test sets are the `ms-basel-2018` and `ms-basel-2020` dataset. 
+This folder contains files used to evaluate segmentation performances.
 
-The files can be used the following way:
+### Dataset resampling:
 
-1. Create a virtual environment and install the required libraries
+In the folder `dataset_resampling`, files were used to analyze the performance of the model while upsampling or downsampling the data.
 
-```console
-conda create -n venv_eval python=3.9
-conda activate venv_eval
-pip install -r evaluation/requirements
-```
+### Evaluate existing methods
 
+In folder `evaluate_existing_methods`, the files were used to generate predictions using existing methods in SCT and to perform statistical tests on the performances
 
-2. Evaluate the models on the test set:
+### Evaluation per disc
 
-```console
-python evaluation/test_sct_deepseg_lesion.py --msd-data-path MSD_PATH --output-path OUTPUT_PATH
-python evaluation/test_sct_deepseg_psir_stir.py --msd-data-path MSD_PATH --output-path OUTPUT_PATH
-python evaluation/test_sct_deepseg_mp2rage.py --msd-data-path MSD_PATH --output-path OUTPUT_PATH
-```
+In the folder `evaluation_per_disc`, the files were used to generate the labels, evaluate and plot the performance per disc level.
 
-3. Plot the results for each result (to be done individually for each model result):
+### Radiologist evaluation
 
-```console
-python evaluation/plot_performance.py --pred-dir-path RESULT_PATH --data-json-path MSD_DATA_PATH  --split test
-```
-
-4. Evaluate the models on the external test sets:
-
-```console
-python evaluation/test_sct_lesion_external_dataset.py --input-folder DATA_PATH --output-path OUTPUT_PATH
-python evaluation/test_sct_psir-stir_external_dataset.py --input-folder DATA_PATH--output-path OUTPUT_PATH
-python evaluation/test_sct_mp2rage_external_dataset.py --input-folder DATA_PATH --output-path OUTPUT_PATH
-```
+In the folder `radiologist_evaluation`, the files were used to select subjects, generate the QC and plot the evaluation of likert scores.
