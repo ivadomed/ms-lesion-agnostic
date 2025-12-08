@@ -47,6 +47,9 @@ def main():
     # Get data
     data = msd_data['train'] + msd_data['validation'] + msd_data['test'] + msd_data['externalValidation']
 
+    # We do not want to count the file from sct-testing-large--user as it is not relevant
+    data = [d for d in data if 'sct-testing-large--user' not in d['site']]
+
     # Create the logger file
     log_file = os.path.join(output_folder, f'{Path(msd_data_path).name.split(".json")[0]}_analysis.txt')
     # Clear the log file
@@ -66,6 +69,19 @@ def main():
     for image in data:
         if image['contrast'] == 'MEGRE':
             image['contrast'] = 'T2star'
+
+    # Correction found with Julien on 20250917 : reported here: https://docs.google.com/presentation/d/1Fin0Mr7OcDU1z4X9N5y05qTmvVlzda9-q_yz3wnPvAY/edit?slide=id.p#slide=id.p
+    for image in data:
+        if image['site'] == 'sct-testing-large--amuVirginie' and image['contrast'] == 'T2w' and image['acquisition'] == '3D':
+            image['acquisition'] = '3D_sag'
+        elif image['site'] == 'ms-basel-2018' and image['contrast'] == 'T1w' and image['acquisition'] == '3D':
+            image['acquisition'] = '3D_sag'
+        elif image['site'] == 'basel-mp2rage' and image['contrast'] == 'UNIT1' and image['acquisition'] == '3D':
+            image['acquisition'] = '3D_sag'
+        elif image['site'] == 'nih-ms-mp2rage' and image['contrast'] == 'UNIT1':
+            image['acquisition'] = '3D_sag'
+        elif image['site'] == 'sct-testing-large--nihReich' and image['contrast'] == 'T2w':
+            image['acquisition'] = 'sag'
 
     # Count the number of images per contrast
     contrast_count = {}
@@ -116,59 +132,96 @@ def main():
     logger.info(f"Minimum pixel dimension (RPI): {np.min(resolutions)}")
     logger.info(f"Maximum pixel dimension (RPI): {np.max(resolutions)}")
 
+    # We also count the number of subjects per site
+    subjects_per_site = {}
+    for image in data:
+        dataset = image['site']
+        # We split canproco into the 5 sites
+        if dataset == 'canproco':
+            dataset = 'canproco-'+image['image'].split('/')[-1][4:7]
+        sub = image['image'].split('/')[-1].split('_')[0]
+        subject = dataset + '/' + sub
+        if dataset not in subjects_per_site:
+            subjects_per_site[dataset] = set()
+        subjects_per_site[dataset].add(subject)
+    # Convert the sets to counts
+    for site in subjects_per_site:
+        subjects_per_site[site] = len(subjects_per_site[site])
+    logger.info(f"\n Number of subjects per site: {subjects_per_site}")
+
     # Now we count the field strength of the images
     field_strength = []
     count_field_strength = {}
+    count_field_strength["missing"] = 0
+    image_unknown_field_strength = []
+    dict_image_to_field_strength = {}
     for image in tqdm(data):
         sidecar = image['image'].replace('.nii.gz', '.json')
         # if the sidecar does not exist, we skip the image
         if not os.path.exists(sidecar):
+            image_unknown_field_strength.append(image['image'])
+            count_field_strength["missing"] += 1
+            dict_image_to_field_strength[image['image']] = "Missing"
             continue
         with open(sidecar, 'r') as f:
             try:
-                metadata = json.load(f)  # Remplacez 'response' par votre source de données
+                metadata = json.load(f)
             except json.JSONDecodeError as e:
                 continue
         # if field "MagneticFieldStrength" does not exist, we skip the image
         if "MagneticFieldStrength" not in metadata:
+            # I checked and there are no alternative fields
+            count_field_strength["missing"] += 1
+            image_unknown_field_strength.append(image['image'])
+            dict_image_to_field_strength[image['image']] = "Missing"
             continue
         field_strength.append(metadata["MagneticFieldStrength"])
+        dict_image_to_field_strength[image['image']] = metadata["MagneticFieldStrength"]
         # Count the field strength
         if metadata["MagneticFieldStrength"] not in count_field_strength:
             count_field_strength[metadata["MagneticFieldStrength"]] = 0
         count_field_strength[metadata["MagneticFieldStrength"]] += 1
     logger.info(f"Field strength for MSD dataset: {set(field_strength)}")
     logger.info(f"Count of field strength for MSD dataset: {count_field_strength}")
-
     logger.info("-------------------------------------")
+    # Save the list of images with unknown field strength
+    with open(os.path.join(output_folder, 'images_unknown_field_strength.txt'), 'w') as f:
+        for item in image_unknown_field_strength:
+            f.write("%s\n" % item)
 
     # Now we want to display the following table : 
-    # | Site      | Contrast | Acquisition | Orientation | Count | Avg resolution (RPI) | Number of subjects |
-    # |-----------|----------|-------------|-------------|-------|----------------------|--------------------|
-    # | canproco  | PSIR     | 2D          | sagittal    | 100   | 0.1x0.1x0.5          | 100                |
-    # | canproco  | PSIR     | 2D          | axial       | 65    | 0.1x0.1x0.5          | 65                 |
-    # | canproco  | STIR     | 2D          | sagittal    | 200   | 0.5x0.5x0.6          | 200                |
-    # | canproco  | /        | /           | /           | 365   | 0.4x0.4x0.55         | 200                |
+    # | Site      | Contrast | Acquisition | Orientation | Count | Avg resolution (RPI) | Number of subjects | Field strength |
+    # |-----------|----------|-------------|-------------|-------|----------------------|--------------------| ---------------|
+    # | canproco  | PSIR     | 2D          | sagittal    | 100   | 0.1x0.1x0.5          | 100                |    3T          |         
+    # | canproco  | PSIR     | 2D          | axial       | 65    | 0.1x0.1x0.5          | 65                 |    1.5T        |
+    # | canproco  | STIR     | 2D          | sagittal    | 200   | 0.5x0.5x0.6          | 200                |    Missing     |
+    # | canproco  | /        | /           | /           | 365   | 0.4x0.4x0.55         | 200                |    3T          |
 
     # Create a pandas DataFrame to store the data
     df = pd.DataFrame(columns=['Site', 'Contrast', 'Acquisition', 'Orientation', 'Count', 'Avg resolution (R-L)', 'Avg resolution (P-A)', 'Avg resolution (I-S)', 'Number of subjects'])
     ## Add the data to the DataFrame
     for image in data:
         dataset = image['site']
+        # We split canproco into the 5 sites
+        if dataset == 'canproco':
+            dataset = 'canproco-'+image['image'].split('/')[-1][4:7]
         contrast = image['contrast']
         # For acquisition, if 3D ok, if sag or axial, then 2D
-        if image['acquisition'] == '3D':
+        if image['acquisition'] == '3D' or image['acquisition'] == '3D_sag':
             acquisition = '3D'
         elif image['acquisition'] in ['sag', 'ax']:
             acquisition = '2D'
         # for orientation, if axial or sagittal, then we keep it, else we put /
-        if image['acquisition'] in ['ax', 'sag']:
+        if image['acquisition'] in ['ax', 'sag', '3D_sag']:
             orientation = image['acquisition']
+            if orientation == '3D_sag':
+                orientation = 'sag'
         else:
             orientation = '/'
         resolution = image['resolution']
         sub = image['image'].split('/')[-1].split('_')[0]
         subject = dataset + '/' + sub
+        field_strength = dict_image_to_field_strength[image['image']]
         # Add the data to the DataFrame
         new_row = {
             'Site': dataset,
@@ -182,11 +235,12 @@ def main():
             'Std resolution (P-A)': resolution[1],
             'Avg resolution (I-S)': resolution[2],
             'Std resolution (I-S)': resolution[2],
-            'Number of subjects': subject
+            'Number of subjects': subject,
+            'Field strength': field_strength
         }
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     # Group the DataFrame by Site, Contrast, Acquisition, Orientation and sum the Count and Number of subjects and average the Avg resolution (RPI)
-    df_grouped = df.groupby(['Site', 'Contrast', 'Acquisition', 'Orientation']).agg({
+    df_grouped = df.groupby(['Site', 'Contrast', 'Acquisition', 'Orientation', 'Field strength']).agg({
         'Count': 'sum',
         'Avg resolution (R-L)': 'mean',
         'Std resolution (R-L)': 'std',
@@ -198,11 +252,16 @@ def main():
     })
     # Reset the index
     df_grouped = df_grouped.reset_index()
+    # We add the number of subjects per site
+    subjects_per_site_series = pd.Series(subjects_per_site, name='# Participants')
+    df_grouped = df_grouped.merge(subjects_per_site_series, left_on='Site', right_index=True, how='left')
+    # Reorder the columns
+    df_grouped = df_grouped[['Site','# Participants','Field strength', 'Contrast', 'Acquisition', 'Orientation', 'Avg resolution (R-L)', 'Std resolution (R-L)', 'Avg resolution (P-A)', 'Std resolution (P-A)', 'Avg resolution (I-S)', 'Std resolution (I-S)', 'Count']]
     # Log the DataFrame
-    logger.info("DataFrame with the number of images per site, contrast, acquisition and orientation:")
+    logger.info("DataFrame with the number of images per site, contrast, acquisition, orientation and field strength:")
     logger.info(df_grouped.to_string(index=False))
 
-    # Also saver the DataFrame to a csv file
+    # Also save the DataFrame to a csv file
     csv_file = os.path.join(output_folder, 'csv_file.csv')
     df_grouped.to_csv(csv_file, index=False)
 

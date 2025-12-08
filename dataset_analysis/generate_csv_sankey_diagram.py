@@ -43,12 +43,22 @@ def main():
 
     subjects = data['train'] + data['validation'] + data['test'] + data['externalValidation']
 
+    # We do not want to count the file from sct-testing-large--user as it is not relevant
+    subjects = [d for d in subjects if 'sct-testing-large--user' not in d['site']]
+    
     # Create a panda df with columns site (numbered sites), acquisition and contrast
     df = pd.DataFrame()
 
     # For each element in the json file add the element to the df
     for i in subjects:
         site = i['site']
+        # If the site is canproco, we split it into the 5 site corresponds sites
+        if site=='canproco':
+            site = 'canproco_'+i['image'].split('/')[-1][4:7]
+        # We correct the following site
+        if i['site'] == 'sct-testing-large--nihReich' and i['contrast'] == 'T2w':
+            i['acquisition'] = 'sag'
+        # Reformat acquisition and contrast
         acquisition = i['acquisition']
         if acquisition == 'ax':
             acquisition = '2D axial'
@@ -57,15 +67,20 @@ def main():
         contrast = i['contrast']
         if contrast == 'MEGRE':
             contrast = 'T2*w'
+        if contrast == 'T2star':
+            contrast = 'T2*w'
         
         # Add the element to the df
         df = pd.concat([df, pd.DataFrame({'site': [site], 'acquisition': [acquisition], 'contrast': [contrast]})], ignore_index=True)
     # Create a dictionary to map site names to numbers
     site_dict = {}
     for i, site in enumerate(df['site'].unique()):
-        site_dict[site] = f"site {i+1}"
+        site_dict[site] = f"site {i+1:02d}"
+
     # Replace site names with numbers
     df['site'] = df['site'].map(site_dict)
+    # Sort the df by site
+    df = df.sort_values(by=['site', 'acquisition', 'contrast'])
     # Save the df to a csv file
     df.to_csv(path_output_csv, index=False)
 
