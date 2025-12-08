@@ -2,18 +2,20 @@
 
 ## Robust Spinal Cord MS Lesion Segmentation Across Diverse MRI Protocols and Centers
 
+TODO: when published: add icon similar to this one (https://github.com/sct-pipeline/contrast-agnostic-softseg-spinalcord/blob/bfcb8352aa2cdbcb356e428181fbc3dbd2fa42ef/README.md?plain=1#L3)
+
 <img src="./segmentation_example.gif" width="500"/>
 
 Official repository for the segmentation of multiple sclerosis (MS) spinal cord (SC) lesions.
 
-This repo contains all the code for training the SC MS lesion segmentation model. The code for training is based on the nnUNetv2 framework. The segmentation model is available as part of Spinal Cord Toolbox (SCT) via the sct_deepseg functionality.
+This repo contains all the code for training the SC MS lesion segmentation model. The code for training is based on the nnUNetv2 framework. The segmentation model is available as part of [Spinal Cord Toolbox (SCT)](https://spinalcordtoolbox.com/stable/index.html) via the sct_deepseg functionality.
 
 ### Citation Information
 
 If you find this work and/or code useful for your research, please cite our paper:
 
 ```
-TODO: Add citation. Manuscript currently under-review.
+TODO: when published, add citation.
 ```
 
 ### Annotators

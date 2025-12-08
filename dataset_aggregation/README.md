@@ -26,4 +26,4 @@ The scripts use the following exclude files:
 The files in this repo are: 
 - [`create_msd_data.py`](./create_msd_data.py): creates the basic MSD dataset with the above listed datasets
 - [`qc_datasets.py`](./qc_datasets.py): used to QC the dataset and check if lesions are located in the spinal cord
-- [agregate_unannotated_data.py](./agregate_unannotated_data.py): used to aggregate the unannotated datasets
+- [`agregate_unannotated_data.py`](./agregate_unannotated_data.py): used to aggregate the unannotated datasets
