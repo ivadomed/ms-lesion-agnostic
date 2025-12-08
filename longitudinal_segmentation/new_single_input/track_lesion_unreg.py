@@ -331,7 +331,7 @@ def lesion_matching(lesion_analysis_1, lesion_analysis_2):
     for i, j in zip(row_ind, col_ind):
         lesion_id_1 = list(lesion_analysis_1.keys())[i]
         lesion_id_2 = list(lesion_analysis_2.keys())[j]
-        lesion_mapping[lesion_id_1] = [lesion_id_2]
+        lesion_mapping[lesion_id_1] = [int(i) for i in lesion_id_2]
 
     return lesion_mapping
 
