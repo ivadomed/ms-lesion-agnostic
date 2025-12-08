@@ -4,7 +4,7 @@
 
 TODO: when published: add icon similar to this one (https://github.com/sct-pipeline/contrast-agnostic-softseg-spinalcord/blob/bfcb8352aa2cdbcb356e428181fbc3dbd2fa42ef/README.md?plain=1#L3)
 
-<img src="./segmentation_example.gif" width="500"/>
+<img src="https://github.com/user-attachments/assets/6c86548a-0a28-40e4-9d21-219ac310d867" width="500"/>
 
 Official repository for the segmentation of multiple sclerosis (MS) spinal cord (SC) lesions.
 
@@ -44,6 +44,9 @@ The repository contains all the code for the SC MS lesion segmentation project:
 ## Longitudinal tracking of multiple sclerosis lesions in the spinal cord: A validation study
 
 TODO: if accepted add icon here
+
+<img src="https://github.com/user-attachments/assets/cdb12ab9-aa16-42b9-b0f2-8fcfbf2e8062" width="600"/>
+
 
 Official repository of the longitudinal lesion tracking of MS SC lesions.
 
