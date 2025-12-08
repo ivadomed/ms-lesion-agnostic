@@ -4,6 +4,7 @@ This code performs lesion mapping from baseline to follow-up MRI scans using a m
 Input:
     -i: msd dataset path
     -pred: path to the folder containing the predicted segmentations (SC, lesions, centerline, levels ...)
+    -gt_mappings: path to the folder containing the ground truth lesion mappings
     -o: output folder where to store the lesion matching results
 
 Output:
@@ -31,11 +32,86 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input-msd', type=str, required=True, help='Path to the input MSD dataset')
     parser.add_argument('-pred', '--pred', type=str, required=True, help='Path to the folder containing the predicted segmentations')
+    parser.add_argument('-gt-mapping', '--gt-mapping', type=str, required=True, help='Path to the folder containing the ground truth lesion mappings')
     parser.add_argument('-o', '--output-folder', type=str, required=True, help='Path to the output folder where lesion matching results will be stored')
     return parser.parse_args()
 
 
-def build_dataset(input_msd_dataset, pred_folder, output_folder):
+def group_lesions(lesion_analysis_1, lesion_analysis_2, lesion_mapping_path):
+    """
+    This function creates group for lesions from the lesion mapping.
+    If lesion mapping is:
+         B1 -> F1,F2
+         B2 -> F2
+         B3 -> F3
+         B4 -> F3
+         B5 -> None
+    Then groups are:
+        G1: B1, B2, F1, F2
+        G2: B3, B4, F3
+        G3: B5
+
+    Inputs:
+        lesion_analysis_1 : dictionary containing lesion analysis for timepoint1
+        lesion_analysis_2 : dictionary containing lesion analysis for timepoint2
+        lesion_mapping_path : path to the lesion mapping json file
+    
+    Outputs:
+        grouped_lesions_1 : updated lesion_analysis_1 with group information
+        grouped_lesions_2 : updated lesion_analysis_2 with group information
+    """
+    # Load the lesion mapping
+    with open(lesion_mapping_path, 'r') as f:
+        lesion_mapping = json.load(f)
+
+    print("Lesion Mapping Loaded:")
+    for lesion_1, mapped_lesions_2 in lesion_mapping.items():
+        print(f"  Lesion {lesion_1} -> Mapped Lesions {mapped_lesions_2}")
+
+    # Initialize the group ID
+    group_id = 0
+    
+    # Initialize a list of lesions at baseline and follow-up
+    lesions_baselines = set(lesion_analysis_1.keys())
+    lesions_followups = set(lesion_analysis_2.keys())
+    # Iterate through the lesion mapping to create groups
+    for lesion_1 in list(lesions_baselines):
+        if 'group' in lesion_analysis_1[lesion_1]:
+            # Already assigned to a group
+            continue
+        group_id += 1
+        # The lesion is assigned to a group
+        lesion_analysis_1[lesion_1]['group'] = group_id
+        # We check all mapped lesions too
+        for lesion_2 in lesion_mapping[lesion_1]: 
+            lesion_analysis_2[str(lesion_2)]['group'] = group_id
+        # Now we check if all other lesions in baseline have any mapped lesions in common with the current lesion_1
+        for other_lesion_1 in list(lesions_baselines):
+            if other_lesion_1 == lesion_1:
+                continue
+            if 'group' in lesion_analysis_1[other_lesion_1]:
+                # Already assigned to a group
+                continue
+            other_mapped_lesions_2 = lesion_mapping[other_lesion_1]
+            # If there is an intersection between other_mapped_lesions_2 and mapped_lesions_2, we add other_lesion_1 to the same group
+            if set(other_mapped_lesions_2).intersection(set(lesion_mapping[lesion_1])):
+                lesion_analysis_1[other_lesion_1]['group'] = group_id
+                # And all mapped lesions too
+                for lesion_2 in other_mapped_lesions_2:
+                    lesion_analysis_2[str(lesion_2)]['group'] = group_id
+    
+    # For lesions of follow-up that were not mapped to any baseline lesion, we create new groups
+    for lesion_2 in lesions_followups:
+        # If already assigned to a group, we skip
+        if 'group' in lesion_analysis_2[lesion_2]:
+            continue
+        group_id += 1
+        lesion_analysis_2[lesion_2]['group'] = group_id
+
+    return lesion_analysis_1, lesion_analysis_2
+
+
+def build_dataset(input_msd_dataset, pred_folder, gt_mappings, output_folder):
     """
     This function is used to build the dataset for training the model and lesion mapping.
     For each lesion in the baseline scan and follow-up scan, we add them to the dataset alongside their coordinates and volume.
@@ -64,6 +140,9 @@ def build_dataset(input_msd_dataset, pred_folder, output_folder):
 
         # Build subject pred folder
         subject_pred_folder = os.path.join(pred_folder, subject)
+
+        # Build path to lesion mapping file
+        lesion_mapping_path = os.path.join(gt_mappings, subject, "lesion_mapping.json")
 
         # Build subject output folder
         subject_output_folder = os.path.join(output_folder, subject)
@@ -114,13 +193,25 @@ def build_dataset(input_msd_dataset, pred_folder, output_folder):
         lesion_analysis_1 = compute_lesion_location(lesion_analysis_1, labeled_lesion_seg_1, sc_seg_1, labeled_centerline_1, levels_1)
         lesion_analysis_2 = analyze_lesions(labeled_lesion_seg_2)
         lesion_analysis_2 = compute_lesion_location(lesion_analysis_2, labeled_lesion_seg_2, sc_seg_2, labeled_centerline_2, levels_2)
+
+        # Now we group the lesions based on the lesion mapping
+        lesion_analysis_1, lesion_analysis_2  = group_lesions(lesion_analysis_1, lesion_analysis_2, lesion_mapping_path)
+
+        logger.info(f"Subject {subject} - Grouped Lesions Timepoint {timepoint1}:")
+        for lesion_id, lesion_info in lesion_analysis_1.items():
+            logger.info(f"  Lesion {lesion_id}: {lesion_info}")
+        logger.info("")
+        logger.info(f"Subject {subject} - Grouped Lesions Timepoint {timepoint2}:")
+        for lesion_id, lesion_info in lesion_analysis_2.items():
+            logger.info(f"  Lesion {lesion_id}: {lesion_info}")
+        
         
         # Now we add the lesions to the dataset
         for lesion_id, lesion_info in lesion_analysis_1.items():
             dataset.append({
                 'subject': subject,
                 'timepoint': timepoint1,
-                'group': None,
+                'group': lesion_info['group'],
                 'lesion_id': lesion_id,
                 'z': lesion_info['centerline_z'],
                 'r': lesion_info['radius_mm'],
@@ -135,7 +226,7 @@ def build_dataset(input_msd_dataset, pred_folder, output_folder):
             dataset.append({
                 'subject': subject,
                 'timepoint': timepoint2,
-                'group': None,
+                'group': lesion_info['group'],
                 'lesion_id': lesion_id,
                 'z': lesion_info['centerline_z'],
                 'r': lesion_info['radius_mm'],
@@ -160,7 +251,8 @@ if __name__ == "__main__":
     args = parse_args()
     input_msd_dataset = args.input_msd
     pred_folder = args.pred
+    gt_mappings = args.gt_mapping
     output_folder = args.output_folder
 
     # Build the dataset
-    build_dataset(input_msd_dataset, pred_folder, output_folder)
+    build_dataset(input_msd_dataset, pred_folder, gt_mappings,output_folder)
