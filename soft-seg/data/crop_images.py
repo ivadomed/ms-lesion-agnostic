@@ -119,6 +119,9 @@ def main():
         msd_json = json.load(f)
     images = msd_json['data']
 
+    # Skipped subjects/sessions with no FoV overlap
+    skipped = []
+
     # Iterate over the subjects
     for subject in tqdm(images):
         # Iterate over sessions:
@@ -138,6 +141,11 @@ def main():
 
             # We now identify the common min and max discs present in all images
             min, max = get_common_discs(list_discs_paths)
+            ## If min == max, we skip the cropping
+            if min == max:
+                skipped.append(f"{subject}_{session}")
+                print(f"Warning: For subject {subject} session {session}, min and max discs are the same ({min}). Skipping cropping.")
+                continue
 
             # For each image we crop it to the common min and max discs
             for i, img in enumerate(images[subject][session]['images']):
@@ -145,6 +153,7 @@ def main():
                 output_cropped_path = os.path.join(output_cropped_folder, img.split('/')[-1])
                 crop_image(img, list_discs_paths[i], min, max, output_cropped_path)
     print("Cropping completed successfully.")
+    print(f"Skipped {len(skipped)} subject-sessions due to no FoV overlap: {skipped}")
 
 
 if __name__ == "__main__":
