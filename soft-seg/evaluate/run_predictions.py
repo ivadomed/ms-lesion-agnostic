@@ -23,8 +23,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Run lesion segmentation predictions on cropped images.")
     parser.add_argument("-msd", type=str, required=True, help="Path to the msd dataset")
     parser.add_argument("-i", type=str, required=True, help="Input folder containing the cropped images")
-    parser.add_argument("-o_bin", type=str, required=True, help="Output folder to save the binary lesion masks")
-    parser.add_argument("-o_soft", type=str, required=True, help="Output folder to save the soft segmentation maps")
+    parser.add_argument("-o-bin", type=str, required=True, help="Output folder to save the binary lesion masks")
+    parser.add_argument("-o-soft", type=str, required=True, help="Output folder to save the soft segmentation maps")
     return parser.parse_args()
 
 
@@ -50,7 +50,7 @@ def main():
         # iterate over sessions
         for session in images[sub]:
             # Iterate over the images
-            for img in images[sub][session]:
+            for img in images[sub][session]['images']:
                 # Build path to cropped image
                 cropped_image_path = os.path.join(input_folder, sub, session, 'anat', img.split('/')[-1])
                 # Build output paths
