@@ -37,7 +37,7 @@ from tqdm import tqdm
 
 
 IOU_THRESHOLD = 0.1
-EXCLUDE_DIRS = {"sc_seg", "qc"}
+EXCLUDE_DIRS = {"sc_seg", "qc", "disc_seg"}
 
 
 def parse_args():
