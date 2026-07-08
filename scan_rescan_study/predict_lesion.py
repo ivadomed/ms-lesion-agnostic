@@ -80,6 +80,10 @@ def main():
     sc_seg_folder = output_root / "sc_seg"
     sc_seg_folder.mkdir(parents=True, exist_ok=True)
 
+    # Build the disc seg folder
+    disc_seg_folder = output_root / "disc_seg"
+    disc_seg_folder.mkdir(parents=True, exist_ok=True)
+
     # Build the QC folder
     qc_folder = output_root / "qc"
     qc_folder.mkdir(parents=True, exist_ok=True)
@@ -88,7 +92,6 @@ def main():
         print(f"Installing model '{model_name}' ...")
         # Model url is the path to each fold seperated by a space, so we need to join the list of urls into a single string
         model_url = " ".join([url for fold_urls in model_info['url'].values() for url in fold_urls])
-        print(model_url)
         assert os.system(f"sct_deepseg lesion_ms -install -custom-url {model_url}") == 0, f"Installation failed for {model_name}"
 
         model_output_root = output_root / model_info['release']
@@ -101,11 +104,28 @@ def main():
             if not sc_output_path.exists():
                 sc_output_path.parent.mkdir(parents=True, exist_ok=True)
                 assert os.system(f"SCT_USE_GPU=1 sct_deepseg spinalcord -i {image} -o {sc_output_path}") == 0, f"Prediction failed for {image} with sct_deepseg sc"
+
+            # Segment the disc levels
+            disc_output_path = disc_seg_folder / relative_path.parent / relative_path.name.replace("_UNIT1.nii.gz", "_UNIT1_label-disc_seg.nii.gz")
+            if not disc_output_path.exists():
+                # Create the predictions in a temp folder, then we move everything to the right place
+                temp_path = disc_seg_folder / "temp" / relative_path.parent / relative_path.name.replace("_UNIT1.nii.gz", "_UNIT1_label-disc_seg.nii.gz")
+                temp_path.parent.mkdir(parents=True, exist_ok=True)
+                assert os.system(f"SCT_USE_GPU=1 sct_deepseg spine -i {image} -o {temp_path}") == 0, f"Prediction failed for {image} with sct_deepseg disc"
+                # The created ouput file is disc_output_path.replace(".nii.gz", "_totalspineseg_discs.nii.gz"), so we need to rename it to disc_output_path
+                disc_output_path.parent.mkdir(parents=True, exist_ok=True)
+                os.rename(str(temp_path).replace(".nii.gz", "_totalspineseg_discs.nii.gz"), disc_output_path)
+                # Remove the temp folder
+                os.rmdir(disc_seg_folder / "temp")
+
         
             # Segment lesion
             lesion_output_path = model_output_root / relative_path.parent / relative_path.name.replace("_UNIT1.nii.gz", "_UNIT1_label-lesion_seg.nii.gz")
             lesion_output_path.parent.mkdir(parents=True, exist_ok=True)
-            assert os.system(f"SCT_USE_GPU=1 sct_deepseg lesion_ms -i {image} -o {lesion_output_path} {'-no-crop' if not model_info['crop'] else ''} -qc {qc_folder} -qc-seg {sc_output_path}") == 0, f"Prediction failed for {image} with {model_name}"
+            if not lesion_output_path.exists():
+                print(f"Predicting lesions for {image} with {model_name} ...")
+                # The -no-crop option is only used for model_v1, which was trained without cropping
+                assert os.system(f"SCT_USE_GPU=1 sct_deepseg lesion_ms -i {image} -o {lesion_output_path} {'-no-crop' if not model_info['crop'] else ''} -qc {qc_folder} -qc-seg {sc_output_path}") == 0, f"Prediction failed for {image} with {model_name}"
 
     print("\nDone.")
 
