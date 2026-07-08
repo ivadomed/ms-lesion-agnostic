@@ -117,7 +117,6 @@ def main():
                 os.rename(str(temp_path).replace(".nii.gz", "_totalspineseg_discs.nii.gz"), disc_output_path)
                 # Remove the temp folder
                 os.system(f"rm -rf {disc_seg_folder / 'temp'}")
-
         
             # Segment lesion
             lesion_output_path = model_output_root / relative_path.parent / relative_path.name.replace("_UNIT1.nii.gz", "_UNIT1_label-lesion_seg.nii.gz")
