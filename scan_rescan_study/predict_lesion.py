@@ -100,7 +100,7 @@ def main():
             sc_output_path = sc_seg_folder / relative_path.parent / relative_path.name.replace("_UNIT1.nii.gz", "_UNIT1_label-sc_seg.nii.gz")
             if not sc_output_path.exists():
                 sc_output_path.parent.mkdir(parents=True, exist_ok=True)
-                assert os.system(f"SCT_USE_GPU=1 sct_deepseg sc -i {image} -o {sc_output_path}") == 0, f"Prediction failed for {image} with sct_deepseg sc"
+                assert os.system(f"SCT_USE_GPU=1 sct_deepseg spinalcord -i {image} -o {sc_output_path}") == 0, f"Prediction failed for {image} with sct_deepseg sc"
         
             # Segment lesion
             lesion_output_path = model_output_root / relative_path.parent / relative_path.name.replace("_UNIT1.nii.gz", "_UNIT1_label-lesion_seg.nii.gz")
