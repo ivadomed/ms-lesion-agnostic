@@ -116,7 +116,7 @@ def main():
                 disc_output_path.parent.mkdir(parents=True, exist_ok=True)
                 os.rename(str(temp_path).replace(".nii.gz", "_totalspineseg_discs.nii.gz"), disc_output_path)
                 # Remove the temp folder
-                os.rmdir(disc_seg_folder / "temp")
+                os.system(f"rm -rf {disc_seg_folder / 'temp'}")
 
         
             # Segment lesion
