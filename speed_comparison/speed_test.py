@@ -1,22 +1,23 @@
 """
-Measures sct_deepseg lesion_ms inference speed on a single image, running each of
-the three lesion_ms models 20 times.
+Measures sct_deepseg lesion_ms inference speed by running inference once on each of
+N images (default: 20) of a dataset, for each of the three lesion_ms models.
 
 Each model is installed once with:
     sct_deepseg lesion_ms -install -custom-url <url>
 
-then timed by repeatedly running:
+then timed by running, for each of the N images:
     sct_deepseg lesion_ms -i <image> -o <output>
 
 Only the inference calls are timed; model installation/download is excluded.
-A per-model summary (mean/std/min/max over the runs) is saved as JSON in the
+A per-model summary (mean/std/min/max over the N images) is saved as JSON in the
 output folder.
 
 Arguments:
-    -i / --input       Path to a single UNIT1 image (.nii.gz)
-    -o / --output      Path to the output folder
-    -n / --n-runs       Number of inference repetitions per model (default: 20)
-    --cpu               Run on CPU instead of GPU (GPU is used by default)
+    -i / --input        Path to the BIDS dataset root
+    -o / --output        Path to the output folder
+    -n / --n-images       Number of images to run inference on, per model (default: 20)
+    --cpu                 Run on CPU instead of GPU (GPU is used by default)
+    --seed                Random seed used to pick the images (default: 42)
 
 Author: Pierre-Louis Benveniste
 """
@@ -24,6 +25,7 @@ Author: Pierre-Louis Benveniste
 import argparse
 import json
 import os
+import random
 import statistics
 import time
 from pathlib import Path
@@ -68,19 +70,25 @@ MODELS = {
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Measure sct_deepseg lesion_ms inference speed on a single image with each of the 3 models over N runs.")
-    parser.add_argument("-i", "--input", required=True, help="Path to a single UNIT1 image")
+    parser = argparse.ArgumentParser(description="Measure sct_deepseg lesion_ms inference speed by running inference once on each of N images, for each of the 3 models.")
+    parser.add_argument("-i", "--input", required=True, help="Path to the dataset root")
     parser.add_argument("-o", "--output", required=True, help="Path to the output folder")
-    parser.add_argument("-n", "--n-runs", type=int, default=20, help="Number of inference repetitions per model (default: 20)")
+    parser.add_argument("-n", "--n-images", type=int, default=20, help="Number of images to run inference on, per model (default: 20)")
     parser.add_argument("--cpu", action="store_true", help="Run on CPU instead of GPU (GPU is used by default)")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed used to pick the images (default: 42)")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    image = Path(args.input).resolve()
+    bids_root = Path(args.input).resolve()
     output_root = Path(args.output).resolve()
     output_root.mkdir(parents=True, exist_ok=True)
+
+    all_images = sorted(bids_root.rglob("*.nii.gz"))
+    assert len(all_images) >= args.n_images, f"Requested {args.n_images} images but only found {len(all_images)} image(s) under {bids_root}"
+    images = random.Random(args.seed).sample(all_images, args.n_images)
+    print(f"Using {len(images)} randomly selected image(s) (seed={args.seed})")
 
     env_prefix = "" if args.cpu else "SCT_USE_GPU=1 "
 
@@ -92,22 +100,24 @@ def main():
         model_url = " ".join([url for fold_urls in model_info['url'].values() for url in fold_urls])
         assert os.system(f"sct_deepseg lesion_ms -install -custom-url {model_url}") == 0, f"Installation failed for {model_name}"
 
-        model_output_path = output_root / f"{model_name}_pred.nii.gz"
+        model_output_folder = output_root / model_name
+        model_output_folder.mkdir(parents=True, exist_ok=True)
         crop_flag = "" if model_info["crop"] else "-no-crop"
 
         times = []
-        for run_idx in tqdm(range(1, args.n_runs + 1), desc=model_name):
-            if model_output_path.exists():
-                model_output_path.unlink()
-            cmd = f"{env_prefix}sct_deepseg lesion_ms -i {image} -o {model_output_path} {crop_flag}"
+        for image in tqdm(images, desc=model_name):
+            output_path = model_output_folder / image.name.replace(".nii.gz", "_label-lesion_seg.nii.gz")
+            if output_path.exists():
+                output_path.unlink()
+            cmd = f"{env_prefix} sct_deepseg lesion_ms -i {image} -o {output_path} {crop_flag}"
             start = time.perf_counter()
-            assert os.system(cmd) == 0, f"Inference run {run_idx} failed for {model_name}"
+            assert os.system(cmd) == 0, f"Inference failed for {image} with {model_name}"
             elapsed = time.perf_counter() - start
             times.append(elapsed)
 
         results[model_name] = {
             "release": model_info["release"],
-            "n_runs": args.n_runs,
+            "n_images": len(images),
             "times_sec": times,
             "mean_sec": statistics.mean(times),
             "std_sec": statistics.stdev(times) if len(times) > 1 else 0.0,
@@ -115,7 +125,7 @@ def main():
             "max_sec": max(times),
         }
 
-        print(f"{model_name}: mean {results[model_name]['mean_sec']:.2f}s +/- {results[model_name]['std_sec']:.2f}s over {args.n_runs} runs")
+        print(f"{model_name}: mean {results[model_name]['mean_sec']:.2f}s +/- {results[model_name]['std_sec']:.2f}s over {len(images)} images")
 
     summary_path = output_root / "speed_summary.json"
     with open(summary_path, "w") as f:
