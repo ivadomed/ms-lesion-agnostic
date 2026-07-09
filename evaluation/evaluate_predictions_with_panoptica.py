@@ -97,9 +97,8 @@ def main():
 
         # Get initial image name from conversion dict
         image_name = None
-        for original_image in conversion_dict:
-            
-            if conversion_dict[original_image] == image:
+        for original_image in conversion_dict:            
+            if conversion_dict[original_image].split('/')[-1] == image.split('/')[-1]:
                 image_name = original_image
                 break
 
