@@ -124,7 +124,7 @@ def main():
             if not lesion_output_path.exists():
                 print(f"Predicting lesions for {image} with {model_name} ...")
                 # The -no-crop option is only used for model_v1, which was trained without cropping
-                assert os.system(f"SCT_USE_GPU=1 sct_deepseg lesion_ms -i {image} -o {lesion_output_path} {'-no-crop' if not model_info['crop'] else ''} -qc {qc_folder} -qc-seg {sc_output_path}") == 0, f"Prediction failed for {image} with {model_name}"
+                assert os.system(f"SCT_USE_GPU=1 sct_deepseg lesion_ms -i {image} -o {lesion_output_path} -test-time-aug {'-no-crop' if not model_info['crop'] else ''} -qc {qc_folder} -qc-seg {sc_output_path}") == 0, f"Prediction failed for {image} with {model_name}"
 
     print("\nDone.")
 
