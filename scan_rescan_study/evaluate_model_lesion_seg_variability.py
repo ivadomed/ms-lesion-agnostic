@@ -14,6 +14,8 @@ Metrics:
     - lesion volume and number of lesions of each run
     - lesion volume difference (mm3 and %) between run-01 and run-02, and between run-01 and run-02
       registered to run-01 (using the warping field of generate_study_files.py)
+    - lesion volume difference (mm3 and %) between run-01 and run-02, each in its straightened space
+      (sct_straighten_spinalcord with the SC seg)
     - Dice between the run-01 prediction and the run-02 prediction registered to run-01
     - Dice of each prediction relative to the manual segmentation when available
     (soft volumes and soft Dice in the soft mode)
@@ -22,8 +24,9 @@ Outputs (in the output folder), with pairs labeled by focal lesion visible or un
     - lesion_seg_variability.csv: one line per pair
     - lesion_seg_variability_native.png: lesion volumes and Bland-Altman plots (mm3 and %), run-01 vs run-02
     - lesion_seg_variability_registered.png: same, run-01 vs run-02 registered to run-01, and Dice
-    - lesion_seg_variability_native_visible.png and lesion_seg_variability_registered_visible.png: same
-      plots, only for the pairs with visible focal lesions
+    - lesion_seg_variability_straight.png: same, run-01 vs run-02 in the straightened spaces
+    - lesion_seg_variability_<native/registered/straight>_visible.png: same plots, only for the pairs
+      with visible focal lesions
 
 Arguments:
     -i / --input        Path to the output folder of generate_study_files.py
@@ -77,6 +80,17 @@ def volume_diff(vol_1, vol_2, prefix):
     }
 
 
+def straighten(seg, image, sc_seg, qc_dir):
+    """Warps a segmentation to the straightened space of its image (straightening computed from the SC seg)."""
+    folder = Path(str(sc_seg).replace(".nii.gz", "_straightening"))
+    if not (folder / "warp_curve2straight.nii.gz").exists():
+        run(f"sct_straighten_spinalcord -i {image} -s {sc_seg} -disable-straight2curved -ofolder {folder} -qc {qc_dir}")
+    seg_straight = folder / seg.name.replace(".nii.gz", "_straight.nii.gz")
+    if not seg_straight.exists():
+        run(f"sct_apply_transfo -i {seg} -d {folder / 'straight_ref.nii.gz'} -w {folder / 'warp_curve2straight.nii.gz'} -x nn -o {seg_straight}")
+    return seg_straight
+
+
 def process_pair(pair, dataset, study_dir, mode):
     out_dir = (study_dir / pair["sc_seg_run-01"]).parent
     flags = MODES[mode]
@@ -92,9 +106,15 @@ def process_pair(pair, dataset, study_dir, mode):
     if not pred_2_reg.exists():
         run(f"sct_apply_transfo -i {preds[1]} -d {dataset / pair['scan_run-01']} -w {study_dir / pair['warp_run-02_to_run-01']} -x nn -o {pred_2_reg}")
 
+    # Predictions in the straightened space of each run
+    preds_straight = [straighten(pred, dataset / pair[key], study_dir / pair[f"sc_seg_run-{r}"], study_dir / "qc")
+                      for pred, key, r in zip(preds, ("scan_run-01", "rescan_run-02"), ("01", "02"))]
+
     soft = mode == "soft"
     (seg_1, voxel_vol_1), (seg_2, voxel_vol_2), (seg_2_reg, _) = (load_seg(p, soft) for p in (*preds, pred_2_reg))
+    (seg_1_straight, voxel_vol_1_straight), (seg_2_straight, voxel_vol_2_straight) = (load_seg(p, soft) for p in preds_straight)
     vol_1, vol_2, vol_2_reg = seg_1.sum() * voxel_vol_1, seg_2.sum() * voxel_vol_2, seg_2_reg.sum() * voxel_vol_1
+    vol_1_straight, vol_2_straight = seg_1_straight.sum() * voxel_vol_1_straight, seg_2_straight.sum() * voxel_vol_2_straight
 
     # Dice relative to the manual segmentations (if available)
     dice_manual = {r: dice(seg, load_seg(dataset / pair[f"lesion_seg_run-{r}"], soft=False)[0]) if pair[f"lesion_seg_run-{r}"] else np.nan
@@ -112,22 +132,25 @@ def process_pair(pair, dataset, study_dir, mode):
         **volume_diff(vol_1, vol_2, "lesion_volume"),
         "lesion_volume_run-02_registered_mm3": vol_2_reg,
         **volume_diff(vol_1, vol_2_reg, "lesion_volume_registered"),
+        "lesion_volume_run-01_straight_mm3": vol_1_straight,
+        "lesion_volume_run-02_straight_mm3": vol_2_straight,
+        **volume_diff(vol_1_straight, vol_2_straight, "lesion_volume_straight"),
         DICE: dice(seg_1, seg_2_reg),
         "dice_vs_manual_run-01": dice_manual["01"],
         "dice_vs_manual_run-02": dice_manual["02"],
     }
 
 
-def plot_variability(df, prefix, vol_2, run_2_name, output, dice=False):
+def plot_variability(df, prefix, vol_1, vol_2, run_1_name, run_2_name, output, dice=False):
     """Plots the lesion volumes, their Bland-Altman plots (mm3 and %) and optionally the Dice, labeled by focal lesion."""
     hue = "Focal lesion"
-    mean_volume = (df[VOL_1] + df[vol_2]) / 2
+    mean_volume = (df[vol_1] + df[vol_2]) / 2
     fig, axes = plt.subplots(1, 4 if dice else 3, figsize=(24 if dice else 18, 5))
 
-    sns.scatterplot(data=df, x=VOL_1, y=vol_2, hue=hue, palette=PALETTE, ax=axes[0])
-    max_vol = df[[VOL_1, vol_2]].max().max()
+    sns.scatterplot(data=df, x=vol_1, y=vol_2, hue=hue, palette=PALETTE, ax=axes[0])
+    max_vol = df[[vol_1, vol_2]].max().max()
     axes[0].plot([0, max_vol], [0, max_vol], "k--", linewidth=1)
-    axes[0].set(title="Lesion volume", xlabel="Lesion volume run-01 (mm³)", ylabel=f"Lesion volume {run_2_name} (mm³)")
+    axes[0].set(title="Lesion volume", xlabel=f"Lesion volume {run_1_name} (mm³)", ylabel=f"Lesion volume {run_2_name} (mm³)")
 
     # Bland-Altman plots of the volume difference in mm3 and in %
     for ax, diff, unit in ((axes[1], df[f"{prefix}_abs_diff_mm3"], "mm³"), (axes[2], df[f"{prefix}_abs_diff_percent"], "%")):
@@ -136,7 +159,7 @@ def plot_variability(df, prefix, vol_2, run_2_name, output, dice=False):
         for y, name in ((mean_diff, "mean"), (mean_diff + 1.96 * std_diff, "+1.96 SD")):
             ax.axhline(y, color="k", linestyle="--", linewidth=1)
             ax.annotate(f"{name}: {y:.1f}", xy=(1, y), xycoords=("axes fraction", "data"), ha="right", va="bottom", fontsize=8)
-        ax.set(title=f"Bland-Altman of lesion volume ({unit})", xlabel="Mean lesion volume (mm³)", ylabel=f"Absolute lesion volume difference |{run_2_name} - run-01| ({unit})")
+        ax.set(title=f"Bland-Altman of lesion volume ({unit})", xlabel="Mean lesion volume (mm³)", ylabel=f"Absolute lesion volume difference |{run_2_name} - {run_1_name}| ({unit})")
 
     if dice:
         sns.boxplot(data=df, x=hue, y=DICE, hue=hue, palette=PALETTE, legend=False, ax=axes[3], showfliers=False)
@@ -180,9 +203,12 @@ def main():
     # (all labeled pairs, and only the pairs with visible focal lesions)
     df = df.dropna(subset=["Focal lesion"])
     for suffix, df_plot in (("", df), ("_visible", df[df["Focal lesion"] == "visible"])):
-        plot_variability(df_plot, "lesion_volume", "lesion_volume_run-02_mm3", "run-02", args.output / f"lesion_seg_variability_native{suffix}.png")
-        plot_variability(df_plot, "lesion_volume_registered", "lesion_volume_run-02_registered_mm3", "run-02 registered",
+        plot_variability(df_plot, "lesion_volume", VOL_1, "lesion_volume_run-02_mm3", "run-01", "run-02",
+                         args.output / f"lesion_seg_variability_native{suffix}.png")
+        plot_variability(df_plot, "lesion_volume_registered", VOL_1, "lesion_volume_run-02_registered_mm3", "run-01", "run-02 registered",
                          args.output / f"lesion_seg_variability_registered{suffix}.png", dice=True)
+        plot_variability(df_plot, "lesion_volume_straight", "lesion_volume_run-01_straight_mm3", "lesion_volume_run-02_straight_mm3",
+                         "run-01 straight", "run-02 straight", args.output / f"lesion_seg_variability_straight{suffix}.png")
     print(f"Results of {len(results)} pairs saved to {args.output}")
 
 
