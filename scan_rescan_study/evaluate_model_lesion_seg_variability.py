@@ -7,8 +7,6 @@ Modes:
     default         no flag
     tta             -test-time-aug
     single-fold     -single-fold
-    soft            -soft-seg (metrics computed on the soft segmentations)
-    soft-bin        -soft-seg, binarized at 0.5
 
 Metrics:
     - lesion volume and number of lesions of each run
@@ -18,7 +16,6 @@ Metrics:
       (sct_straighten_spinalcord with the SC seg)
     - Dice between the run-01 prediction and the run-02 prediction registered to run-01
     - Dice of each prediction relative to the manual segmentation when available
-    (soft volumes and soft Dice in the soft mode)
 
 Outputs (in the output folder), with pairs labeled by focal lesion visible or uncertain (has_lesion field):
     - lesion_seg_variability.csv: one line per pair
@@ -49,7 +46,7 @@ import seaborn as sns
 from scipy import ndimage
 from tqdm import tqdm
 
-MODES = {"default": "", "tta": "-test-time-aug", "single-fold": "-single-fold", "soft": "-soft-seg", "soft-bin": "-soft-seg"}
+MODES = {"default": "", "tta": "-test-time-aug", "single-fold": "-single-fold"}
 VOL_1 = "lesion_volume_run-01_mm3"
 DICE = "dice_run-02_registered_to_run-01"
 PALETTE = {"visible": "tab:orange", "uncertain": "tab:blue"}
@@ -59,17 +56,16 @@ def run(cmd):
     assert os.system(cmd) == 0, f"Command failed: {cmd}"
 
 
-def load_seg(path, soft):
-    """Loads a segmentation (binarized at 0.5 unless soft) and its voxel volume."""
+def load_seg(path):
+    """Loads a binary segmentation and its voxel volume."""
     img = nib.load(path)
-    data = np.asarray(img.dataobj, dtype=float)
-    return (data if soft else (data > 0.5).astype(float)), np.prod(img.header.get_zooms()[:3])
+    return np.asarray(img.dataobj) > 0.5, np.prod(img.header.get_zooms()[:3])
 
 
 def dice(seg_1, seg_2):
-    """(Soft) Dice score, 1 if both segmentations are empty."""
+    """Dice score, 1 if both segmentations are empty."""
     denominator = seg_1.sum() + seg_2.sum()
-    return 2 * (seg_1 * seg_2).sum() / denominator if denominator > 0 else 1.0
+    return 2 * (seg_1 & seg_2).sum() / denominator if denominator > 0 else 1.0
 
 
 def volume_diff(vol_1, vol_2, prefix):
@@ -95,7 +91,7 @@ def process_pair(pair, dataset, study_dir, mode):
     out_dir = (study_dir / pair["sc_seg_run-01"]).parent
     flags = MODES[mode]
 
-    # Inference on both runs (shared between modes with the same flags) and registration of run-02 to run-01
+    # Inference on both runs and registration of run-02 to run-01
     preds = []
     for key in ("scan_run-01", "rescan_run-02"):
         pred = out_dir / Path(pair[key]).name.replace(".nii.gz", f"_label-lesion_desc-{flags.lstrip('-') or 'default'}_seg.nii.gz")
@@ -110,14 +106,13 @@ def process_pair(pair, dataset, study_dir, mode):
     preds_straight = [straighten(pred, dataset / pair[key], study_dir / pair[f"sc_seg_run-{r}"], study_dir / "qc")
                       for pred, key, r in zip(preds, ("scan_run-01", "rescan_run-02"), ("01", "02"))]
 
-    soft = mode == "soft"
-    (seg_1, voxel_vol_1), (seg_2, voxel_vol_2), (seg_2_reg, _) = (load_seg(p, soft) for p in (*preds, pred_2_reg))
-    (seg_1_straight, voxel_vol_1_straight), (seg_2_straight, voxel_vol_2_straight) = (load_seg(p, soft) for p in preds_straight)
+    (seg_1, voxel_vol_1), (seg_2, voxel_vol_2), (seg_2_reg, _) = (load_seg(p) for p in (*preds, pred_2_reg))
+    (seg_1_straight, voxel_vol_1_straight), (seg_2_straight, voxel_vol_2_straight) = (load_seg(p) for p in preds_straight)
     vol_1, vol_2, vol_2_reg = seg_1.sum() * voxel_vol_1, seg_2.sum() * voxel_vol_2, seg_2_reg.sum() * voxel_vol_1
     vol_1_straight, vol_2_straight = seg_1_straight.sum() * voxel_vol_1_straight, seg_2_straight.sum() * voxel_vol_2_straight
 
     # Dice relative to the manual segmentations (if available)
-    dice_manual = {r: dice(seg, load_seg(dataset / pair[f"lesion_seg_run-{r}"], soft=False)[0]) if pair[f"lesion_seg_run-{r}"] else np.nan
+    dice_manual = {r: dice(seg, load_seg(dataset / pair[f"lesion_seg_run-{r}"])[0]) if pair[f"lesion_seg_run-{r}"] else np.nan
                    for r, seg in (("01", seg_1), ("02", seg_2))}
 
     return {
@@ -125,8 +120,8 @@ def process_pair(pair, dataset, study_dir, mode):
         "session": pair["session"],
         "acquisition": pair["acquisition"],
         "has_lesion": pair["has_lesion"],
-        "lesion_count_run-01": ndimage.label(seg_1 > 0.5, structure=np.ones((3, 3, 3)))[1],
-        "lesion_count_run-02": ndimage.label(seg_2 > 0.5, structure=np.ones((3, 3, 3)))[1],
+        "lesion_count_run-01": ndimage.label(seg_1, structure=np.ones((3, 3, 3)))[1],
+        "lesion_count_run-02": ndimage.label(seg_2, structure=np.ones((3, 3, 3)))[1],
         VOL_1: vol_1,
         "lesion_volume_run-02_mm3": vol_2,
         **volume_diff(vol_1, vol_2, "lesion_volume"),
