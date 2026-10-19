@@ -6,10 +6,12 @@ Input:
     -l: folder containing corresponding lesion segmentations
     -sc: folder containing corresponding spinal cord segmentations
     -o: output folder to save the report
+    --image-mode: 'embed' (default, base64 images inside the HTML, for PACS-AI) or 'sidecar' (PNG files next to the HTML)
 
 Author: Pierre-Louis Benveniste
 """
 import os
+import base64
 import argparse
 import numpy as np
 from pathlib import Path
@@ -27,7 +29,26 @@ def parse_arguments():
     parser.add_argument('-l', '--lesion-seg', required=True, help='Folder containing corresponding lesion segmentations')
     parser.add_argument('-s', '--sc-seg', required=True, help='Folder containing corresponding spinal cord segmentations')
     parser.add_argument('-o', '--output', required=True, help='Output folder to save the report')
+    parser.add_argument('--image-mode', choices=['embed', 'sidecar'], default='embed',
+                        help='How images are included in the HTML report: "embed" encodes them in base64 inside the HTML '
+                             '(single self-contained file, required for PACS-AI), "sidecar" references the PNG files '
+                             'saved next to the report. Default: embed')
     return parser.parse_args()
+
+
+def get_img_src(img_path, embed):
+    """
+    Return the value of the src attribute of an <img> tag for the given image.
+    If embed is True, the image is base64-encoded into a data URI, otherwise its relative path is returned.
+    """
+    if not embed:
+        # Use relative path for the HTML to work locally
+        return os.path.basename(img_path)
+    mime_types = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml'}
+    mime_type = mime_types[os.path.splitext(img_path)[1].lower()]
+    with open(img_path, 'rb') as f:
+        encoded = base64.b64encode(f.read()).decode('utf-8')
+    return f"data:{mime_type};base64,{encoded}"
 
 
 def compute_lesion_volume(seg_file):
@@ -157,24 +178,27 @@ def screenshot_seg(seg_file, img_file, img_date, output_folder):
     return output_path
     
 
-def generate_html_report(df, screenshots, output_folder):
+def generate_html_report(df, screenshots, output_folder, embed=True):
     """
     Generates a clean HTML report with screenshots side-by-side and the volume graph.
+    If embed is True, images are base64-encoded in the HTML, otherwise they are referenced as sidecar files.
     """
     # Create HTML table rows for images
     # We sort screenshots by date to match the side-by-side requirement
     sorted_shots = sorted(screenshots, key=lambda x: x['imaging_date'])
-    
+
     img_cells = ""
     for shot in sorted_shots:
-        # Use relative path for the HTML to work locally
-        rel_path = os.path.basename(shot['screenshot_path'])
+        img_src = get_img_src(shot['screenshot_path'], embed)
         img_cells += f"""
             <div style="flex: 1; text-align: center; padding: 10px;">
                 <h3>Date: {shot['imaging_date']}</h3>
-                <img src="{rel_path}" style="width: 100%; max-width: 400px; border-radius: 8px; border: 1px solid #ddd;">
+                <img src="{img_src}" style="width: 100%; max-width: 400px; border-radius: 8px; border: 1px solid #ddd;">
             </div>
         """
+
+    volume_graph_src = get_img_src(os.path.join(output_folder, 'lesion_volume_over_time.png'), embed)
+    num_lesions_graph_src = get_img_src(os.path.join(output_folder, 'num_lesions_over_time.png'), embed)
 
     html_content = f"""
     <!DOCTYPE html>
@@ -202,11 +226,11 @@ def generate_html_report(df, screenshots, output_folder):
 
             <div class="graph-container">
                 <h2>Total lesion volume across time</h2>
-                <img src="lesion_volume_over_time.png">
+                <img src="{volume_graph_src}">
             </div>
             <div class="graph-container">
                 <h2>Number of lesions across time</h2>
-                <img src="num_lesions_over_time.png">
+                <img src="{num_lesions_graph_src}">
             </div>
         </div>
     </body>
@@ -323,7 +347,7 @@ def main():
     plt.close()
 
     # Generate HTML report
-    generate_html_report(lesion_changes_df, path_screenshots, args.output)
+    generate_html_report(lesion_changes_df, path_screenshots, args.output, embed=(args.image_mode == 'embed'))
 
 
 
