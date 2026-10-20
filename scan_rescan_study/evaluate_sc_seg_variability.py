@@ -23,17 +23,12 @@ Author: Pierre-Louis Benveniste
 """
 
 import argparse
-import json
-import os
 from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from tqdm import tqdm
-
-
-def run(cmd):
-    assert os.system(cmd) == 0, f"Command failed: {cmd}"
+from common import load_study, pair_name, run, warp_to_run01
 
 
 def csa_pam50(sc_seg, image, discs, qc_dir):
@@ -47,8 +42,8 @@ def csa_pam50(sc_seg, image, discs, qc_dir):
 def compare_volumes(csa_1, csa_2, prefix):
     """Compares the SC volumes of two segmentations over their common PAM50 slices."""
     common_slices = csa_1.index.intersection(csa_2.index)
-    vol_1 = csa_1.loc[common_slices].sum()
-    vol_2 = csa_2.loc[common_slices].sum()
+    vol_1 = csa_1.loc[common_slices].sum()*0.5 # Because the slice thickness is 0.5 mm in the PAM50 space
+    vol_2 = csa_2.loc[common_slices].sum()*0.5 # Because the slice thickness is 0.5 mm in the PAM50 space
     return {
         f"{prefix}_first_PAM50_slice": common_slices.min(),
         f"{prefix}_last_PAM50_slice": common_slices.max(),
@@ -66,9 +61,7 @@ def process_pair(pair, dataset, study_dir):
     discs_1, discs_2 = study_dir / pair["disc_labels_run-01"], study_dir / pair["disc_labels_run-02"]
 
     # Register the run-02 SC seg to run-01
-    seg_2_reg = Path(str(seg_2).replace(".nii.gz", "_space-run01.nii.gz"))
-    if not seg_2_reg.exists():
-        run(f"sct_apply_transfo -i {seg_2} -d {img_1} -w {study_dir / pair['warp_run-02_to_run-01']} -x nn -o {seg_2_reg}")
+    seg_2_reg = warp_to_run01(seg_2, Path(str(seg_2).replace(".nii.gz", "_space-run01.nii.gz")), pair, dataset, study_dir)
 
     csa_1 = csa_pam50(seg_1, img_1, discs_1, qc_dir)
     csa_2 = csa_pam50(seg_2, img_2, discs_2, qc_dir)
@@ -94,15 +87,14 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
 
     study_dir = args.input.resolve()
-    with open(study_dir / "study_files.json") as f:
-        study = json.load(f)
+    dataset, pairs = load_study(study_dir)
 
     results = []
-    for pair in tqdm([p for p in study["pairs"] if p["status"] == "success"]):
+    for pair in tqdm(pairs):
         try:
-            results.append(process_pair(pair, Path(study["dataset"]), study_dir))
+            results.append(process_pair(pair, dataset, study_dir))
         except Exception as e:
-            print(f"Failed for {pair['subject']}/{pair['session']}/acq-{pair['acquisition']}: {e}")
+            print(f"Failed for {pair_name(pair)}: {e}")
 
     df = pd.DataFrame(results)
     df.to_csv(args.output / "sc_seg_variability.csv", index=False)

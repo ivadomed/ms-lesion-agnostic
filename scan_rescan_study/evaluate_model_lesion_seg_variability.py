@@ -35,72 +35,22 @@ Author: Pierre-Louis Benveniste
 """
 
 import argparse
-import json
-import os
 from pathlib import Path
-import matplotlib.pyplot as plt
-import nibabel as nib
 import numpy as np
 import pandas as pd
-import seaborn as sns
-from scipy import ndimage
 from tqdm import tqdm
+from common import (DICE, VOL_1, VOL_2, dice, focal_lesion, lesion_count, load_seg, load_study, pair_name, plot_variability, predict_binary,
+                    straighten, volume_diff, warp_to_run01)
 
 MODES = {"default": "", "tta": "-test-time-aug", "single-fold": "-single-fold"}
-VOL_1 = "lesion_volume_run-01_mm3"
-DICE = "dice_run-02_registered_to_run-01"
-PALETTE = {"visible": "tab:orange", "uncertain": "tab:blue"}
-
-
-def run(cmd):
-    assert os.system(cmd) == 0, f"Command failed: {cmd}"
-
-
-def load_seg(path):
-    """Loads a binary segmentation and its voxel volume."""
-    img = nib.load(path)
-    return np.asarray(img.dataobj) > 0.5, np.prod(img.header.get_zooms()[:3])
-
-
-def dice(seg_1, seg_2):
-    """Dice score, 1 if both segmentations are empty."""
-    denominator = seg_1.sum() + seg_2.sum()
-    return 2 * (seg_1 & seg_2).sum() / denominator if denominator > 0 else 1.0
-
-
-def volume_diff(vol_1, vol_2, prefix):
-    """Absolute volume difference |vol_2 - vol_1| in mm3 and in % of the mean volume (0 % if both volumes are 0)."""
-    return {
-        f"{prefix}_abs_diff_mm3": abs(vol_2 - vol_1),
-        f"{prefix}_abs_diff_percent": abs(vol_2 - vol_1) / ((vol_1 + vol_2) / 2) * 100 if vol_1 + vol_2 > 0 else 0.0,
-    }
-
-
-def straighten(seg, image, sc_seg, qc_dir):
-    """Warps a segmentation to the straightened space of its image (straightening computed from the SC seg)."""
-    folder = Path(str(sc_seg).replace(".nii.gz", "_straightening"))
-    if not (folder / "warp_curve2straight.nii.gz").exists():
-        run(f"sct_straighten_spinalcord -i {image} -s {sc_seg} -disable-straight2curved -ofolder {folder} -qc {qc_dir}")
-    seg_straight = folder / seg.name.replace(".nii.gz", "_straight.nii.gz")
-    if not seg_straight.exists():
-        run(f"sct_apply_transfo -i {seg} -d {folder / 'straight_ref.nii.gz'} -w {folder / 'warp_curve2straight.nii.gz'} -x nn -o {seg_straight}")
-    return seg_straight
 
 
 def process_pair(pair, dataset, study_dir, mode):
     out_dir = (study_dir / pair["sc_seg_run-01"]).parent
-    flags = MODES[mode]
 
     # Inference on both runs and registration of run-02 to run-01
-    preds = []
-    for key in ("scan_run-01", "rescan_run-02"):
-        pred = out_dir / Path(pair[key]).name.replace(".nii.gz", f"_label-lesion_desc-{flags.lstrip('-') or 'default'}_seg.nii.gz")
-        if not pred.exists():
-            run(f"SCT_USE_GPU=1 sct_deepseg lesion_ms -i {dataset / pair[key]} -o {pred} {flags}")
-        preds.append(pred)
-    pred_2_reg = Path(str(preds[1]).replace(".nii.gz", "_space-run01.nii.gz"))
-    if not pred_2_reg.exists():
-        run(f"sct_apply_transfo -i {preds[1]} -d {dataset / pair['scan_run-01']} -w {study_dir / pair['warp_run-02_to_run-01']} -x nn -o {pred_2_reg}")
+    preds = [predict_binary(dataset / pair[key], out_dir, MODES[mode]) for key in ("scan_run-01", "rescan_run-02")]
+    pred_2_reg = warp_to_run01(preds[1], Path(str(preds[1]).replace(".nii.gz", "_space-run01.nii.gz")), pair, dataset, study_dir)
 
     # Predictions in the straightened space of each run
     preds_straight = [straighten(pred, dataset / pair[key], study_dir / pair[f"sc_seg_run-{r}"], study_dir / "qc")
@@ -120,10 +70,10 @@ def process_pair(pair, dataset, study_dir, mode):
         "session": pair["session"],
         "acquisition": pair["acquisition"],
         "has_lesion": pair["has_lesion"],
-        "lesion_count_run-01": ndimage.label(seg_1, structure=np.ones((3, 3, 3)))[1],
-        "lesion_count_run-02": ndimage.label(seg_2, structure=np.ones((3, 3, 3)))[1],
+        "lesion_count_run-01": lesion_count(seg_1),
+        "lesion_count_run-02": lesion_count(seg_2),
         VOL_1: vol_1,
-        "lesion_volume_run-02_mm3": vol_2,
+        VOL_2: vol_2,
         **volume_diff(vol_1, vol_2, "lesion_volume"),
         "lesion_volume_run-02_registered_mm3": vol_2_reg,
         **volume_diff(vol_1, vol_2_reg, "lesion_volume_registered"),
@@ -136,36 +86,6 @@ def process_pair(pair, dataset, study_dir, mode):
     }
 
 
-def plot_variability(df, prefix, vol_1, vol_2, run_1_name, run_2_name, output, dice=False):
-    """Plots the lesion volumes, their Bland-Altman plots (mm3 and %) and optionally the Dice, labeled by focal lesion."""
-    hue = "Focal lesion"
-    mean_volume = (df[vol_1] + df[vol_2]) / 2
-    fig, axes = plt.subplots(1, 4 if dice else 3, figsize=(24 if dice else 18, 5))
-
-    sns.scatterplot(data=df, x=vol_1, y=vol_2, hue=hue, palette=PALETTE, ax=axes[0])
-    max_vol = df[[vol_1, vol_2]].max().max()
-    axes[0].plot([0, max_vol], [0, max_vol], "k--", linewidth=1)
-    axes[0].set(title="Lesion volume", xlabel=f"Lesion volume {run_1_name} (mm³)", ylabel=f"Lesion volume {run_2_name} (mm³)")
-
-    # Bland-Altman plots of the volume difference in mm3 and in %
-    for ax, diff, unit in ((axes[1], df[f"{prefix}_abs_diff_mm3"], "mm³"), (axes[2], df[f"{prefix}_abs_diff_percent"], "%")):
-        sns.scatterplot(x=mean_volume, y=diff, hue=df[hue], palette=PALETTE, ax=ax)
-        mean_diff, std_diff = diff.mean(), diff.std()
-        for y, name in ((mean_diff, "mean"), (mean_diff + 1.96 * std_diff, "+1.96 SD")):
-            ax.axhline(y, color="k", linestyle="--", linewidth=1)
-            ax.annotate(f"{name}: {y:.1f}", xy=(1, y), xycoords=("axes fraction", "data"), ha="right", va="bottom", fontsize=8)
-        ax.set(title=f"Bland-Altman of lesion volume ({unit})", xlabel="Mean lesion volume (mm³)", ylabel=f"Absolute lesion volume difference |{run_2_name} - {run_1_name}| ({unit})")
-
-    if dice:
-        sns.boxplot(data=df, x=hue, y=DICE, hue=hue, palette=PALETTE, legend=False, ax=axes[3], showfliers=False)
-        sns.stripplot(data=df, x=hue, y=DICE, ax=axes[3], color="k")
-        axes[3].set(title="Dice (run-02 registered to run-01)", ylabel="Dice")
-
-    fig.tight_layout()
-    fig.savefig(output, dpi=200)
-    plt.close(fig)
-
-
 def main():
     parser = argparse.ArgumentParser(description="Evaluate the scan-rescan variability of the model lesion segmentations.")
     parser.add_argument("-i", "--input", required=True, type=Path, help="Path to the output folder of generate_study_files.py")
@@ -175,30 +95,25 @@ def main():
     args = parser.parse_args()
 
     study_dir = args.input.resolve()
-    with open(study_dir / "study_files.json") as f:
-        study = json.load(f)
+    dataset, pairs = load_study(study_dir)
 
     results = []
-    for pair in tqdm([p for p in study["pairs"] if p["status"] == "success" and not (args.exclude_stitch and p["acquisition"] == "stitch")]):
+    for pair in tqdm([p for p in pairs if not (args.exclude_stitch and p["acquisition"] == "stitch")]):
         try:
-            results.append(process_pair(pair, Path(study["dataset"]), study_dir, args.mode))
+            results.append(process_pair(pair, dataset, study_dir, args.mode))
         except Exception as e:
-            print(f"Failed for {pair['subject']}/{pair['session']}/acq-{pair['acquisition']}: {e}")
+            print(f"Failed for {pair_name(pair)}: {e}")
 
     args.output.mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame(results)
-
-    # Focal lesion visible or not, from the has_lesion field (bool or string)
-    labels = {"true": "visible", "false": "uncertain"}
-    df["Focal lesion"] = df["has_lesion"].astype(str).str.strip().str.lower().map(labels)
-
+    df["Focal lesion"] = df["has_lesion"].map(focal_lesion)
     df.to_csv(args.output / "lesion_seg_variability.csv", index=False)
 
     # Only plot the labeled pairs, so that the Bland-Altman lines are computed on the plotted points
     # (all labeled pairs, and only the pairs with visible focal lesions)
     df = df.dropna(subset=["Focal lesion"])
     for suffix, df_plot in (("", df), ("_visible", df[df["Focal lesion"] == "visible"])):
-        plot_variability(df_plot, "lesion_volume", VOL_1, "lesion_volume_run-02_mm3", "run-01", "run-02",
+        plot_variability(df_plot, "lesion_volume", VOL_1, VOL_2, "run-01", "run-02",
                          args.output / f"lesion_seg_variability_native{suffix}.png")
         plot_variability(df_plot, "lesion_volume_registered", VOL_1, "lesion_volume_run-02_registered_mm3", "run-01", "run-02 registered",
                          args.output / f"lesion_seg_variability_registered{suffix}.png", dice=True)

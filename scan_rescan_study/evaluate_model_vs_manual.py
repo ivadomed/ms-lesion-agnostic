@@ -25,46 +25,32 @@ Author: Pierre-Louis Benveniste
 """
 
 import argparse
-import json
-import os
-import sys
 from pathlib import Path
 import matplotlib.pyplot as plt
-import nibabel as nib
 import pandas as pd
 import seaborn as sns
 from tqdm import tqdm
-
-sys.path.append(str(Path(__file__).resolve().parent.parent / "evaluation"))
-from utils import dice_score, lesion_ppv, lesion_f1_score, lesion_sensitivity
+from common import PALETTE, dice, focal_lesion, load_seg, load_study, pair_name, predict_binary
+from utils import lesion_ppv, lesion_f1_score, lesion_sensitivity  # evaluation/utils.py (added to the path by common)
 
 MODES = {"default": "", "tta": "-test-time-aug", "single-fold": "-single-fold", "soft-bin": "-soft-seg"}
 METRICS = ["dice", "ppv", "f1", "sensitivity"]
-PALETTE = {"visible": "tab:orange", "uncertain": "tab:blue"}
-
-
-def load_seg(path):
-    """Loads a segmentation binarized at 0.5."""
-    return (nib.load(path).get_fdata() > 0.5).astype(float)
 
 
 def process_scan(pair, run, dataset, study_dir, mode):
     image = dataset / pair["scan_run-01" if run == "01" else "rescan_run-02"]
-    flags = MODES[mode]
 
     # Inference (shared with evaluate_model_lesion_seg_variability.py)
-    pred = (study_dir / pair[f"sc_seg_run-{run}"]).parent / image.name.replace(".nii.gz", f"_label-lesion_desc-{flags.lstrip('-') or 'default'}_seg.nii.gz")
-    if not pred.exists():
-        assert os.system(f"SCT_USE_GPU=1 sct_deepseg lesion_ms -i {image} -o {pred} {flags}") == 0, f"Inference failed for {image}"
+    pred = predict_binary(image, (study_dir / pair[f"sc_seg_run-{run}"]).parent, MODES[mode])
 
-    pred_data, label_data = load_seg(pred), load_seg(dataset / pair[f"lesion_seg_run-{run}"])
+    pred_data, label_data = (load_seg(p)[0].astype(float) for p in (pred, dataset / pair[f"lesion_seg_run-{run}"]))
     return {
         "subject": pair["subject"],
         "session": pair["session"],
         "acquisition": pair["acquisition"],
         "run": run,
         "has_lesion": pair["has_lesion"],
-        "dice": dice_score(pred_data, label_data),
+        "dice": dice(pred_data, label_data),
         "ppv": lesion_ppv(label_data, pred_data),
         "f1": lesion_f1_score(label_data, pred_data),
         "sensitivity": lesion_sensitivity(label_data, pred_data),
@@ -79,21 +65,20 @@ def main():
     args = parser.parse_args()
 
     study_dir = args.input.resolve()
-    with open(study_dir / "study_files.json") as f:
-        study = json.load(f)
+    dataset, pairs = load_study(study_dir)
 
     # All the scans with a manual lesion segmentation
-    scans = [(p, r) for p in study["pairs"] if p["status"] == "success" for r in ("01", "02") if p[f"lesion_seg_run-{r}"]]
+    scans = [(p, r) for p in pairs for r in ("01", "02") if p[f"lesion_seg_run-{r}"]]
     results = []
     for pair, run in tqdm(scans):
         try:
-            results.append(process_scan(pair, run, Path(study["dataset"]), study_dir, args.mode))
+            results.append(process_scan(pair, run, dataset, study_dir, args.mode))
         except Exception as e:
-            print(f"Failed for {pair['subject']}/{pair['session']}/acq-{pair['acquisition']}/run-{run}: {e}")
+            print(f"Failed for {pair_name(pair)}/run-{run}: {e}")
 
     args.output.mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame(results)
-    df["Focal lesion"] = df["has_lesion"].astype(str).str.strip().str.lower().map({"true": "visible", "false": "uncertain"})
+    df["Focal lesion"] = df["has_lesion"].map(focal_lesion)
     df.to_csv(args.output / "model_vs_manual.csv", index=False)
     print(df.groupby("Focal lesion")[METRICS].agg(["mean", "std"]).round(3))
 

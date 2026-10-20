@@ -38,11 +38,11 @@ Author: Pierre-Louis Benveniste
 
 import argparse
 import json
-import os
 import shutil
 import tempfile
 from pathlib import Path
 from tqdm import tqdm
+from common import run
 
 
 def parse_args():
@@ -51,12 +51,6 @@ def parse_args():
     parser.add_argument("-j", "--json", required=True, type=Path, help="Path to the JSON file listing the scan/rescan pairs")
     parser.add_argument("-o", "--output", required=True, type=Path, help="Path to the output folder")
     return parser.parse_args()
-
-
-def run(cmd):
-    """Runs a shell command and raises an error if it fails."""
-    if os.system(cmd) != 0:
-        raise RuntimeError(f"Command failed: {cmd}")
 
 
 def image_stem(image_path):
