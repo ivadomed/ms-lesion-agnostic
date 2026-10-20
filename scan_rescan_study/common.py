@@ -353,6 +353,77 @@ def plot_unmatched(df, output):
     plt.close(fig)
 
 
+# ---------------------------------------------------------------- Lower vs upper chunks
+
+CHUNKS = ["lower", "upper"]
+CHUNK_PALETTE = {"lower": "tab:green", "upper": "tab:purple"}
+
+
+def total_volume_row(pair, seg_path_1, seg_path_2):
+    """Total lesion volume and number of lesions of both runs (each in its native space) and their difference."""
+    (seg_1, voxel_vol_1), (seg_2, voxel_vol_2) = load_seg(seg_path_1), load_seg(seg_path_2)
+    vol_1, vol_2 = seg_1.sum() * voxel_vol_1, seg_2.sum() * voxel_vol_2
+    return {
+        **{k: pair[k] for k in ("subject", "session", "acquisition", "has_lesion")},
+        "lesion_count_run-01": lesion_count(seg_1),
+        "lesion_count_run-02": lesion_count(seg_2),
+        VOL_1: vol_1,
+        VOL_2: vol_2,
+        **volume_diff(vol_1, vol_2, "lesion_volume"),
+    }
+
+
+def plot_lower_vs_upper(df, output):
+    """Plots the total lesion volumes of both runs and their absolute difference (mm³ and %) for the lower and upper
+    chunks, and the % difference of the lower and upper chunks of the same subject/session."""
+    fig, axes = plt.subplots(1, 4, figsize=(24, 5))
+
+    sns.scatterplot(data=df, x=VOL_1, y=VOL_2, hue="acquisition", hue_order=CHUNKS, palette=CHUNK_PALETTE, ax=axes[0])
+    max_vol = df[[VOL_1, VOL_2]].max().max()
+    axes[0].plot([0, max_vol], [0, max_vol], "k--", linewidth=1)
+    axes[0].set(title="Total lesion volume", xlabel="Lesion volume run-01 (mm³)", ylabel="Lesion volume run-02 (mm³)")
+
+    for ax, unit in ((axes[1], "mm3"), (axes[2], "percent")):
+        y, label = f"lesion_volume_abs_diff_{unit}", {"mm3": "mm³", "percent": "%"}[unit]
+        sns.boxplot(data=df, x="acquisition", y=y, hue="acquisition", order=CHUNKS, palette=CHUNK_PALETTE, legend=False, ax=ax, showfliers=False)
+        sns.stripplot(data=df, x="acquisition", y=y, order=CHUNKS, ax=ax, color="k")
+        ax.set(title=f"Total lesion volume difference ({label})", xlabel="Chunk", ylabel=f"Absolute lesion volume difference |run-02 - run-01| ({label})")
+
+    # Lower vs upper chunk of the same subject/session
+    paired = df.pivot_table(index=["subject", "session"], columns="acquisition", values=DIFF).reindex(columns=CHUNKS).dropna()
+    for _, row in paired.iterrows():
+        axes[3].plot(CHUNKS, row[CHUNKS], "o-", color="gray", alpha=0.6)
+    axes[3].set(title=f"Paired lower vs upper chunks (n = {len(paired)})", xlabel="Chunk", ylabel="Absolute lesion volume difference |run-02 - run-01| (%)")
+
+    fig.tight_layout()
+    fig.savefig(output, dpi=200)
+    plt.close(fig)
+
+
+def save_lower_vs_upper_results(rows, output, logger):
+    """Saves lower_vs_upper.csv, logs the variability of each chunk and the paired Wilcoxon test (lower vs upper chunks
+    of the same subject/session), and plots all pairs and only the pairs with visible focal lesions."""
+    from scipy.stats import wilcoxon
+
+    df = pd.DataFrame(rows)
+    df["Focal lesion"] = df["has_lesion"].map(focal_lesion)
+    df.to_csv(output / "lower_vs_upper.csv", index=False)
+
+    for suffix, df_plot in (("", df), ("_visible", df[df["Focal lesion"] == "visible"])):
+        metrics = ["lesion_volume_abs_diff_mm3", DIFF]
+        logger.info(f"Pairs{suffix or ' (all)'}: total lesion volume variability per chunk:\n"
+                    f"{df_plot.groupby('acquisition')[metrics].describe().T.round(2)}")
+        for metric in metrics:
+            paired = df_plot.pivot_table(index=["subject", "session"], columns="acquisition", values=metric).reindex(columns=CHUNKS).dropna()
+            try:
+                p = wilcoxon(paired["lower"], paired["upper"]).pvalue
+            except ValueError as e:  # e.g. no pair, or all differences equal to 0
+                p = f"not computed ({e})"
+            logger.info(f"Pairs{suffix or ' (all)'}: {metric}, paired Wilcoxon lower vs upper (n = {len(paired)}): p = {p}")
+        plot_lower_vs_upper(df_plot, output / f"lower_vs_upper{suffix}.png")
+    logger.info(f"Results of {len(df)} pairs saved to {output}")
+
+
 def save_lesion_wise_results(rows, output, logger):
     """Saves lesions.csv, logs the number of lesion groups and of lesions, and plots the matched and unmatched lesions
     (all labeled lesions, and only the visible focal lesions)."""
